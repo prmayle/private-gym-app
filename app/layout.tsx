@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/contexts/AuthContext"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 // Import polyfills to suppress deprecation warnings
 import "@/lib/polyfills"
@@ -27,8 +28,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider defaultTheme="dark" storageKey="core-factory-theme">
           <AuthProvider>
-          {children}
-          <Toaster />
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+            <Toaster />
           </AuthProvider>
         </ThemeProvider>
       </body>

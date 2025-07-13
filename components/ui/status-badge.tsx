@@ -6,9 +6,10 @@ export type StatusType = "Active" | "Inactive" | "Available" | "Full" | "Complet
 interface StatusBadgeProps {
   status: StatusType | string
   className?: string
+  children?: React.ReactNode
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
+export function StatusBadge({ status, className, children }: StatusBadgeProps) {
   const normalizedStatus = normalizeStatus(status)
 
   const getStatusColor = (status: string) => {

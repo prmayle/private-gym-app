@@ -174,6 +174,41 @@ export interface Database {
           updated_at?: string
         }
       }
+      bookings: {
+        Row: {
+          id: string
+          member_id: string
+          session_id: string
+          booking_time: string
+          status: 'confirmed' | 'pending' | 'cancelled' | 'attended'
+          attended: boolean | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          session_id: string
+          booking_time?: string
+          status?: 'confirmed' | 'pending' | 'cancelled' | 'attended'
+          attended?: boolean | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          session_id?: string
+          booking_time?: string
+          status?: 'confirmed' | 'pending' | 'cancelled' | 'attended'
+          attended?: boolean | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       gym_settings: {
         Row: {
           id: string
@@ -514,7 +549,7 @@ export const getHomePageConfig = async (supabase: TypedSupabaseClient) => {
     const homePageId = await ensureHomePageExists(supabase)
     
     // Single optimized query with joins
-    const [sectionsResult, featuresResult, testimonialsResult] = await Promise.all([
+    const [sectionsResult, featuresResult, testimonialsResult, trainersResult] = await Promise.all([
       // Get page sections with proper join
       supabase
         .from('page_sections')
@@ -545,6 +580,22 @@ export const getHomePageConfig = async (supabase: TypedSupabaseClient) => {
         .select('id, name, role, content, image_url, sort_order')
         .eq('is_active', true)
         .order('sort_order')
+        .limit(10), // Limit to prevent over-fetching
+      
+      // Get trainers with minimal data
+      supabase
+        .from('trainers')
+        .select(`
+          id,
+          bio,
+          specializations,
+          profile_photo_url,
+          is_available,
+          profiles!inner (
+            full_name
+          )
+        `)
+        .eq('is_available', true)
         .limit(10) // Limit to prevent over-fetching
     ])
 
@@ -558,6 +609,9 @@ export const getHomePageConfig = async (supabase: TypedSupabaseClient) => {
     if (testimonialsResult.error) {
       console.warn('Testimonials query error:', testimonialsResult.error)
     }
+    if (trainersResult.error) {
+      console.warn('Trainers query error:', trainersResult.error)
+    }
 
     // Build config object efficiently
     const config: any = {}
@@ -565,7 +619,7 @@ export const getHomePageConfig = async (supabase: TypedSupabaseClient) => {
     // Process sections
     if (sectionsResult.data) {
       for (const section of sectionsResult.data) {
-        const sectionName = section.sections?.[0]?.name
+        const sectionName = (section.sections as any)?.name
         if (sectionName && section.content_data) {
           config[sectionName] = section.content_data
         }
@@ -599,6 +653,23 @@ export const getHomePageConfig = async (supabase: TypedSupabaseClient) => {
           role: t.role,
           content: t.content,
           image: t.image_url || "/uploads/home-config/placeholder-testimonial.jpg"
+        }))
+      }
+    }
+
+    // Process trainers (keep as UUID strings, don't convert to int)
+    if (trainersResult.data) {
+      const trainersSection = config.trainers || {}
+      config.trainers = {
+        title: trainersSection.title || "Our Expert Trainers",
+        subtitle: trainersSection.subtitle || "Meet the professionals who will guide your fitness journey",
+        trainers: trainersResult.data.map(t => ({
+          id: t.id, // Keep as UUID string
+          name: (t.profiles as any)?.full_name || "",
+          bio: t.bio || "",
+          specializations: Array.isArray(t.specializations) ? t.specializations.join(", ") : (t.specializations || ""),
+          profilePhotoUrl: t.profile_photo_url || "/placeholder.svg",
+          isAvailable: t.is_available || false
         }))
       }
     }

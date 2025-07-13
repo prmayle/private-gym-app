@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Search, Users, UserCheck, ChevronRight } from "lucide-react"
 
 interface Member {
@@ -38,125 +39,117 @@ export default function AdminBookSessionPage() {
     filterMembers()
   }, [members, searchQuery])
 
-  const loadMembers = () => {
+  const loadMembers = async () => {
     try {
       setLoading(true)
-      const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
+      const supabase = createClient()
 
-      // Default active members with packages
-      const defaultMembers: Member[] = [
-        {
-          id: "1",
-          name: "John Doe",
-          email: "john.doe@email.com",
-          phone: "+1234567890",
-          joinDate: "2023-01-15",
-          status: "Active",
-          packages: [
-            {
-              id: "pkg1",
-              name: "Personal Training",
-              sessions: 10,
-              remaining: 6,
-              expiryDate: "2023-12-31",
-              type: "Personal Training",
-            },
-            {
-              id: "pkg2",
-              name: "Group Classes",
-              sessions: 20,
-              remaining: 15,
-              expiryDate: "2023-12-31",
-              type: "Group Class",
-            },
-          ],
-          lastActivity: "2023-06-10",
-        },
-        {
-          id: "2",
-          name: "Jane Smith",
-          email: "jane.smith@email.com",
-          phone: "+1234567891",
-          joinDate: "2023-02-20",
-          status: "Active",
-          packages: [
-            {
-              id: "pkg3",
-              name: "Personal Training",
-              sessions: 8,
-              remaining: 4,
-              expiryDate: "2023-12-31",
-              type: "Personal Training",
-            },
-          ],
-          lastActivity: "2023-06-08",
-        },
-        {
-          id: "4",
-          name: "Emily Williams",
-          email: "emily.williams@email.com",
-          phone: "+1234567893",
-          joinDate: "2023-04-05",
-          status: "Active",
-          packages: [
-            {
-              id: "pkg4",
-              name: "Group Classes",
-              sessions: 12,
-              remaining: 8,
-              expiryDate: "2023-12-31",
-              type: "Group Class",
-            },
-            {
-              id: "pkg5",
-              name: "Yoga Sessions",
-              sessions: 10,
-              remaining: 7,
-              expiryDate: "2023-12-31",
-              type: "Yoga",
-            },
-          ],
-          lastActivity: "2023-06-12",
-        },
-        {
-          id: "5",
-          name: "Robert Brown",
-          email: "robert.brown@email.com",
-          phone: "+1234567894",
-          joinDate: "2023-05-12",
-          status: "Active",
-          packages: [
-            {
-              id: "pkg6",
-              name: "HIIT Classes",
-              sessions: 15,
-              remaining: 12,
-              expiryDate: "2023-12-31",
-              type: "Group Class",
-            },
-          ],
-          lastActivity: "2023-06-11",
-        },
-      ]
+      // Load members with their profile information and packages
+      const { data: membersData, error: membersError } = await supabase
+        .from('members')
+        .select(`
+          id,
+          user_id,
+          joined_at,
+          membership_status,
+          profiles (
+            id,
+            email,
+            full_name,
+            phone
+          )
+        `)
+        .eq('membership_status', 'active')
+        .order('joined_at', { ascending: false })
 
-      // Combine stored and default members, filter only active members with packages
-      const allMembers = [...storedMembers, ...defaultMembers]
-        .filter((member) => member.status === "Active")
-        .filter((member) => {
+      if (membersError) {
+        throw membersError
+      }
+
+      // Load member packages to get current packages for each member
+      const { data: memberPackagesData, error: packagesError } = await supabase
+        .from('member_packages')
+        .select(`
+          id,
+          member_id,
+          sessions_remaining,
+          status,
+          start_date,
+          end_date,
+          packages (
+            id,
+            name,
+            package_type,
+            session_count
+          )
+        `)
+        .eq('status', 'active')
+        .gt('sessions_remaining', 0)
+
+      if (packagesError) {
+        console.error("Error loading member packages:", packagesError)
+      }
+
+      // Load recent bookings to determine last activity
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('member_id, booking_time, attended')
+        .order('booking_time', { ascending: false })
+
+      if (bookingsError) {
+        console.error("Error loading bookings:", bookingsError)
+      }
+
+      // Process and transform the data
+      const processedMembers: Member[] = (membersData || [])
+        .map(member => {
+          // Get packages for this member
+          const memberPackages = (memberPackagesData || [])
+            .filter(mp => mp.member_id === member.id)
+            .map(mp => ({
+              id: mp.id,
+              name: (mp.packages as any)?.name || 'Unknown Package',
+              sessions: (mp.packages as any)?.session_count || 0,
+              remaining: mp.sessions_remaining || 0,
+              expiryDate: mp.end_date,
+              type: (mp.packages as any)?.package_type || 'Unknown'
+            }))
+
+          // Get last activity for this member
+          const memberBookings = (bookingsData || [])
+            .filter(b => b.member_id === member.id)
+            .sort((a, b) => new Date(b.booking_time).getTime() - new Date(a.booking_time).getTime())
+          
+          const lastActivity = memberBookings.length > 0 
+            ? memberBookings[0].booking_time
+            : member.joined_at
+
+          return {
+            id: member.id,
+            name: (member.profiles as any)?.full_name || 'No Name',
+            email: (member.profiles as any)?.email || 'No Email',
+            phone: (member.profiles as any)?.phone || 'No Phone',
+            joinDate: member.joined_at,
+            status: 'Active',
+            packages: memberPackages,
+            lastActivity: lastActivity
+          }
+        })
+        .filter(member => {
           // Only show members who have packages with remaining sessions
           const hasAvailablePackages = member.packages?.some((pkg: any) => {
-            const remaining = typeof pkg === "object" && pkg.remaining ? pkg.remaining : 0
+            const remaining = pkg.remaining || 0
             return remaining > 0
           })
           return hasAvailablePackages
         })
 
-      setMembers(allMembers)
+      setMembers(processedMembers)
     } catch (error) {
       console.error("Error loading members:", error)
       toast({
         title: "Error Loading Members",
-        description: "Failed to load member data.",
+        description: "Failed to load member data. Please try again.",
         variant: "destructive",
       })
     } finally {

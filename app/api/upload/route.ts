@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
     console.log('💾 Writing file to:', filePath);
     await writeFile(filePath, buffer);
     
-    // Return the public URL path (relative to public folder)
-    const publicPath = `/uploads/home-config/${fileName}`;
+    // Return the API URL path for serving uploaded files
+    const publicPath = `/api/uploads/home-config/${fileName}`;
     
     console.log('✅ File uploaded successfully:', publicPath);
     

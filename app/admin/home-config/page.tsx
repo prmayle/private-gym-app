@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Eye, Plus, Trash, Upload } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import Image from "next/image";
 
 // Type definitions for home page configuration
 interface HeroConfig {
@@ -72,6 +73,21 @@ interface TestimonialsConfig {
 	testimonials: TestimonialConfig[];
 }
 
+interface TrainerConfig {
+	id: string;
+	name: string;
+	bio: string;
+	specializations: string;
+	profilePhotoUrl: string;
+	isAvailable: boolean;
+}
+
+interface TrainersConfig {
+	title: string;
+	subtitle: string;
+	trainers: TrainerConfig[];
+}
+
 interface ContactConfig {
 	title: string;
 	subtitle: string;
@@ -99,6 +115,7 @@ interface HomePageConfig {
 	hero: HeroConfig;
 	about: AboutConfig;
 	features: FeaturesConfig;
+	trainers: TrainersConfig;
 	testimonials: TestimonialsConfig;
 	contact: ContactConfig;
 	footer: FooterConfig;
@@ -117,47 +134,47 @@ export default function HomeConfigPage() {
 		loadHomeConfig();
 
 		// Set up real-time subscription
-		const supabase = createClient();
-		const channel = supabase
-			.channel("home-config-changes")
-			.on(
-				"postgres_changes",
-				{
-					event: "*",
-					schema: "public",
-					table: "page_sections",
-				},
-				() => {
-					loadHomeConfig();
-				}
-			)
-			.on(
-				"postgres_changes",
-				{
-					event: "*",
-					schema: "public",
-					table: "features",
-				},
-				() => {
-					loadHomeConfig();
-				}
-			)
-			.on(
-				"postgres_changes",
-				{
-					event: "*",
-					schema: "public",
-					table: "testimonials",
-				},
-				() => {
-					loadHomeConfig();
-				}
-			)
-			.subscribe();
+		// const supabase = createClient();
+		// const channel = supabase
+		// 	.channel("home-config-changes")
+		// 	.on(
+		// 		"postgres_changes",
+		// 		{
+		// 			event: "*",
+		// 			schema: "public",
+		// 			table: "page_sections",
+		// 		},
+		// 		() => {
+		// 			loadHomeConfig();
+		// 		}
+		// 	)
+		// 	.on(
+		// 		"postgres_changes",
+		// 		{
+		// 			event: "*",
+		// 			schema: "public",
+		// 			table: "features",
+		// 		},
+		// 		() => {
+		// 			loadHomeConfig();
+		// 		}
+		// 	)
+		// 	.on(
+		// 		"postgres_changes",
+		// 		{
+		// 			event: "*",
+		// 			schema: "public",
+		// 			table: "testimonials",
+		// 		},
+		// 		() => {
+		// 			loadHomeConfig();
+		// 		}
+		// 	)
+		// 	.subscribe();
 
-		return () => {
-			supabase.removeChannel(channel);
-		};
+		// return () => {
+		// 	supabase.removeChannel(channel);
+		// };
 	}, []);
 
 	const loadHomeConfig = async () => {
@@ -188,8 +205,8 @@ export default function HomeConfigPage() {
 				homePage = newPage;
 			}
 
-			// Load page sections, features, and testimonials in parallel
-			const [sectionsResult, featuresResult, testimonialsResult] =
+			// Load page sections, features, testimonials, and trainers in parallel
+			const [sectionsResult, featuresResult, testimonialsResult, trainersResult] =
 				await Promise.all([
 					supabase
 						.from("page_sections")
@@ -214,27 +231,59 @@ export default function HomeConfigPage() {
 						.select("*")
 						.eq("is_active", true)
 						.order("sort_order"),
+
+					supabase
+						.from("trainers")
+						.select(`
+							id,
+							bio,
+							specializations,
+							profile_photo_url,
+							is_available,
+							profiles(full_name)
+						`)
+						.eq("is_available", true),
 				]);
 
 			// Build config object
 			const configData: any = {};
 
+			console.log("🔍 Sections result:", sectionsResult);
+			console.log("🔍 Features result:", featuresResult);
+			console.log("🔍 Testimonials result:", testimonialsResult);
+			console.log("🔍 Trainers result:", trainersResult);
+			console.log("🔍 Config data:", configData);
+
 			// Process sections
 			if (sectionsResult.data) {
+				console.log("🔍 Processing sections data:", sectionsResult.data);
 				for (const section of sectionsResult.data) {
-					const sectionName = section.sections?.[0]?.name;
+					const sectionName = (section.sections as any)?.name;
+					console.log(
+						"🔍 Processing section:",
+						sectionName,
+						"with content:",
+						section.content_data
+					);
 					if (sectionName && section.content_data) {
 						configData[sectionName] = section.content_data;
+						console.log(
+							"🔍 Added to configData:",
+							sectionName,
+							configData[sectionName]
+						);
 					}
 				}
 			}
 
 			// Process features
 			if (featuresResult.data) {
+				console.log("🔍 Processing features data:", featuresResult.data);
 				const featuresSection = configData.features || {};
+				console.log("🔍 Features section from configData:", featuresSection);
 				configData.features = {
-					title: featuresSection.title || "Our Services",
-					subtitle: featuresSection.subtitle || "Discover what we offer",
+					title: featuresSection.title || "",
+					subtitle: featuresSection.subtitle || "",
 					features: featuresResult.data.map((f) => ({
 						id: f.id,
 						title: f.title,
@@ -242,95 +291,161 @@ export default function HomeConfigPage() {
 						icon: f.icon,
 					})),
 				};
+				console.log("🔍 Final features config:", configData.features);
 			}
 
 			// Process testimonials
 			if (testimonialsResult.data) {
 				const testimonialsSection = configData.testimonials || {};
 				configData.testimonials = {
-					title: testimonialsSection.title || "What Our Members Say",
-					subtitle:
-						testimonialsSection.subtitle ||
-						"Success stories from our community",
+					title: testimonialsSection.title || "",
+					subtitle: testimonialsSection.subtitle || "",
 					testimonials: testimonialsResult.data.map((t) => ({
 						id: t.id,
 						name: t.name,
 						role: t.role,
 						content: t.content,
-						image:
-							t.image_url || "/uploads/home-config/placeholder-testimonial.jpg",
+						image: t.image_url || "",
 					})),
 				};
 			}
 
-			// Set default config structure
-			setConfig({
-				hero: configData.hero || {
-					title: "Transform Your Body, Transform Your Life",
-					subtitle:
-						"Join our state-of-the-art gym and achieve your fitness goals with expert trainers and top-notch equipment.",
-					showButton: true,
-					buttonText: "Start Your Journey",
-					buttonLink: "/member/dashboard",
-					backgroundImage: "/uploads/home-config/hero-bg.jpg",
-				},
-				about: configData.about || {
-					title: "About Our Gym",
-					content:
-						"We are dedicated to helping you achieve your fitness goals in a supportive and motivating environment.",
-					showImage: true,
-					image: "/uploads/home-config/about-image.jpg",
-					bulletPoints: [
-						"Expert Trainers",
-						"Modern Equipment",
-						"Flexible Hours",
-					],
-				},
-				features: configData.features || {
-					title: "Our Services",
-					subtitle: "Everything you need for your fitness journey",
-					features: [],
-				},
-				testimonials: configData.testimonials || {
-					title: "What Our Members Say",
-					subtitle: "Success stories from our community",
-					testimonials: [],
-				},
-				contact: configData.contact || {
-					title: "Get In Touch",
-					subtitle: "Ready to start your fitness journey?",
-					address: "123 Fitness Street, Gym City, GC 12345",
-					phone: "(555) 123-4567",
-					email: "info@yourgym.com",
-					showMap: true,
-					mapLocation: "123 Fitness Street, Gym City, GC 12345",
-				},
-				footer: {
-					companyName: configData.footer?.companyName || "Your Gym",
-					tagline: configData.footer?.tagline || "Transform Your Life",
-					showSocial: configData.footer?.showSocial ?? true,
-					socialLinks: {
-						facebook:
-							configData.footer?.socialLinks?.facebook ||
-							"https://facebook.com/yourgym",
-						instagram:
-							configData.footer?.socialLinks?.instagram ||
-							"https://instagram.com/yourgym",
-						twitter:
-							configData.footer?.socialLinks?.twitter ||
-							"https://twitter.com/yourgym",
-						youtube:
-							configData.footer?.socialLinks?.youtube ||
-							"https://youtube.com/yourgym",
+			// Process trainers
+			if (trainersResult.data) {
+				const trainersSection = configData.trainers || {};
+				configData.trainers = {
+					title: trainersSection.title || "",
+					subtitle: trainersSection.subtitle || "",
+					trainers: trainersResult.data.map((t) => ({
+						id: t.id,
+						name: (t.profiles as any)?.full_name || "",
+						bio: t.bio || "",
+						specializations: Array.isArray(t.specializations) ? t.specializations.join(", ") : (t.specializations || ""),
+						profilePhotoUrl: t.profile_photo_url || "",
+						isAvailable: t.is_available || false,
+					})),
+				};
+			}
+
+			console.log("🔍 after processing Sections result:", sectionsResult);
+			console.log("🔍 after processing Features result:", featuresResult);
+			console.log(
+				"🔍 after processing Testimonials result:",
+				testimonialsResult
+			);
+			console.log("🔍 after processing Config data:", configData);
+
+			// Only set config if we have data from Supabase, no static defaults
+			if (Object.keys(configData).length > 0) {
+				setConfig({
+					hero: configData.hero || {
+						title: "",
+						subtitle: "",
+						showButton: false,
+						buttonText: "",
+						buttonLink: "",
+						backgroundImage: "",
 					},
-					quickLinks: configData.footer?.quickLinks || [
-						"About",
-						"Services",
-						"Contact",
-						"Membership",
-					],
-				},
-			});
+					about: configData.about || {
+						title: "",
+						content: "",
+						showImage: false,
+						image: "",
+						bulletPoints: [],
+					},
+					features: configData.features || {
+						title: "",
+						subtitle: "",
+						features: [],
+					},
+					trainers: configData.trainers || {
+						title: "",
+						subtitle: "",
+						trainers: [],
+					},
+					testimonials: configData.testimonials || {
+						title: "",
+						subtitle: "",
+						testimonials: [],
+					},
+					contact: configData.contact || {
+						title: "",
+						subtitle: "",
+						address: "",
+						phone: "",
+						email: "",
+						showMap: false,
+						mapLocation: "",
+					},
+					footer: configData.footer || {
+						companyName: "",
+						tagline: "",
+						showSocial: false,
+						socialLinks: {
+							facebook: "",
+							instagram: "",
+							twitter: "",
+							youtube: "",
+						},
+						quickLinks: [],
+					},
+				});
+			} else {
+				// No data in Supabase, create empty config
+				setConfig({
+					hero: {
+						title: "",
+						subtitle: "",
+						showButton: false,
+						buttonText: "",
+						buttonLink: "",
+						backgroundImage: "",
+					},
+					about: {
+						title: "",
+						content: "",
+						showImage: false,
+						image: "",
+						bulletPoints: [],
+					},
+					features: {
+						title: "",
+						subtitle: "",
+						features: [],
+					},
+					trainers: {
+						title: "",
+						subtitle: "",
+						trainers: [],
+					},
+					testimonials: {
+						title: "",
+						subtitle: "",
+						testimonials: [],
+					},
+					contact: {
+						title: "",
+						subtitle: "",
+						address: "",
+						phone: "",
+						email: "",
+						showMap: false,
+						mapLocation: "",
+					},
+					footer: {
+						companyName: "",
+						tagline: "",
+						showSocial: false,
+						socialLinks: {
+							facebook: "",
+							instagram: "",
+							twitter: "",
+							youtube: "",
+						},
+						quickLinks: [],
+					},
+				});
+			}
 		} catch (error) {
 			console.error("Load error:", error);
 			toast({
@@ -370,26 +485,24 @@ export default function HomeConfigPage() {
 			if (!homePage) throw new Error("Home page not found");
 
 			// Get or create section
-			let { data: section } = await supabase
+			const { data: section, error: sectionError } = await supabase
 				.from("sections")
-				.select("id")
-				.eq("name", sectionName)
-				.single();
-
-			if (!section) {
-				const { data: newSection } = await supabase
-					.from("sections")
-					.insert({
+				.upsert(
+					{
 						name: sectionName,
 						display_name:
 							sectionName.charAt(0).toUpperCase() + sectionName.slice(1),
 						is_active: true,
-					})
-					.select("id")
-					.single();
-				section = newSection;
-			}
+					},
+					{
+						onConflict: "name",
+						ignoreDuplicates: false,
+					}
+				)
+				.select("id")
+				.single();
 
+			if (sectionError) throw sectionError;
 			if (!section) throw new Error("Could not create section");
 
 			// Define sort order for each section
@@ -397,10 +510,13 @@ export default function HomeConfigPage() {
 				hero: 0,
 				about: 1,
 				features: 2,
-				testimonials: 3,
-				contact: 4,
-				footer: 5,
+				trainers: 3,
+				testimonials: 4,
+				contact: 5,
+				footer: 6,
 			};
+
+			const sortOrder = sortOrders[sectionName] || 0;
 
 			// Check if page_section already exists
 			const { data: existingPageSection } = await supabase
@@ -408,28 +524,34 @@ export default function HomeConfigPage() {
 				.select("id")
 				.eq("page_id", homePage.id)
 				.eq("section_id", section.id)
-				.single();
+				.maybeSingle();
 
 			if (existingPageSection) {
 				// Update existing page section
-				await supabase
+				const { error: updateError } = await supabase
 					.from("page_sections")
 					.update({
 						content_data: sectionData,
+						sort_order: sortOrder,
 						is_enabled: true,
-						sort_order: sortOrders[sectionName] || 0,
 						updated_at: new Date().toISOString(),
 					})
 					.eq("id", existingPageSection.id);
+
+				if (updateError) throw updateError;
 			} else {
 				// Insert new page section
-				await supabase.from("page_sections").insert({
-					page_id: homePage.id,
-					section_id: section.id,
-					content_data: sectionData,
-					is_enabled: true,
-					sort_order: sortOrders[sectionName] || 0,
-				});
+				const { error: insertError } = await supabase
+					.from("page_sections")
+					.insert({
+						page_id: homePage.id,
+						section_id: section.id,
+						content_data: sectionData,
+						is_enabled: true,
+						sort_order: sortOrder,
+					});
+
+				if (insertError) throw insertError;
 			}
 
 			toast({
@@ -450,6 +572,7 @@ export default function HomeConfigPage() {
 
 	const saveFeature = async (feature: FeatureConfig) => {
 		try {
+			setSaving(true);
 			const supabase = createClient();
 			await supabase.from("features").upsert({
 				id: feature.id.startsWith("new-") ? undefined : feature.id,
@@ -474,6 +597,8 @@ export default function HomeConfigPage() {
 				description: "Failed to save feature",
 				variant: "destructive",
 			});
+		} finally {
+			setSaving(false);
 		}
 	};
 
@@ -509,6 +634,7 @@ export default function HomeConfigPage() {
 
 	const saveTestimonial = async (testimonial: TestimonialConfig) => {
 		try {
+			setSaving(true);
 			const supabase = createClient();
 			await supabase.from("testimonials").upsert({
 				id: testimonial.id.startsWith("new-") ? undefined : testimonial.id,
@@ -534,6 +660,8 @@ export default function HomeConfigPage() {
 				description: "Failed to save testimonial",
 				variant: "destructive",
 			});
+		} finally {
+			setSaving(false);
 		}
 	};
 
@@ -601,7 +729,7 @@ export default function HomeConfigPage() {
 			name: "",
 			role: "",
 			content: "",
-			image: "/uploads/home-config/placeholder-testimonial.jpg",
+			image: "",
 		};
 
 		updateConfig("testimonials", {
@@ -688,189 +816,121 @@ export default function HomeConfigPage() {
 
 			if (!homePage) throw new Error("Could not create home page");
 
-			// Save all sections (hero, about, contact, footer) with unique sort orders
-			const sectionsToSave = [
-				{ name: "hero", order: 0 },
-				{ name: "about", order: 1 },
-				{ name: "contact", order: 4 },
-				{ name: "footer", order: 5 },
-			];
-			const sectionPromises = sectionsToSave.map(async (sectionInfo) => {
-				// Get or create section
-				let { data: section } = await supabase
+			// Helper function to update existing page section or create new one
+			const updateOrCreateSection = async (
+				sectionName: string,
+				contentData: any,
+				sortOrder: number
+			) => {
+				// Get or create section in sections table
+				const { data: section, error: sectionError } = await supabase
 					.from("sections")
+					.upsert(
+						{
+							name: sectionName,
+							display_name:
+								sectionName.charAt(0).toUpperCase() + sectionName.slice(1),
+							is_active: true,
+						},
+						{
+							onConflict: "name",
+							ignoreDuplicates: false,
+						}
+					)
 					.select("id")
-					.eq("name", sectionInfo.name)
 					.single();
 
-				if (!section) {
-					const { data: newSection } = await supabase
-						.from("sections")
-						.insert({
-							name: sectionInfo.name,
-							display_name:
-								sectionInfo.name.charAt(0).toUpperCase() +
-								sectionInfo.name.slice(1),
-							is_active: true,
-						})
-						.select("id")
-						.single();
-					section = newSection;
-				}
-
+				if (sectionError) throw sectionError;
 				if (!section)
-					throw new Error(`Could not create ${sectionInfo.name} section`);
+					throw new Error(`Could not create ${sectionName} section`);
 
-				// Check if page_section already exists
+				// Check if page_section already exists using composite key
 				const { data: existingPageSection } = await supabase
 					.from("page_sections")
 					.select("id")
 					.eq("page_id", homePage.id)
 					.eq("section_id", section.id)
-					.single();
+					.maybeSingle();
+
+				// Check if another section already has this sort_order
+				const { data: conflictingSection } = await supabase
+					.from("page_sections")
+					.select("id, section_id")
+					.eq("page_id", homePage.id)
+					.eq("sort_order", sortOrder)
+					.neq("section_id", section.id)
+					.maybeSingle();
+
+				if (conflictingSection) {
+					// Update the conflicting section to have a temporary sort_order
+					await supabase
+						.from("page_sections")
+						.update({ sort_order: 999 })
+						.eq("id", conflictingSection.id);
+				}
 
 				if (existingPageSection) {
-					// Update existing page section
-					return supabase
+					// Update existing page_section
+					const { error: updateError } = await supabase
 						.from("page_sections")
 						.update({
-							content_data: config[sectionInfo.name as keyof HomePageConfig],
+							content_data: contentData,
+							sort_order: sortOrder,
 							is_enabled: true,
-							sort_order: sectionInfo.order,
 							updated_at: new Date().toISOString(),
 						})
 						.eq("id", existingPageSection.id);
+
+					if (updateError) throw updateError;
 				} else {
-					// Insert new page section
-					return supabase.from("page_sections").insert({
-						page_id: homePage.id,
-						section_id: section.id,
-						content_data: config[sectionInfo.name as keyof HomePageConfig],
-						is_enabled: true,
-						sort_order: sectionInfo.order,
-					});
-				}
-			});
-
-			// Save features section headers
-			let { data: featuresSection } = await supabase
-				.from("sections")
-				.select("id")
-				.eq("name", "features")
-				.single();
-
-			if (!featuresSection) {
-				const { data: newSection } = await supabase
-					.from("sections")
-					.insert({
-						name: "features",
-						display_name: "Features",
-						is_active: true,
-					})
-					.select("id")
-					.single();
-				featuresSection = newSection;
-			}
-
-			if (featuresSection) {
-				// Check if features page_section already exists
-				const { data: existingFeaturesPageSection } = await supabase
-					.from("page_sections")
-					.select("id")
-					.eq("page_id", homePage.id)
-					.eq("section_id", featuresSection.id)
-					.single();
-
-				if (existingFeaturesPageSection) {
-					// Update existing features page section
-					await supabase
+					// Insert new page_section
+					const { error: insertError } = await supabase
 						.from("page_sections")
-						.update({
-							content_data: {
-								title: config.features.title,
-								subtitle: config.features.subtitle,
-							},
+						.insert({
+							page_id: homePage.id,
+							section_id: section.id,
+							content_data: contentData,
 							is_enabled: true,
-							sort_order: 2,
-							updated_at: new Date().toISOString(),
-						})
-						.eq("id", existingFeaturesPageSection.id);
-				} else {
-					// Insert new features page section
-					await supabase.from("page_sections").insert({
-						page_id: homePage.id,
-						section_id: featuresSection.id,
-						content_data: {
-							title: config.features.title,
-							subtitle: config.features.subtitle,
-						},
-						is_enabled: true,
-						sort_order: 2,
-					});
+							sort_order: sortOrder,
+						});
+
+					if (insertError) throw insertError;
 				}
-			}
+			};
 
-			// Save testimonials section headers
-			let { data: testimonialsSection } = await supabase
-				.from("sections")
-				.select("id")
-				.eq("name", "testimonials")
-				.single();
-
-			if (!testimonialsSection) {
-				const { data: newSection } = await supabase
-					.from("sections")
-					.insert({
-						name: "testimonials",
-						display_name: "Testimonials",
-						is_active: true,
-					})
-					.select("id")
-					.single();
-				testimonialsSection = newSection;
-			}
-
-			if (testimonialsSection) {
-				// Check if testimonials page_section already exists
-				const { data: existingTestimonialsPageSection } = await supabase
-					.from("page_sections")
-					.select("id")
-					.eq("page_id", homePage.id)
-					.eq("section_id", testimonialsSection.id)
-					.single();
-
-				if (existingTestimonialsPageSection) {
-					// Update existing testimonials page section
-					await supabase
-						.from("page_sections")
-						.update({
-							content_data: {
-								title: config.testimonials.title,
-								subtitle: config.testimonials.subtitle,
-							},
-							is_enabled: true,
-							sort_order: 3,
-							updated_at: new Date().toISOString(),
-						})
-						.eq("id", existingTestimonialsPageSection.id);
-				} else {
-					// Insert new testimonials page section
-					await supabase.from("page_sections").insert({
-						page_id: homePage.id,
-						section_id: testimonialsSection.id,
-						content_data: {
-							title: config.testimonials.title,
-							subtitle: config.testimonials.subtitle,
-						},
-						is_enabled: true,
-						sort_order: 3,
-					});
-				}
-			}
+			// Save all sections sequentially to avoid race conditions
+			await updateOrCreateSection("hero", config.hero, 0);
+			await updateOrCreateSection("about", config.about, 1);
+			await updateOrCreateSection(
+				"features",
+				{
+					title: config.features.title,
+					subtitle: config.features.subtitle,
+				},
+				2
+			);
+			await updateOrCreateSection(
+				"trainers",
+				{
+					title: config.trainers.title,
+					subtitle: config.trainers.subtitle,
+				},
+				3
+			);
+			await updateOrCreateSection(
+				"testimonials",
+				{
+					title: config.testimonials.title,
+					subtitle: config.testimonials.subtitle,
+				},
+				4
+			);
+			await updateOrCreateSection("contact", config.contact, 5);
+			await updateOrCreateSection("footer", config.footer, 6);
 
 			// Save all features
 			const featurePromises = config.features.features.map(async (feature) => {
-				return supabase.from("features").upsert({
+				const { error } = await supabase.from("features").upsert({
 					id: feature.id.startsWith("new-") ? undefined : feature.id,
 					title: feature.title,
 					description: feature.description,
@@ -878,12 +938,13 @@ export default function HomeConfigPage() {
 					is_active: true,
 					updated_at: new Date().toISOString(),
 				});
+				if (error) throw error;
 			});
 
 			// Save all testimonials
 			const testimonialPromises = config.testimonials.testimonials.map(
 				async (testimonial) => {
-					return supabase.from("testimonials").upsert({
+					const { error } = await supabase.from("testimonials").upsert({
 						id: testimonial.id.startsWith("new-") ? undefined : testimonial.id,
 						name: testimonial.name,
 						role: testimonial.role,
@@ -892,15 +953,12 @@ export default function HomeConfigPage() {
 						is_active: true,
 						updated_at: new Date().toISOString(),
 					});
+					if (error) throw error;
 				}
 			);
 
-			// Execute all promises
-			await Promise.all([
-				...sectionPromises,
-				...featurePromises,
-				...testimonialPromises,
-			]);
+			// Execute feature and testimonial saves in parallel
+			await Promise.all([...featurePromises, ...testimonialPromises]);
 
 			// Reload config to get updated data
 			await loadHomeConfig();
@@ -913,7 +971,9 @@ export default function HomeConfigPage() {
 			console.error("Save all error:", error);
 			toast({
 				title: "Error",
-				description: "Failed to save settings",
+				description: `Failed to save settings: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`,
 				variant: "destructive",
 			});
 		} finally {
@@ -922,12 +982,50 @@ export default function HomeConfigPage() {
 	};
 
 	// Handle image upload
-	const handleImageUpload = async (section: string, field: string) => {
+	const handleImageUpload = async (
+		section: string,
+		field: string,
+		testimonialId?: string
+	) => {
+		console.log(
+			"🖼️ Initiating image upload for section:",
+			section,
+			"field:",
+			field,
+			"testimonialId:",
+			testimonialId
+		);
 		if (fileInputRef.current) {
+			console.log(
+				"📁 Setting up file input with section and field data - section:",
+				section,
+				"field:",
+				field,
+				"testimonialId:",
+				testimonialId
+			);
 			// Store the section and field for when file is selected
 			fileInputRef.current.dataset.section = section;
 			fileInputRef.current.dataset.field = field;
+			if (testimonialId) {
+				fileInputRef.current.dataset.testimonialId = testimonialId;
+			}
+			console.log(
+				"🖱️ Triggering file input click for section:",
+				section,
+				"field:",
+				field,
+				"testimonialId:",
+				testimonialId
+			);
 			fileInputRef.current.click();
+		} else {
+			console.log(
+				"❌ File input ref not available for section:",
+				section,
+				"field:",
+				field
+			);
 		}
 	};
 
@@ -940,51 +1038,143 @@ export default function HomeConfigPage() {
 
 		const section = event.target.dataset.section;
 		const field = event.target.dataset.field;
+		const testimonialId = event.target.dataset.testimonialId;
+
+		console.log(
+			"📁 Starting file upload process for section:",
+			section,
+			"field:",
+			field,
+			"testimonialId:",
+			testimonialId
+		);
 
 		try {
-			const supabase = createClient();
+			// Create FormData for upload
+			const formData = new FormData();
+			formData.append("file", file);
+			formData.append("section", section || "");
+			formData.append("field", field || "");
 
-			// Create a unique filename
-			const fileExt = file.name.split(".").pop();
-			const fileName = `${section}-${field}-${Date.now()}.${fileExt}`;
-			const filePath = `home-config/${fileName}`;
+			console.log(
+				"📤 Uploading file:",
+				file.name,
+				"for section:",
+				section,
+				"field:",
+				field
+			);
 
-			// Upload file to Supabase Storage
-			const { data, error } = await supabase.storage
-				.from("uploads")
-				.upload(filePath, file);
-
-			if (error) throw error;
-
-			// Get public URL
-			const {
-				data: { publicUrl },
-			} = supabase.storage.from("uploads").getPublicUrl(filePath);
-
-			// Update config with new image URL
-			if (section === "hero" && field === "backgroundImage") {
-				updateConfig("hero", { backgroundImage: publicUrl });
-			} else if (section === "about" && field === "image") {
-				updateConfig("about", { image: publicUrl });
-			} else if (section === "testimonial" && field?.startsWith("image-")) {
-				const testimonialId = field.split("-")[1];
-				const testimonialIndex = config!.testimonials.testimonials.findIndex(
-					(t) => t.id === testimonialId
-				);
-				if (testimonialIndex !== -1) {
-					updateTestimonial(testimonialIndex, "image", publicUrl);
-				}
+			// For testimonial uploads, add the testimonial ID to the form data
+			if (section === "testimonial" && testimonialId) {
+				formData.append("testimonialId", testimonialId);
 			}
 
+			// Upload to local API
+			const response = await fetch("/api/upload", {
+				method: "POST",
+				body: formData,
+			});
+
+			if (!response.ok) {
+				const errorData = await response
+					.json()
+					.catch(() => ({ error: "Upload failed" }));
+				console.log("❌ Upload failed with error:", errorData);
+				throw new Error(errorData.error || "Upload failed");
+			}
+
+			const result = await response.json();
+			console.log("✅ Upload successful, server response:", result);
+
+			const publicPath = `${result.filePath}`;
+			console.log("🔗 Generated public path for image:", publicPath);
+
+			// Update config with new image URL based on section and field
+			if (section === "hero" && field === "backgroundImage") {
+				console.log("🏠 Updating hero background image with path:", publicPath);
+				updateConfig("hero", { backgroundImage: publicPath });
+			} else if (section === "about" && field === "image") {
+				console.log("ℹ️ Updating about section image with path:", publicPath);
+				updateConfig("about", { image: publicPath });
+			} else if (
+				section === "testimonial" &&
+				field === "image" &&
+				testimonialId
+			) {
+				console.log(
+					"💬 Processing testimonial image update for ID:",
+					testimonialId
+				);
+
+				console.log(
+					"🔍 Current testimonials in config:",
+					config!.testimonials.testimonials.map((t) => ({
+						id: t.id,
+						name: t.name,
+					}))
+				);
+				console.log(
+					"🔍 Looking for testimonial with ID:",
+					testimonialId,
+					"Type:",
+					typeof testimonialId
+				);
+
+				const testimonialIndex = config!.testimonials.testimonials.findIndex(
+					(t) => {
+						console.log(
+							"🔍 Comparing t.id:",
+							t.id,
+							"(type:",
+							typeof t.id,
+							") with testimonialId:",
+							testimonialId,
+							"(type:",
+							typeof testimonialId,
+							")"
+						);
+						const match = t.id.toString() === testimonialId.toString();
+						console.log("🔍 Match result:", match);
+						return match;
+					}
+				);
+				console.log("📍 Found testimonial at index:", testimonialIndex);
+
+				if (testimonialIndex !== -1) {
+					console.log(
+						"✏️ Updating testimonial image at index",
+						testimonialIndex,
+						"with path:",
+						publicPath
+					);
+					updateTestimonial(testimonialIndex, "image", publicPath);
+				} else {
+					console.log(
+						"⚠️ Testimonial with ID",
+						testimonialId,
+						"not found in config"
+					);
+				}
+			} else {
+				console.log("⚠️ Unknown section/field combination:", section, field);
+			}
+
+			// Force a re-render by updating the config state
+			console.log("🔄 Forcing config re-render to reflect image changes");
+			setConfig((prev) => ({ ...prev! }));
+
+			console.log("🎉 Image upload and config update completed successfully");
 			toast({
 				title: "Success",
 				description: "Image uploaded successfully",
 			});
 		} catch (error) {
-			console.error("Upload error:", error);
+			console.error("💥 Upload error occurred:", error);
 			toast({
 				title: "Error",
-				description: "Failed to upload image",
+				description:
+					error instanceof Error ? error.message : "Failed to upload image",
 				variant: "destructive",
 			});
 		}
@@ -1009,7 +1199,23 @@ export default function HomeConfigPage() {
 	}
 
 	return (
-		<div className="container mx-auto py-6 space-y-6">
+		<div className="container mx-auto py-6 space-y-6 relative">
+			{/* Loading Overlay */}
+			{saving && (
+				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+					<div className="bg-white/95 shadow-2xl rounded-2xl p-8 flex items-center space-x-4 border border-gray-200">
+						<div className="relative">
+							<div className="animate-spin rounded-full h-8 w-8 border-3 border-gray-300 border-t-blue-500"></div>
+							<div className="absolute top-0 left-0 animate-ping rounded-full h-8 w-8 border-2 border-blue-400 opacity-20"></div>
+						</div>
+						<div className="flex flex-col">
+							<span className="text-lg font-semibold text-gray-900">Saving changes...</span>
+							<span className="text-sm text-gray-600">Please wait a moment</span>
+						</div>
+					</div>
+				</div>
+			)}
+
 			<div className="flex items-center justify-between">
 				<div className="flex items-center">
 					<Button variant="ghost" size="sm" className="mr-2" asChild>
@@ -1035,10 +1241,11 @@ export default function HomeConfigPage() {
 				value={activeTab}
 				onValueChange={setActiveTab}
 				className="space-y-4">
-				<TabsList className="grid grid-cols-3 md:grid-cols-6 w-full">
+				<TabsList className="grid grid-cols-3 md:grid-cols-7 w-full">
 					<TabsTrigger value="hero">Hero</TabsTrigger>
 					<TabsTrigger value="about">About</TabsTrigger>
 					<TabsTrigger value="features">Services</TabsTrigger>
+					<TabsTrigger value="trainers">Trainers</TabsTrigger>
 					<TabsTrigger value="testimonials">Testimonials</TabsTrigger>
 					<TabsTrigger value="contact">Contact</TabsTrigger>
 					<TabsTrigger value="footer">Footer</TabsTrigger>
@@ -1091,10 +1298,25 @@ export default function HomeConfigPage() {
 									</Button>
 								</div>
 								<div className="border rounded-md p-2">
-									<img
+									<Image
 										src={config.hero.backgroundImage || "/placeholder.svg"}
 										alt="Hero Background"
+										width={800}
+										height={160}
 										className="w-full h-40 object-cover rounded-md"
+										onError={(e) => {
+											const target = e.target as HTMLImageElement;
+											if (target.src !== "/placeholder.svg") {
+												console.log("Image failed to load:", target.src);
+												target.src = "/placeholder.svg";
+											}
+										}}
+										onLoad={() => {
+											console.log(
+												"Hero image loaded successfully:",
+												config.hero.backgroundImage
+											);
+										}}
 									/>
 								</div>
 							</div>
@@ -1225,10 +1447,28 @@ export default function HomeConfigPage() {
 										</Button>
 									</div>
 									<div className="border rounded-md p-2">
-										<img
+										<Image
 											src={config.about.image || "/placeholder.svg"}
 											alt="About Section"
+											width={800}
+											height={160}
 											className="w-full h-40 object-cover rounded-md"
+											onError={(e) => {
+												const target = e.target as HTMLImageElement;
+												if (target.src !== "/placeholder.svg") {
+													console.log(
+														"About image failed to load:",
+														target.src
+													);
+													target.src = "/placeholder.svg";
+												}
+											}}
+											onLoad={() => {
+												console.log(
+													"About image loaded successfully:",
+													config.about.image
+												);
+											}}
 										/>
 									</div>
 								</div>
@@ -1364,6 +1604,97 @@ export default function HomeConfigPage() {
 					</Card>
 				</TabsContent>
 
+				{/* Trainers Section */}
+				<TabsContent value="trainers" className="space-y-4">
+					<Card>
+						<CardHeader>
+							<CardTitle>Trainers Section</CardTitle>
+							<CardDescription>
+								Configure the trainers section of your home page
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="space-y-2">
+									<Label htmlFor="trainersTitle">Title</Label>
+									<Input
+										id="trainersTitle"
+										value={config.trainers.title}
+										onChange={(e) =>
+											updateConfig("trainers", { title: e.target.value })
+										}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="trainersSubtitle">Subtitle</Label>
+									<Input
+										id="trainersSubtitle"
+										value={config.trainers.subtitle}
+										onChange={(e) =>
+											updateConfig("trainers", { subtitle: e.target.value })
+										}
+									/>
+								</div>
+							</div>
+
+							<div className="space-y-2">
+								<Label>Trainers to Display</Label>
+								<div className="space-y-4">
+									{config.trainers.trainers.map((trainer, index) => (
+										<Card key={trainer.id}>
+											<CardContent className="pt-4 space-y-4">
+												<div className="flex items-center space-x-4">
+													<div className="flex items-center space-x-2">
+														<Switch
+															id={`trainerVisible-${trainer.id}`}
+															checked={trainer.isAvailable}
+															onCheckedChange={(checked) => {
+																const updatedTrainers = [...config.trainers.trainers];
+																updatedTrainers[index] = { ...updatedTrainers[index], isAvailable: checked };
+																updateConfig("trainers", { trainers: updatedTrainers });
+															}}
+														/>
+														<Label htmlFor={`trainerVisible-${trainer.id}`}>
+															Show on Homepage
+														</Label>
+													</div>
+												</div>
+												<div className="flex items-center space-x-4">
+													<div className="relative w-16 h-16">
+														<img
+															src={trainer.profilePhotoUrl || "/placeholder.svg"}
+															alt={trainer.name}
+															className="rounded-full object-cover w-full h-full"
+														/>
+													</div>
+													<div className="flex-1">
+														<h3 className="font-semibold">{trainer.name}</h3>
+														<p className="text-sm text-foreground/70">{trainer.specializations}</p>
+														<p className="text-sm text-foreground/60 line-clamp-2">{trainer.bio}</p>
+													</div>
+												</div>
+											</CardContent>
+										</Card>
+									))}
+									{config.trainers.trainers.length === 0 && (
+										<div className="text-center py-8 text-foreground/50">
+											No trainers found. Add trainers in the Trainers management section first.
+										</div>
+									)}
+								</div>
+							</div>
+
+							<div className="flex gap-2">
+								<Button
+									onClick={() => saveSection("trainers")}
+									className="flex-1">
+									Save Trainers Section
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				</TabsContent>
+
 				{/* Testimonials Section */}
 				<TabsContent value="testimonials" className="space-y-4">
 					<Card>
@@ -1421,6 +1752,23 @@ export default function HomeConfigPage() {
 																		}
 																		alt={testimonial.name}
 																		className="rounded-full object-cover w-full h-full"
+																		onError={(e) => {
+																			const target =
+																				e.target as HTMLImageElement;
+																			if (target.src !== "/placeholder.svg") {
+																				console.log(
+																					"Testimonial image failed to load:",
+																					target.src
+																				);
+																				target.src = "/placeholder.svg";
+																			}
+																		}}
+																		onLoad={() => {
+																			console.log(
+																				"Testimonial image loaded successfully:",
+																				testimonial.image
+																			);
+																		}}
 																	/>
 																	<Button
 																		variant="outline"
@@ -1429,7 +1777,8 @@ export default function HomeConfigPage() {
 																		onClick={() =>
 																			handleImageUpload(
 																				"testimonial",
-																				`image-${testimonial.id}`
+																				"image",
+																				testimonial.id
 																			)
 																		}>
 																		<Upload className="h-3 w-3" />
@@ -1603,13 +1952,40 @@ export default function HomeConfigPage() {
 										onChange={(e) =>
 											updateConfig("contact", { mapLocation: e.target.value })
 										}
+										placeholder="Enter address or place name (e.g., 123 Main St, New York, NY)"
 									/>
-									<div className="border rounded-md p-2 bg-gray-100 h-40 flex items-center justify-center">
-										<p className="text-sm text-gray-500">
-											Map Preview (Google Maps integration would be implemented
-											here)
-										</p>
+									<div className="border rounded-md overflow-hidden">
+										{config.contact.mapLocation ? (
+											<iframe
+												width="100%"
+												height="200"
+												style={{ border: 0 }}
+												loading="lazy"
+												allowFullScreen
+												referrerPolicy="no-referrer-when-downgrade"
+												src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY'}&q=${encodeURIComponent(config.contact.mapLocation)}`}
+											/>
+										) : (
+											<div className="h-48 bg-gray-100 flex items-center justify-center">
+												<div className="text-center">
+													<p className="text-sm text-gray-500">
+														Enter a location above to see the map
+													</p>
+													<p className="text-xs text-gray-400 mt-1">
+														Example: "123 Main St, New York, NY" or "Central Park"
+													</p>
+												</div>
+											</div>
+										)}
 									</div>
+									{config.contact.mapLocation && !process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+										<div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+											<p className="text-sm text-yellow-800">
+												<strong>Note:</strong> To display the map, you need to set up a Google Maps API key.
+												Add <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to your environment variables.
+											</p>
+										</div>
+									)}
 								</div>
 							)}
 						</CardContent>
@@ -1649,7 +2025,7 @@ export default function HomeConfigPage() {
 								</div>
 							</div>
 
-							<div className="space-y-2">
+							{/* <div className="space-y-2">
 								<div className="flex items-center justify-between">
 									<Label>Quick Links</Label>
 									<Button variant="outline" size="sm" onClick={addQuickLink}>
@@ -1674,7 +2050,7 @@ export default function HomeConfigPage() {
 										</div>
 									))}
 								</div>
-							</div>
+							</div> */}
 
 							<div className="flex items-center space-x-2">
 								<Switch

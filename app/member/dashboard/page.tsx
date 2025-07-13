@@ -8,73 +8,208 @@ import { Badge } from "@/components/ui/badge"
 import { Bell, Calendar, Package, TrendingUp, Clock } from "lucide-react"
 import { UserDropdown } from "@/components/ui/user-dropdown"
 import { useAuth } from "@/contexts/AuthContext"
+import { createClient } from "@/utils/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 export default function MemberDashboard() {
   const auth = useAuth()
+  const { toast } = useToast()
 
-  const [memberData] = useState({
-    name: auth.userProfile?.full_name || auth.user?.user_metadata?.full_name || auth.user?.email?.split('@')[0] || "John Doe",
-    membershipType: "Premium",
-    joinDate: "2023-01-15",
-    nextSession: {
-      type: "Personal Training",
-      trainer: "Mike Johnson",
-      date: "2023-06-20",
-      time: "10:00 AM",
-    },
+  const [memberData, setMemberData] = useState({
+    name: auth.userProfile?.full_name || auth.user?.user_metadata?.full_name || auth.user?.email?.split('@')[0] || "Loading...",
+    membershipType: "Loading...",
+    joinDate: "Loading...",
+    nextSession: null,
   })
 
-  const [packages] = useState([
-    {
-      name: "Personal Training",
-      remaining: 5,
-      total: 10,
-      expiry: "2023-12-31",
-    },
-    {
-      name: "Group Class",
-      remaining: 8,
-      total: 12,
-      expiry: "2023-12-31",
-    },
-  ])
-
-  const [recentSessions] = useState([
-    {
-      id: "1",
-      type: "Personal Training",
-      trainer: "Mike Johnson",
-      date: "2023-06-15",
-      status: "Completed",
-    },
-    {
-      id: "2",
-      type: "Group Class",
-      trainer: "Sarah Williams",
-      date: "2023-06-12",
-      status: "Completed",
-    },
-    {
-      id: "3",
-      type: "Personal Training",
-      trainer: "David Lee",
-      date: "2023-06-10",
-      status: "Completed",
-    },
-  ])
-
+  const [packages, setPackages] = useState([])
+  const [recentSessions, setRecentSessions] = useState([])
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [progressData, setProgressData] = useState({
+    weight: null,
+    bodyFat: null,
+    muscleMass: null
+  })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Load notifications from localStorage
-    const storedNotifications = JSON.parse(localStorage.getItem("member-notifications") || "[]")
-    setNotifications(storedNotifications)
+    if (auth.user) {
+      loadMemberDashboardData()
+    }
+  }, [auth.user])
 
-    // Calculate unread count
-    const unread = storedNotifications.filter((notification: any) => !notification.read).length
-    setUnreadCount(unread)
-  }, [])
+  const loadMemberDashboardData = async () => {
+    try {
+      setLoading(true)
+      const supabase = createClient()
+
+      if (!auth.user) {
+        return
+      }
+
+      // Get member profile
+      const { data: memberProfile, error: memberError } = await supabase
+        .from('members')
+        .select(`
+          id,
+          joined_at,
+          membership_status,
+          user_id
+        `)
+        .eq('user_id', auth.user.id)
+        .single()
+
+      if (memberError) {
+        console.error("Error loading member profile:", memberError)
+        // Create fallback member data
+        setMemberData({
+          name: auth.user.email?.split('@')[0] || "Member",
+          membershipType: 'Active Member',
+          joinDate: new Date().toLocaleDateString(),
+          nextSession: null
+        })
+        return
+      }
+
+      // Update member data
+      setMemberData({
+        name: auth.user.email?.split('@')[0] || "Member",
+        membershipType: memberProfile.membership_status === 'active' ? 'Active Member' : 'Inactive Member',
+        joinDate: new Date(memberProfile.joined_at).toLocaleDateString(),
+        nextSession: null // Will be populated later
+      })
+
+      // Load member packages
+      const { data: packagesData, error: packagesError } = await supabase
+        .from('member_packages')
+        .select(`
+          id,
+          sessions_remaining,
+          sessions_total,
+          end_date,
+          status,
+          package_id
+        `)
+        .eq('member_id', memberProfile.id)
+        .eq('status', 'active')
+        .order('end_date', { ascending: true })
+
+      if (packagesError) {
+        console.error("Error loading packages:", packagesError)
+      } else {
+        const transformedPackages = (packagesData || []).map(pkg => ({
+          name: 'Package',
+          remaining: pkg.sessions_remaining || 0,
+          total: pkg.sessions_total || 0,
+          expiry: new Date(pkg.end_date).toLocaleDateString()
+        }))
+        setPackages(transformedPackages)
+      }
+
+      // Load recent sessions (bookings)
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          status,
+          booking_time,
+          attended,
+          session_id
+        `)
+        .eq('member_id', memberProfile.id)
+        .order('booking_time', { ascending: false })
+        .limit(5)
+
+      if (bookingsError) {
+        console.error("Error loading recent sessions:", bookingsError)
+      } else {
+        const transformedSessions = (bookingsData || []).map(booking => ({
+          id: booking.id,
+          type: 'Training Session',
+          trainer: 'Trainer',
+          date: new Date(booking.booking_time).toLocaleDateString(),
+          status: booking.attended ? 'Completed' : booking.status === 'confirmed' ? 'Upcoming' : 'Cancelled'
+        }))
+        setRecentSessions(transformedSessions)
+
+        // Find next upcoming session
+        const upcomingSessions = transformedSessions.filter(session => session.status === 'Upcoming')
+        if (upcomingSessions.length > 0) {
+          const nextSession = upcomingSessions[0]
+          setMemberData(prev => ({
+            ...prev,
+            nextSession: {
+              type: nextSession.type,
+              trainer: nextSession.trainer,
+              date: nextSession.date,
+              time: "Check sessions for time"
+            }
+          }))
+        }
+      }
+
+      // Load notifications (with error handling)
+      try {
+        const { data: notificationsData, error: notificationsError } = await supabase
+          .from('notifications')
+          .select('id, title, message, is_read, created_at')
+          .eq('user_id', auth.user.id)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (notificationsError) {
+          console.error("Error loading notifications:", notificationsError)
+        } else {
+          setNotifications(notificationsData || [])
+          const unread = (notificationsData || []).filter(notification => !notification.is_read).length
+          setUnreadCount(unread)
+        }
+      } catch (error) {
+        console.error("Notifications table might not exist:", error)
+        setNotifications([])
+        setUnreadCount(0)
+      }
+
+      // Load latest progress data (with error handling)
+      try {
+        const { data: progressData, error: progressError } = await supabase
+          .from('progress_tracking')
+          .select('weight, body_fat_percentage, muscle_mass, measurement_date')
+          .eq('member_id', memberProfile.id)
+          .order('measurement_date', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (progressError) {
+          console.error("Error loading progress data:", progressError)
+        } else if (progressData) {
+          setProgressData({
+            weight: progressData.weight,
+            bodyFat: progressData.body_fat_percentage,
+            muscleMass: progressData.muscle_mass
+          })
+        }
+      } catch (error) {
+        console.error("Progress tracking table might not exist:", error)
+        setProgressData({
+          weight: null,
+          bodyFat: null,
+          muscleMass: null
+        })
+      }
+
+    } catch (error) {
+      console.error("Error loading dashboard data:", error)
+      toast({
+        title: "Error Loading Dashboard",
+        description: "Failed to load dashboard data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -194,20 +329,34 @@ export default function MemberDashboard() {
             <CardDescription>Your latest measurements and progress</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Weight</span>
-                <span className="font-medium">75 kg</span>
+            {loading ? (
+              <div className="space-y-4">
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Body Fat</span>
-                <span className="font-medium">15%</span>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Weight</span>
+                  <span className="font-medium">
+                    {progressData.weight ? `${progressData.weight} kg` : 'Not recorded'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Body Fat</span>
+                  <span className="font-medium">
+                    {progressData.bodyFat ? `${progressData.bodyFat}%` : 'Not recorded'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Muscle Mass</span>
+                  <span className="font-medium">
+                    {progressData.muscleMass ? `${progressData.muscleMass} kg` : 'Not recorded'}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Muscle Mass</span>
-                <span className="font-medium">45 kg</span>
-              </div>
-            </div>
+            )}
             <Button variant="outline" className="w-full mt-4 bg-transparent" asChild>
               <Link href="/member/progress">View Detailed Progress</Link>
             </Button>

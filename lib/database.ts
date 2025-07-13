@@ -1,9 +1,12 @@
-import { supabase } from './supabase'
-import { Database } from '../types/supabase'
+import { createClient } from '@/utils/supabase/client'
+import { Database } from './supabase'
+
+// Create a singleton client for all database operations
+const supabase = createClient()
 
 // Type aliases for easier use
 type Tables = Database['public']['Tables']
-type User = Tables['users']['Row']
+type User = Tables['profiles']['Row']
 type Member = Tables['members']['Row']
 type Session = Tables['sessions']['Row']
 type Booking = Tables['bookings']['Row']
@@ -21,7 +24,7 @@ export async function getCurrentUser() {
 
 export async function getUserProfile(userId: string) {
   const { data, error } = await supabase
-    .from('users')
+    .from('profiles')
     .select('*')
     .eq('id', userId)
     .single()
@@ -32,7 +35,7 @@ export async function getUserProfile(userId: string) {
 
 export async function updateUserProfile(userId: string, updates: Partial<User>) {
   const { data, error } = await supabase
-    .from('users')
+    .from('profiles')
     .update(updates)
     .eq('id', userId)
     .select()

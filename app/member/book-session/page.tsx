@@ -7,220 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, ArrowRight, Calendar, Clock, User } from "lucide-react"
 
-// Mock data for the current member's package
-const memberPackages = {
-  "Personal Training": {
-    remaining: 5,
-    total: 10,
-    expiry: "2023-12-31",
-  },
-  "Group Class": {
-    remaining: 8,
-    total: 12,
-    expiry: "2023-12-31",
-  },
-  "Fitness Assessment": {
-    remaining: 0,
-    total: 2,
-    expiry: "2023-12-31",
-  },
-}
-
-// Add more mock sessions for different weeks to enable proper week navigation
-const availableSessions = [
-  // Week 1: June 18-24, 2023
-  {
-    id: "101",
-    type: "Personal Training",
-    trainer: "Mike Johnson",
-    date: "2023-06-20",
-    time: "10:00 AM - 11:00 AM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  {
-    id: "102",
-    type: "Group Class",
-    trainer: "Sarah Williams",
-    date: "2023-06-20",
-    time: "2:00 PM - 3:00 PM",
-    capacity: { booked: 5, total: 10 },
-    isFull: false,
-  },
-  {
-    id: "103",
-    type: "Personal Training",
-    trainer: "David Lee",
-    date: "2023-06-21",
-    time: "11:00 AM - 12:00 PM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  {
-    id: "104",
-    type: "Fitness Assessment",
-    trainer: "Mike Johnson",
-    date: "2023-06-21",
-    time: "3:00 PM - 4:00 PM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  {
-    id: "105",
-    type: "Group Class",
-    trainer: "Sarah Williams",
-    date: "2023-06-22",
-    time: "9:00 AM - 10:00 AM",
-    capacity: { booked: 8, total: 10 },
-    isFull: false,
-  },
-  {
-    id: "106",
-    type: "Personal Training",
-    trainer: "Mike Johnson",
-    date: "2023-06-22",
-    time: "1:00 PM - 2:00 PM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  {
-    id: "107",
-    type: "Group Class",
-    trainer: "David Lee",
-    date: "2023-06-23",
-    time: "5:00 PM - 6:00 PM",
-    capacity: { booked: 9, total: 10 },
-    isFull: false,
-  },
-  {
-    id: "108",
-    type: "Fitness Assessment",
-    trainer: "Sarah Williams",
-    date: "2023-06-24",
-    time: "10:00 AM - 11:00 AM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  // Week 2: June 25 - July 1, 2023
-  {
-    id: "201",
-    type: "Personal Training",
-    trainer: "Mike Johnson",
-    date: "2023-06-26",
-    time: "9:00 AM - 10:00 AM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  {
-    id: "202",
-    type: "Group Class",
-    trainer: "Sarah Williams",
-    date: "2023-06-26",
-    time: "6:00 PM - 7:00 PM",
-    capacity: { booked: 3, total: 12 },
-    isFull: false,
-  },
-  {
-    id: "203",
-    type: "Personal Training",
-    trainer: "David Lee",
-    date: "2023-06-27",
-    time: "2:00 PM - 3:00 PM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  {
-    id: "204",
-    type: "Group Class",
-    trainer: "Mike Johnson",
-    date: "2023-06-28",
-    time: "7:00 AM - 8:00 AM",
-    capacity: { booked: 6, total: 15 },
-    isFull: false,
-  },
-  {
-    id: "205",
-    type: "Fitness Assessment",
-    trainer: "Sarah Williams",
-    date: "2023-06-29",
-    time: "11:00 AM - 12:00 PM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  // Week 3: July 2 - July 8, 2023
-  {
-    id: "301",
-    type: "Personal Training",
-    trainer: "David Lee",
-    date: "2023-07-03",
-    time: "8:00 AM - 9:00 AM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  {
-    id: "302",
-    type: "Group Class",
-    trainer: "Mike Johnson",
-    date: "2023-07-03",
-    time: "5:00 PM - 6:00 PM",
-    capacity: { booked: 4, total: 10 },
-    isFull: false,
-  },
-  {
-    id: "303",
-    type: "Personal Training",
-    trainer: "Sarah Williams",
-    date: "2023-07-04",
-    time: "10:00 AM - 11:00 AM",
-    capacity: { booked: 0, total: 1 },
-    isFull: false,
-  },
-  {
-    id: "304",
-    type: "Group Class",
-    trainer: "David Lee",
-    date: "2023-07-05",
-    time: "6:30 PM - 7:30 PM",
-    capacity: { booked: 7, total: 12 },
-    isFull: false,
-  },
-]
-
-// Mock data for member's booked sessions
-const bookedSessions = [
-  {
-    id: "201",
-    type: "Personal Training",
-    trainer: "Mike Johnson",
-    date: "2023-06-18",
-    time: "10:00 AM - 11:00 AM",
-    status: "Completed",
-  },
-  {
-    id: "202",
-    type: "Group Class",
-    trainer: "Sarah Williams",
-    date: "2023-06-25",
-    time: "2:00 PM - 3:00 PM",
-    status: "Upcoming",
-  },
-  {
-    id: "203",
-    type: "Personal Training",
-    trainer: "David Lee",
-    date: "2023-06-15",
-    time: "11:00 AM - 12:00 PM",
-    status: "Cancelled",
-  },
-]
 
 // Group sessions by week
-const groupSessionsByWeek = (sessions) => {
-  const weeks = {}
+const groupSessionsByWeek = (sessions: any[]) => {
+  const weeks: any = {}
 
-  sessions.forEach((session) => {
+  sessions.forEach((session: any) => {
     const date = new Date(session.date)
     const weekStart = new Date(date)
     weekStart.setDate(date.getDate() - date.getDay()) // Start of week (Sunday)
@@ -236,10 +31,10 @@ const groupSessionsByWeek = (sessions) => {
 
   // Sort sessions within each week by date and time
   Object.keys(weeks).forEach((weekKey) => {
-    weeks[weekKey].sort((a, b) => {
+    weeks[weekKey].sort((a: any, b: any) => {
       const dateA = new Date(`${a.date} ${a.time.split(" - ")[0]}`)
       const dateB = new Date(`${b.date} ${b.time.split(" - ")[0]}`)
-      return dateA - dateB
+      return dateA.getTime() - dateB.getTime()
     })
   })
 
@@ -252,25 +47,217 @@ export default function BookSessionPage() {
   const [activeTab, setActiveTab] = useState("available")
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0)
   const [weeklyAvailableSessions, setWeeklyAvailableSessions] = useState({})
-  const [memberSessions, setMemberSessions] = useState(bookedSessions)
+  const [memberSessions, setMemberSessions] = useState([])
   const [bookedSessionIds, setBookedSessionIds] = useState(new Set())
+  const [memberPackages, setMemberPackages] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [currentMemberId, setCurrentMemberId] = useState(null)
 
   useEffect(() => {
-    // Load booked sessions from localStorage
-    const storedBookedSessions = JSON.parse(localStorage.getItem("member-booked-sessions") || "[]")
-    const bookedIds = new Set(storedBookedSessions.map((session) => session.id))
-    setBookedSessionIds(bookedIds)
-
-    // Load member sessions from localStorage
-    const storedMemberSessions = JSON.parse(localStorage.getItem("member-sessions") || "[]")
-    if (storedMemberSessions.length > 0) {
-      setMemberSessions(storedMemberSessions)
-    }
-
-    // Group available sessions by week
-    const grouped = groupSessionsByWeek(availableSessions)
-    setWeeklyAvailableSessions(grouped)
+    loadMemberData()
   }, [])
+
+  const loadMemberData = async () => {
+    try {
+      setLoading(true)
+      const supabase = createClient()
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to book sessions.",
+          variant: "destructive",
+        })
+        router.push('/login')
+        return
+      }
+
+      // Get member profile
+      const { data: memberData, error: memberError } = await supabase
+        .from('members')
+        .select('id, user_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (memberError || !memberData) {
+        toast({
+          title: "Member Profile Not Found",
+          description: "Please contact admin to set up your member profile.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setCurrentMemberId(memberData.id)
+
+      // Load member packages
+      const { data: packagesData, error: packagesError } = await supabase
+        .from('member_packages')
+        .select(`
+          id,
+          sessions_remaining,
+          status,
+          end_date,
+          packages (
+            name,
+            package_type,
+            session_count
+          )
+        `)
+        .eq('member_id', memberData.id)
+        .eq('status', 'active')
+        .gt('sessions_remaining', 0)
+
+      if (packagesError) {
+        console.error("Error loading member packages:", packagesError)
+      }
+
+      // Transform packages data with better session type mapping
+      const transformedPackages: any = {}
+      if (packagesData) {
+        packagesData.forEach(pkg => {
+          const packageType = (pkg.packages as any)?.package_type || 'Unknown'
+          const packageName = (pkg.packages as any)?.name || packageType
+          
+          // Map package types to session types they can book
+          let sessionTypes = []
+          switch(packageType.toLowerCase()) {
+            case 'personal_training':
+              sessionTypes = ['Personal Training', 'personal_training']
+              break
+            case 'group_class':
+              sessionTypes = ['Group Class', 'group_class', 'Group Training']
+              break
+            case 'fitness_assessment':
+              sessionTypes = ['Fitness Assessment', 'fitness_assessment']
+              break
+            case 'nutrition_consultation':
+              sessionTypes = ['Nutrition Consultation', 'nutrition_consultation']
+              break
+            case 'monthly':
+            case 'general':
+              sessionTypes = ['Personal Training', 'Group Class', 'Group Training', 'personal_training', 'group_class']
+              break
+            default:
+              sessionTypes = [packageType, packageName]
+          }
+          
+          // Add entries for all session types this package can book
+          sessionTypes.forEach(sessionType => {
+            transformedPackages[sessionType] = {
+              remaining: pkg.sessions_remaining || 0,
+              total: (pkg.packages as any)?.session_count || 0,
+              expiry: pkg.end_date,
+              packageType: packageType,
+              packageName: packageName
+            }
+          })
+        })
+      }
+      setMemberPackages(transformedPackages)
+
+      // Load available sessions
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          title,
+          session_type,
+          start_time,
+          end_time,
+          max_capacity,
+          current_bookings,
+          status,
+          trainers (
+            profiles (
+              full_name
+            )
+          )
+        `)
+        .gte('start_time', new Date().toISOString())
+        .eq('status', 'scheduled')
+        .order('start_time', { ascending: true })
+
+      if (sessionsError) {
+        console.error("Error loading sessions:", sessionsError)
+      }
+
+      // Transform sessions data
+      const transformedSessions = (sessionsData || []).map(session => ({
+        id: session.id,
+        type: session.session_type,
+        trainer: (session.trainers as any)?.profiles?.full_name || 'Unassigned',
+        date: new Date(session.start_time).toISOString().split('T')[0],
+        time: `${new Date(session.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(session.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
+        capacity: {
+          booked: session.current_bookings || 0,
+          total: session.max_capacity || 1
+        },
+        isFull: (session.current_bookings || 0) >= (session.max_capacity || 1)
+      }))
+
+      // Group sessions by week
+      const grouped = groupSessionsByWeek(transformedSessions)
+      setWeeklyAvailableSessions(grouped)
+
+      // Load member's booked sessions
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          status,
+          booking_time,
+          sessions (
+            id,
+            title,
+            session_type,
+            start_time,
+            end_time,
+            trainers (
+              profiles (
+                full_name
+              )
+            )
+          )
+        `)
+        .eq('member_id', memberData.id)
+        .order('booking_time', { ascending: false })
+
+      if (bookingsError) {
+        console.error("Error loading bookings:", bookingsError)
+      }
+
+      // Transform booked sessions
+      const transformedBookedSessions = (bookingsData || []).map(booking => ({
+        id: (booking.sessions as any)?.id || booking.id,
+        type: (booking.sessions as any)?.session_type || 'Unknown',
+        trainer: (booking.sessions as any)?.trainers?.profiles?.full_name || 'Unknown',
+        date: (booking.sessions as any)?.start_time ? new Date((booking.sessions as any).start_time).toISOString().split('T')[0] : 'Unknown',
+        time: (booking.sessions as any)?.start_time && (booking.sessions as any)?.end_time 
+          ? `${new Date((booking.sessions as any).start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date((booking.sessions as any).end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` 
+          : 'Unknown',
+        status: booking.status === 'confirmed' ? 'Upcoming' : booking.status === 'cancelled' ? 'Cancelled' : 'Completed'
+      }))
+
+      setMemberSessions(transformedBookedSessions)
+
+      // Set booked session IDs
+      const bookedIds = new Set(transformedBookedSessions.map(session => session.id))
+      setBookedSessionIds(bookedIds)
+
+    } catch (error) {
+      console.error("Error loading member data:", error)
+      toast({
+        title: "Error Loading Data",
+        description: "Failed to load session data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const weekKeys = Object.keys(weeklyAvailableSessions).sort()
   const currentWeekKey = weekKeys[currentWeekIndex] || ""
@@ -290,7 +277,16 @@ export default function BookSessionPage() {
     return `${formatDate(weekStart)} - ${formatDate(weekEnd)}`
   }
 
-  const handleBookSession = (session) => {
+  const handleBookSession = async (session) => {
+    if (!currentMemberId) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to book sessions.",
+        variant: "destructive",
+      })
+      return
+    }
+
     // Check if session is already booked
     if (bookedSessionIds.has(session.id)) {
       toast({
@@ -322,135 +318,283 @@ export default function BookSessionPage() {
       return
     }
 
-    // Update the session capacity in the current week sessions
-    const updatedWeeklySessions = { ...weeklyAvailableSessions }
-    Object.keys(updatedWeeklySessions).forEach((weekKey) => {
-      updatedWeeklySessions[weekKey] = updatedWeeklySessions[weekKey].map((s) => {
-        if (s.id === session.id) {
-          return {
-            ...s,
-            capacity: {
-              ...s.capacity,
-              booked: s.capacity.booked + 1,
-            },
-          }
-        }
-        return s
-      })
-    })
-    setWeeklyAvailableSessions(updatedWeeklySessions)
+    try {
+      setLoading(true)
+      const supabase = createClient()
 
-    // Book the session
-    const newBookedSession = {
-      id: session.id,
-      type: session.type,
-      trainer: session.trainer,
-      date: session.date,
-      time: session.time,
-      status: "Upcoming",
-    }
+      // Find the matching member package that can book this session type
+      const packageInfo = memberPackages[session.type]
+      if (!packageInfo) {
+        throw new Error("No valid package found for this session type")
+      }
 
-    const updatedMemberSessions = [...memberSessions, newBookedSession]
-    setMemberSessions(updatedMemberSessions)
+      const { data: memberPackageData, error: packageError } = await supabase
+        .from('member_packages')
+        .select(`
+          id, 
+          sessions_remaining,
+          packages (
+            package_type,
+            name
+          )
+        `)
+        .eq('member_id', currentMemberId)
+        .eq('status', 'active')
+        .gt('sessions_remaining', 0)
 
-    // Add to booked session IDs
-    const updatedBookedIds = new Set([...bookedSessionIds, session.id])
-    setBookedSessionIds(updatedBookedIds)
+      if (packageError || !memberPackageData || memberPackageData.length === 0) {
+        throw new Error("No valid package found")
+      }
 
-    // Update package remaining sessions
-    memberPackages[session.type].remaining -= 1
-
-    // Save to localStorage
-    localStorage.setItem("member-sessions", JSON.stringify(updatedMemberSessions))
-    localStorage.setItem(
-      "member-booked-sessions",
-      JSON.stringify(updatedMemberSessions.filter((s) => s.status === "Upcoming")),
-    )
-
-    // After booking the session, update session capacity
-    const existingSlots = JSON.parse(localStorage.getItem("gym-calendar-slots") || "[]")
-    const updatedSlots = existingSlots.map((slot) => {
-      if (slot.id === session.id) {
-        return {
-          ...slot,
-          capacity: slot.capacity
-            ? {
-                ...slot.capacity,
-                booked: (slot.capacity.booked || 0) + 1,
-              }
-            : { booked: 1, total: slot.total || 1 },
+      // Find the best matching package for this session type
+      let selectedPackage = null
+      for (const pkg of memberPackageData) {
+        const pkgType = (pkg.packages as any)?.package_type || 'Unknown'
+        const pkgName = (pkg.packages as any)?.name || pkgType
+        
+        // Check if this package can book the session type
+        if (packageInfo.packageType === pkgType || packageInfo.packageName === pkgName) {
+          selectedPackage = pkg
+          break
         }
       }
-      return slot
-    })
-    localStorage.setItem("gym-calendar-slots", JSON.stringify(updatedSlots))
+      
+      // If no exact match, use the first available package for general/monthly packages
+      if (!selectedPackage) {
+        for (const pkg of memberPackageData) {
+          const pkgType = (pkg.packages as any)?.package_type || 'Unknown'
+          if (pkgType.toLowerCase() === 'monthly' || pkgType.toLowerCase() === 'general') {
+            selectedPackage = pkg
+            break
+          }
+        }
+      }
 
-    toast({
-      title: "Session Booked",
-      description: `Your ${session.type} session has been successfully booked.`,
-    })
+      // If still no match, use the first available package
+      if (!selectedPackage) {
+        selectedPackage = memberPackageData[0]
+      }
+
+      // Create booking
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          member_id: currentMemberId,
+          session_id: session.id,
+          member_package_id: selectedPackage.id,
+          status: 'confirmed',
+          booking_time: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (bookingError) {
+        throw bookingError
+      }
+
+      // Update member package sessions remaining
+      const { error: updatePackageError } = await supabase
+        .from('member_packages')
+        .update({
+          sessions_remaining: selectedPackage.sessions_remaining - 1
+        })
+        .eq('id', selectedPackage.id)
+
+      if (updatePackageError) {
+        throw updatePackageError
+      }
+
+      // Update session current bookings
+      const { error: updateSessionError } = await supabase
+        .from('sessions')
+        .update({
+          current_bookings: session.capacity.booked + 1
+        })
+        .eq('id', session.id)
+
+      if (updateSessionError) {
+        throw updateSessionError
+      }
+
+      // Update local state
+      const updatedWeeklySessions = { ...weeklyAvailableSessions }
+      Object.keys(updatedWeeklySessions).forEach((weekKey) => {
+        updatedWeeklySessions[weekKey] = updatedWeeklySessions[weekKey].map((s) => {
+          if (s.id === session.id) {
+            return {
+              ...s,
+              capacity: {
+                ...s.capacity,
+                booked: s.capacity.booked + 1,
+              },
+            }
+          }
+          return s
+        })
+      })
+      setWeeklyAvailableSessions(updatedWeeklySessions)
+
+      // Update member packages
+      const updatedPackages = { ...memberPackages }
+      updatedPackages[session.type].remaining -= 1
+      setMemberPackages(updatedPackages)
+
+      // Add new booking to member sessions
+      const newBookedSession = {
+        id: session.id,
+        type: session.type,
+        trainer: session.trainer,
+        date: session.date,
+        time: session.time,
+        status: "Upcoming",
+      }
+
+      const updatedMemberSessions = [...memberSessions, newBookedSession]
+      setMemberSessions(updatedMemberSessions)
+
+      // Add to booked session IDs
+      const updatedBookedIds = new Set([...bookedSessionIds, session.id])
+      setBookedSessionIds(updatedBookedIds)
+
+      toast({
+        title: "Session Booked",
+        description: `Your ${session.type} session has been successfully booked.`,
+      })
+
+    } catch (error) {
+      console.error("Error booking session:", error)
+      toast({
+        title: "Booking Failed",
+        description: "Failed to book the session. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleCancelSession = (session) => {
-    // Update session status to cancelled
-    const updatedMemberSessions = memberSessions.map((s) => (s.id === session.id ? { ...s, status: "Cancelled" } : s))
-    setMemberSessions(updatedMemberSessions)
-
-    // Remove from booked session IDs
-    const updatedBookedIds = new Set(bookedSessionIds)
-    updatedBookedIds.delete(session.id)
-    setBookedSessionIds(updatedBookedIds)
-
-    // Reimburse the package
-    memberPackages[session.type].remaining += 1
-
-    // Save to localStorage
-    localStorage.setItem("member-sessions", JSON.stringify(updatedMemberSessions))
-    localStorage.setItem(
-      "member-booked-sessions",
-      JSON.stringify(updatedMemberSessions.filter((s) => s.status === "Upcoming")),
-    )
-
-    // Update the session capacity in the current week sessions
-    const updatedWeeklySessions = { ...weeklyAvailableSessions }
-    Object.keys(updatedWeeklySessions).forEach((weekKey) => {
-      updatedWeeklySessions[weekKey] = updatedWeeklySessions[weekKey].map((s) => {
-        if (s.id === session.id) {
-          return {
-            ...s,
-            capacity: {
-              ...s.capacity,
-              booked: Math.max(s.capacity.booked - 1, 0),
-            },
-          }
-        }
-        return s
+  const handleCancelSession = async (session) => {
+    if (!currentMemberId) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to cancel sessions.",
+        variant: "destructive",
       })
-    })
-    setWeeklyAvailableSessions(updatedWeeklySessions)
+      return
+    }
 
-    // After cancelling the session, update session capacity
-    const existingSlots = JSON.parse(localStorage.getItem("gym-calendar-slots") || "[]")
-    const updatedSlots = existingSlots.map((slot) => {
-      if (slot.id === session.id) {
-        return {
-          ...slot,
-          capacity: slot.capacity
-            ? {
-                ...slot.capacity,
-                booked: Math.max((slot.capacity.booked || 0) - 1, 0),
-              }
-            : { booked: 0, total: slot.total || 1 },
-        }
+    try {
+      setLoading(true)
+      const supabase = createClient()
+
+      // Find the booking to cancel
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('bookings')
+        .select('id, member_package_id')
+        .eq('member_id', currentMemberId)
+        .eq('session_id', session.id)
+        .eq('status', 'confirmed')
+        .single()
+
+      if (bookingError || !bookingData) {
+        throw new Error("Booking not found")
       }
-      return slot
-    })
-    localStorage.setItem("gym-calendar-slots", JSON.stringify(updatedSlots))
 
-    toast({
-      title: "Session Cancelled",
-      description: "Your session has been cancelled and reimbursed to your package.",
-    })
+      // Update booking status to cancelled
+      const { error: updateBookingError } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingData.id)
+
+      if (updateBookingError) {
+        throw updateBookingError
+      }
+
+      // Reimburse the session to member package
+      const { data: memberPackageData, error: packageError } = await supabase
+        .from('member_packages')
+        .select('sessions_remaining')
+        .eq('id', bookingData.member_package_id)
+        .single()
+
+      if (packageError) {
+        throw packageError
+      }
+
+      const { error: updatePackageError } = await supabase
+        .from('member_packages')
+        .update({
+          sessions_remaining: memberPackageData.sessions_remaining + 1
+        })
+        .eq('id', bookingData.member_package_id)
+
+      if (updatePackageError) {
+        throw updatePackageError
+      }
+
+      // Update session current bookings
+      const { error: updateSessionError } = await supabase
+        .from('sessions')
+        .update({
+          current_bookings: Math.max(session.capacity.booked - 1, 0)
+        })
+        .eq('id', session.id)
+
+      if (updateSessionError) {
+        throw updateSessionError
+      }
+
+      // Update local state
+      const updatedMemberSessions = memberSessions.map((s) => 
+        s.id === session.id ? { ...s, status: "Cancelled" } : s
+      )
+      setMemberSessions(updatedMemberSessions)
+
+      // Remove from booked session IDs
+      const updatedBookedIds = new Set(bookedSessionIds)
+      updatedBookedIds.delete(session.id)
+      setBookedSessionIds(updatedBookedIds)
+
+      // Update member packages
+      const updatedPackages = { ...memberPackages }
+      if (updatedPackages[session.type]) {
+        updatedPackages[session.type].remaining += 1
+      }
+      setMemberPackages(updatedPackages)
+
+      // Update the session capacity in the current week sessions
+      const updatedWeeklySessions = { ...weeklyAvailableSessions }
+      Object.keys(updatedWeeklySessions).forEach((weekKey) => {
+        updatedWeeklySessions[weekKey] = updatedWeeklySessions[weekKey].map((s) => {
+          if (s.id === session.id) {
+            return {
+              ...s,
+              capacity: {
+                ...s.capacity,
+                booked: Math.max(s.capacity.booked - 1, 0),
+              },
+            }
+          }
+          return s
+        })
+      })
+      setWeeklyAvailableSessions(updatedWeeklySessions)
+
+      toast({
+        title: "Session Cancelled",
+        description: "Your session has been cancelled and reimbursed to your package.",
+      })
+
+    } catch (error) {
+      console.error("Error cancelling session:", error)
+      toast({
+        title: "Cancellation Failed",
+        description: "Failed to cancel the session. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const nextWeek = () => {

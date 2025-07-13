@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { TableStatusBadge } from "@/components/ui/status-badge"
 import { StatusFilter } from "@/components/ui/status-filter"
 import { normalizeStatus, isActiveStatus } from "@/types/status"
+import { createClient } from "@/utils/supabase/client"
 import {
   ArrowLeft,
   Search,
@@ -44,77 +45,119 @@ export default function MembersPage() {
     filterMembers()
   }, [members, searchQuery, statusFilter])
 
-  const loadMembers = () => {
+  const loadMembers = async () => {
     try {
       setIsLoading(true)
-      const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
+      const supabase = createClient()
 
-      // Default members with normalized status
-      const defaultMembers = [
-        {
-          id: "1",
-          name: "John Doe",
-          email: "john.doe@email.com",
-          phone: "+1234567890",
-          joinDate: "2023-01-15",
-          status: "Active",
-          packages: ["Personal Training", "Group Class"],
-          lastActivity: "2023-06-10",
-        },
-        {
-          id: "2",
-          name: "Jane Smith",
-          email: "jane.smith@email.com",
-          phone: "+1234567891",
-          joinDate: "2023-02-20",
-          status: "Active",
-          packages: ["Personal Training"],
-          lastActivity: "2023-06-08",
-        },
-        {
-          id: "3",
-          name: "Michael Johnson",
-          email: "michael.johnson@email.com",
-          phone: "+1234567892",
-          joinDate: "2023-03-10",
-          status: "Inactive",
-          packages: ["Group Class"],
-          lastActivity: "2023-05-15",
-        },
-        {
-          id: "4",
-          name: "Emily Williams",
-          email: "emily.williams@email.com",
-          phone: "+1234567893",
-          joinDate: "2023-04-05",
-          status: "Active",
-          packages: ["Personal Training", "Group Class"],
-          lastActivity: "2023-06-12",
-        },
-        {
-          id: "5",
-          name: "Robert Brown",
-          email: "robert.brown@email.com",
-          phone: "+1234567894",
-          joinDate: "2023-05-12",
-          status: "Active",
-          packages: ["Group Class"],
-          lastActivity: "2023-06-11",
-        },
-      ]
+      // Load members with their profile information and packages
+      const { data: membersData, error: membersError } = await supabase
+        .from('members')
+        .select(`
+          id,
+          user_id,
+          emergency_contact,
+          medical_conditions,
+          date_of_birth,
+          gender,
+          address,
+          height,
+          weight,
+          profile_photo_url,
+          joined_at,
+          membership_status,
+          member_number,
+          fitness_goals,
+          waiver_signed,
+          profiles (
+            id,
+            email,
+            full_name,
+            phone,
+            avatar_url,
+            last_login_at
+          )
+        `)
+        .order('joined_at', { ascending: false })
 
-      // Normalize status for all members
-      const normalizedMembers = [...storedMembers, ...defaultMembers].map((member) => ({
-        ...member,
-        status: normalizeStatus(member.status),
-      }))
+      if (membersError) {
+        throw membersError
+      }
 
-      setMembers(normalizedMembers)
+      // Load member packages to get current packages for each member
+      const { data: memberPackagesData, error: packagesError } = await supabase
+        .from('member_packages')
+        .select(`
+          member_id,
+          status,
+          packages (
+            id,
+            name,
+            package_type
+          )
+        `)
+        .eq('status', 'active')
+
+      if (packagesError) {
+        console.error("Error loading member packages:", packagesError)
+      }
+
+      // Load recent bookings to determine last activity
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('member_id, booking_time, attended')
+        .order('booking_time', { ascending: false })
+
+      if (bookingsError) {
+        console.error("Error loading bookings:", bookingsError)
+      }
+
+      // Process and transform the data to match the expected format
+      const processedMembers = (membersData || []).map(member => {
+        // Get packages for this member
+        const memberPackages = (memberPackagesData || [])
+          .filter(mp => mp.member_id === member.id)
+          .map(mp => mp.packages?.name || 'Unknown Package')
+
+        // Get last activity for this member
+        const memberBookings = (bookingsData || [])
+          .filter(b => b.member_id === member.id)
+          .sort((a, b) => new Date(b.booking_time).getTime() - new Date(a.booking_time).getTime())
+        
+        const lastActivity = memberBookings.length > 0 
+          ? memberBookings[0].booking_time
+          : member.joined_at
+
+        return {
+          id: member.id,
+          name: member.profiles?.full_name || 'No Name',
+          email: member.profiles?.email || 'No Email',
+          phone: member.profiles?.phone || 'No Phone',
+          joinDate: member.joined_at,
+          status: normalizeStatus(member.membership_status || 'inactive'),
+          packages: memberPackages,
+          lastActivity: lastActivity,
+          memberNumber: member.member_number,
+          profilePhoto: member.profile_photo_url || member.profiles?.avatar_url,
+          emergencyContact: member.emergency_contact,
+          medicalConditions: member.medical_conditions,
+          dateOfBirth: member.date_of_birth,
+          gender: member.gender,
+          address: member.address,
+          height: member.height,
+          weight: member.weight,
+          fitnessGoals: member.fitness_goals,
+          waiverSigned: member.waiver_signed,
+          userId: member.user_id
+        }
+      })
+
+      setMembers(processedMembers)
     } catch (error) {
       console.error("Error loading members:", error)
       toast({
         title: "Error Loading Members",
-        description: "Failed to load member data.",
+        description: "Failed to load member data. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -148,8 +191,24 @@ export default function MembersPage() {
   const updateMemberStatus = async (memberId, newStatus) => {
     try {
       setIsLoading(true)
+      const supabase = createClient()
       const normalizedStatus = normalizeStatus(newStatus)
+      const dbStatus = normalizedStatus.toLowerCase() // Convert to database format
 
+      // Update member status in database
+      const { error } = await supabase
+        .from('members')
+        .update({ 
+          membership_status: dbStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', memberId)
+
+      if (error) {
+        throw error
+      }
+
+      // Update local state
       const updatedMembers = members.map((member) => {
         if (member.id === memberId) {
           return { ...member, status: normalizedStatus }
@@ -159,32 +218,38 @@ export default function MembersPage() {
 
       setMembers(updatedMembers)
 
-      // Update localStorage
-      const storedMembers = updatedMembers.filter((member) => !["1", "2", "3", "4", "5"].includes(member.id))
-      localStorage.setItem("gym-members", JSON.stringify(storedMembers))
-
-      // Log activity
+      // Log activity in notifications table
       const memberInfo = members.find((member) => member.id === memberId)
-      const activities = JSON.parse(localStorage.getItem("admin-activities") || "[]")
-      activities.unshift({
-        id: `activity-${Date.now()}`,
-        type: "member_status_updated",
-        message: `${memberInfo.name} status updated to ${normalizedStatus}`,
-        timestamp: new Date().toISOString(),
-        memberId: memberInfo.id,
-        memberName: memberInfo.name,
-      })
-      localStorage.setItem("admin-activities", JSON.stringify(activities.slice(0, 50)))
+      if (memberInfo) {
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: memberInfo.userId,
+            title: 'Membership Status Updated',
+            message: `Your membership status has been updated to ${normalizedStatus}`,
+            type: 'system',
+            is_read: false,
+            metadata: {
+              previous_status: memberInfo.status,
+              new_status: normalizedStatus,
+              updated_by: 'admin'
+            }
+          })
+
+        if (notificationError) {
+          console.error("Error creating notification:", notificationError)
+        }
+      }
 
       toast({
         title: "Member Status Updated",
-        description: `${memberInfo.name} has been marked as ${normalizedStatus}.`,
+        description: `${memberInfo?.name} has been marked as ${normalizedStatus}.`,
       })
     } catch (error) {
       console.error("Error updating member status:", error)
       toast({
         title: "Update Failed",
-        description: "Failed to update member status.",
+        description: "Failed to update member status. Please try again.",
         variant: "destructive",
       })
     } finally {

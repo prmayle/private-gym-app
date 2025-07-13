@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { createClient } from "@/utils/supabase/client"
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,8 @@ import { useToast } from "@/hooks/use-toast"
 import { TableStatusBadge } from "@/components/ui/status-badge"
 import { StatusFilter } from "@/components/ui/status-filter"
 import { normalizeStatus } from "@/types/status"
+import { ActivityLogger } from "@/utils/activity-logger"
+import { useAuth } from "@/contexts/AuthContext"
 import {
   ArrowLeft,
   Search,
@@ -69,63 +72,7 @@ interface AssignedPackage {
   createdAt: string
 }
 
-const defaultPackageTypes: PackageType[] = [
-  {
-    id: "pt-1",
-    name: "Personal Training",
-    description: "One-on-one training sessions with certified trainers",
-    sessionCount: 10,
-    price: 500,
-    duration: 30,
-    category: "Personal Training",
-    isActive: true,
-    createdAt: "2023-01-01T00:00:00Z",
-  },
-  {
-    id: "gc-1",
-    name: "Group Classes",
-    description: "Group fitness classes including HIIT, cardio, and strength",
-    sessionCount: 12,
-    price: 240,
-    duration: 30,
-    category: "Group Class",
-    isActive: true,
-    createdAt: "2023-01-01T00:00:00Z",
-  },
-  {
-    id: "yoga-1",
-    name: "Yoga Sessions",
-    description: "Relaxing yoga sessions for all skill levels",
-    sessionCount: 8,
-    price: 200,
-    duration: 30,
-    category: "Yoga",
-    isActive: true,
-    createdAt: "2023-01-01T00:00:00Z",
-  },
-  {
-    id: "hiit-1",
-    name: "HIIT Classes",
-    description: "High-intensity interval training classes",
-    sessionCount: 15,
-    price: 300,
-    duration: 45,
-    category: "HIIT",
-    isActive: true,
-    createdAt: "2023-01-01T00:00:00Z",
-  },
-  {
-    id: "pilates-1",
-    name: "Pilates Sessions",
-    description: "Core strengthening pilates sessions",
-    sessionCount: 10,
-    price: 250,
-    duration: 30,
-    category: "Pilates",
-    isActive: true,
-    createdAt: "2023-01-01T00:00:00Z",
-  },
-]
+// Default categories for new package types
 
 const defaultCategories = [
   "Personal Training",
@@ -140,6 +87,7 @@ const defaultCategories = [
 
 export default function PackagesPage() {
   const { toast } = useToast()
+  const auth = useAuth()
   const [activeTab, setActiveTab] = useState("assigned")
 
   // Assigned Packages State
@@ -190,41 +138,92 @@ export default function PackagesPage() {
     filterPackages()
   }, [assignedPackages, searchQuery, paymentFilter, packageTypeFilter, statusFilter])
 
-  const loadData = () => {
+  const loadData = async () => {
     try {
       setIsLoading(true)
+      const supabase = createClient()
 
-      // Load available categories
-      const storedCategories = JSON.parse(localStorage.getItem("package-categories") || "[]")
-      const allCategories = storedCategories.length > 0 ? storedCategories : defaultCategories
+      // Load package types from database (only active ones)
+      const { data: packagesData, error: packagesError } = await supabase
+        .from('packages')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+
+      if (packagesError) {
+        console.error("Error loading packages:", packagesError)
+      }
+
+      // Transform package data to match expected format
+      const transformedPackageTypes: PackageType[] = (packagesData || []).map(pkg => ({
+        id: pkg.id,
+        name: pkg.name,
+        description: pkg.description || '',
+        sessionCount: pkg.session_count || 0,
+        price: Number(pkg.price) || 0,
+        duration: pkg.duration_days || 30,
+        category: pkg.package_type || 'Unknown',
+        isActive: pkg.is_active || false,
+        createdAt: pkg.created_at
+      }))
+
+      setPackageTypes(transformedPackageTypes)
+
+      // Get unique categories from packages
+      const uniqueCategories = [...new Set(transformedPackageTypes.map(pkg => pkg.category))]
+      const allCategories = [...new Set([...defaultCategories, ...uniqueCategories])]
       setAvailableCategories(allCategories)
 
-      // Save default categories if none exist
-      if (storedCategories.length === 0) {
-        localStorage.setItem("package-categories", JSON.stringify(defaultCategories))
+      // Load assigned packages (member_packages)
+      const { data: memberPackagesData, error: memberPackagesError } = await supabase
+        .from('member_packages')
+        .select(`
+          id,
+          member_id,
+          start_date,
+          end_date,
+          sessions_remaining,
+          sessions_total,
+          status,
+          purchased_at,
+          auto_renew,
+          members (
+            id,
+            profiles (
+              full_name
+            )
+          ),
+          packages (
+            id,
+            name,
+            package_type,
+            price,
+            session_count
+          )
+        `)
+        .order('purchased_at', { ascending: false })
+
+      if (memberPackagesError) {
+        console.error("Error loading member packages:", memberPackagesError)
       }
 
-      // Load package types
-      const storedTypes = JSON.parse(localStorage.getItem("package-types") || "[]")
-      const allTypes = storedTypes.length > 0 ? storedTypes : defaultPackageTypes
-      setPackageTypes(allTypes)
+      // Load payment data to get actual payment status
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('member_id, package_id, status, amount')
 
-      // Save default types if none exist
-      if (storedTypes.length === 0) {
-        localStorage.setItem("package-types", JSON.stringify(defaultPackageTypes))
+      if (paymentsError) {
+        console.error("Error loading payments:", paymentsError)
       }
 
-      // Load assigned packages
-      const packageRecords = JSON.parse(localStorage.getItem("member-packages-records") || "[]")
-
-      // Update package status based on current date and normalize
-      const updatedPackages = packageRecords.map((pkg: AssignedPackage) => {
+      // Transform assigned packages data
+      const transformedAssignedPackages: AssignedPackage[] = (memberPackagesData || []).map(mp => {
         const today = new Date()
-        const startDate = new Date(pkg.startDate)
-        const endDate = new Date(pkg.endDate)
+        const startDate = new Date(mp.start_date)
+        const endDate = new Date(mp.end_date)
 
         let status = "Expired"
-        if (pkg.remainingSessions <= 0) {
+        if (mp.sessions_remaining <= 0) {
           status = "Inactive"
         } else if (startDate <= today && today <= endDate) {
           status = "Active"
@@ -232,30 +231,73 @@ export default function PackagesPage() {
           status = "Expired"
         }
 
+        // Find corresponding payment
+        const payment = (paymentsData || []).find(p => 
+          p.member_id === mp.member_id && p.package_id === (mp.packages?.id || '')
+        )
+        const paymentStatus = payment?.status === 'completed' ? 'paid' : 'unpaid'
+
         return {
-          ...pkg,
+          id: mp.id,
+          memberId: mp.member_id,
+          memberName: mp.members?.profiles?.full_name || 'Unknown Member',
+          packageTypeId: mp.packages?.id || '',
+          packageType: mp.packages?.name || 'Unknown Package',
+          sessionCount: mp.sessions_total || mp.packages?.session_count || 0,
+          remainingSessions: mp.sessions_remaining || 0,
+          price: Number(mp.packages?.price) || 0,
+          startDate: mp.start_date,
+          endDate: mp.end_date,
+          paymentStatus: paymentStatus,
           status: normalizeStatus(status) as "Active" | "Inactive" | "Expired",
+          purchaseDate: mp.purchased_at,
+          createdBy: "admin",
+          createdAt: mp.purchased_at
         }
       })
 
-      setAssignedPackages(updatedPackages)
+      setAssignedPackages(transformedAssignedPackages)
 
-      // Load members
-      const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
-      const defaultMembers = [
-        { id: "1", name: "John Doe", email: "john.doe@email.com", status: "Active" },
-        { id: "2", name: "Jane Smith", email: "jane.smith@email.com", status: "Active" },
-        { id: "4", name: "Emily Williams", email: "emily.williams@email.com", status: "Active" },
-        { id: "5", name: "Robert Brown", email: "robert.brown@email.com", status: "Active" },
-      ]
-      setMembers([...storedMembers, ...defaultMembers].filter((m) => m.status === "Active"))
+      // Load active members
+      const { data: membersData, error: membersError } = await supabase
+        .from('members')
+        .select(`
+          id,
+          membership_status,
+          profiles (
+            id,
+            full_name,
+            email
+          )
+        `)
+        .eq('membership_status', 'active')
+
+      if (membersError) {
+        console.error("Error loading members:", membersError)
+      }
+
+      // Transform members data
+      const transformedMembers = (membersData || []).map(member => ({
+        id: member.id,
+        name: member.profiles?.full_name || 'Unknown',
+        email: member.profiles?.email || 'Unknown',
+        status: 'Active'
+      }))
+
+      setMembers(transformedMembers)
+
     } catch (error) {
       console.error("Error loading data:", error)
       toast({
         title: "Error Loading Data",
-        description: "Failed to load package data.",
+        description: "Failed to load package data. Please check your database connection.",
         variant: "destructive",
       })
+      // No fallback - show empty state
+      setPackageTypes([])
+      setAvailableCategories(defaultCategories)
+      setAssignedPackages([])
+      setMembers([])
     } finally {
       setIsLoading(false)
     }
@@ -293,34 +335,7 @@ export default function PackagesPage() {
     setCurrentPage(1)
   }
 
-  const syncSessionTypes = async (newCategory: string) => {
-    try {
-      // Load existing session types
-      const existingSessionTypes = JSON.parse(localStorage.getItem("session-types") || "[]")
-
-      // Check if this category already exists as a session type
-      const categoryExists = existingSessionTypes.some((type: any) => type.name === newCategory)
-
-      if (!categoryExists) {
-        const newSessionType = {
-          id: `session-type-${Date.now()}`,
-          name: newCategory,
-          description: `${newCategory} sessions`,
-          duration: 60, // default duration in minutes
-          maxCapacity: newCategory === "Personal Training" ? 1 : 10,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-        }
-
-        const updatedSessionTypes = [...existingSessionTypes, newSessionType]
-        localStorage.setItem("session-types", JSON.stringify(updatedSessionTypes))
-
-        console.log(`Created new session type: ${newCategory}`)
-      }
-    } catch (error) {
-      console.error("Error syncing session types:", error)
-    }
-  }
+  // Note: Session type syncing is no longer needed since we store session_type as text in database
 
   const handleCreatePackage = async () => {
     if (!newPackage.memberId || !newPackage.packageTypeId || !newPackage.startDate) {
@@ -334,6 +349,7 @@ export default function PackagesPage() {
 
     try {
       setIsLoading(true)
+      const supabase = createClient()
 
       const selectedMember = members.find((m) => m.id === newPackage.memberId)
       const selectedType = packageTypes.find((t) => t.id === newPackage.packageTypeId)
@@ -346,59 +362,61 @@ export default function PackagesPage() {
       const endDate = new Date(startDate)
       endDate.setDate(startDate.getDate() + selectedType.duration)
 
-      const packageRecord: AssignedPackage = {
-        id: `pkg-${Date.now()}`,
-        memberId: selectedMember.id,
-        memberName: selectedMember.name,
-        packageTypeId: selectedType.id,
-        packageType: selectedType.name,
-        sessionCount: selectedType.sessionCount,
-        remainingSessions: selectedType.sessionCount,
-        price: selectedType.price,
-        startDate: newPackage.startDate,
-        endDate: endDate.toISOString().split("T")[0],
-        paymentStatus: newPackage.paymentStatus,
-        status: "Active",
-        purchaseDate: new Date().toISOString(),
-        createdBy: "admin",
-        createdAt: new Date().toISOString(),
+      // Insert into member_packages table
+      const { data: memberPackageData, error: memberPackageError } = await supabase
+        .from('member_packages')
+        .insert({
+          member_id: selectedMember.id,
+          package_id: selectedType.id,
+          start_date: newPackage.startDate,
+          end_date: endDate.toISOString().split("T")[0],
+          sessions_remaining: selectedType.sessionCount,
+          sessions_total: selectedType.sessionCount,
+          status: 'active',
+          purchased_at: new Date().toISOString(),
+          activated_at: new Date().toISOString(),
+          auto_renew: false
+        })
+        .select()
+        .single()
+
+      if (memberPackageError) {
+        throw memberPackageError
       }
 
-      // Save to localStorage
-      const existingPackages = JSON.parse(localStorage.getItem("member-packages-records") || "[]")
-      existingPackages.push(packageRecord)
-      localStorage.setItem("member-packages-records", JSON.stringify(existingPackages))
+      // Create payment record
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          member_id: selectedMember.id,
+          package_id: selectedType.id,
+          amount: selectedType.price,
+          payment_method: 'admin_assigned',
+          transaction_id: `pkg_${Date.now()}`,
+          payment_date: new Date().toISOString(),
+          status: newPackage.paymentStatus === 'paid' ? 'completed' : 'pending',
+          currency: 'USD',
+          invoice_number: `INV_${Date.now()}`,
+          processed_by: null // Would be the admin user ID
+        })
 
-      // Update member packages for session booking functionality
-      const memberPackages = JSON.parse(localStorage.getItem("member-packages") || "{}")
-      if (!memberPackages[selectedMember.id]) {
-        memberPackages[selectedMember.id] = {}
+      if (paymentError) {
+        console.error("Error creating payment record:", paymentError)
+        // Don't fail the whole operation, just log the error
       }
-      memberPackages[selectedMember.id][selectedType.category] = {
-        remaining: selectedType.sessionCount,
-        total: selectedType.sessionCount,
-        expiry: packageRecord.endDate,
-        status: "active",
-        paymentStatus: newPackage.paymentStatus,
-      }
-      localStorage.setItem("member-packages", JSON.stringify(memberPackages))
 
       // Log activity
-      const activities = JSON.parse(localStorage.getItem("admin-activities") || "[]")
-      activities.unshift({
-        id: `activity-${Date.now()}`,
-        type: "package_assigned",
-        category: "packages",
-        message: `Package assigned to member`,
-        details: `${selectedType.name} package assigned to ${selectedMember.name}`,
-        timestamp: new Date().toISOString(),
-        memberId: selectedMember.id,
-        memberName: selectedMember.name,
-      })
-      localStorage.setItem("admin-activities", JSON.stringify(activities.slice(0, 50)))
+      if (auth.user && memberPackageData) {
+        await ActivityLogger.packageCreated(
+          selectedType.name,
+          selectedMember.name,
+          memberPackageData.id,
+          auth.user.id
+        )
+      }
 
-      // Update local state
-      setAssignedPackages((prev) => [...prev, packageRecord])
+      // Reload data to get fresh from database
+      await loadData()
 
       // Reset form
       setNewPackage({
@@ -450,31 +468,31 @@ export default function PackagesPage() {
     }
 
     try {
-      const packageType: PackageType = {
-        id: `type-${Date.now()}`,
-        name: newPackageType.name,
-        description: newPackageType.description,
-        sessionCount: newPackageType.sessionCount,
-        price: newPackageType.price,
-        duration: newPackageType.duration,
-        category: finalCategory,
-        isActive: true,
-        createdAt: new Date().toISOString(),
+      setIsLoading(true)
+      const supabase = createClient()
+
+      // Insert into packages table
+      const { data: packageData, error: packageError } = await supabase
+        .from('packages')
+        .insert({
+          name: newPackageType.name,
+          description: newPackageType.description,
+          price: newPackageType.price,
+          duration_days: newPackageType.duration,
+          session_count: newPackageType.sessionCount,
+          package_type: finalCategory,
+          features: {},
+          is_active: true
+        })
+        .select()
+        .single()
+
+      if (packageError) {
+        throw packageError
       }
 
-      const updatedTypes = [...packageTypes, packageType]
-      setPackageTypes(updatedTypes)
-      localStorage.setItem("package-types", JSON.stringify(updatedTypes))
-
-      // Add new category to available categories if it's custom
-      if (newPackageType.useCustomCategory && !availableCategories.includes(finalCategory)) {
-        const updatedCategories = [...availableCategories, finalCategory]
-        setAvailableCategories(updatedCategories)
-        localStorage.setItem("package-categories", JSON.stringify(updatedCategories))
-      }
-
-      // Sync with session types
-      await syncSessionTypes(finalCategory)
+      // Reload data to get fresh from database
+      await loadData()
 
       // Reset form
       setNewPackageType({
@@ -492,7 +510,7 @@ export default function PackagesPage() {
 
       toast({
         title: "Package Type Created",
-        description: `${packageType.name} package type has been created successfully.`,
+        description: `${newPackageType.name} package type has been created successfully.`,
       })
     } catch (error) {
       console.error("Error creating package type:", error)
@@ -501,6 +519,8 @@ export default function PackagesPage() {
         description: "Failed to create package type. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -536,29 +556,29 @@ export default function PackagesPage() {
     }
 
     try {
-      const updatedType: PackageType = {
-        ...editingType,
-        name: newPackageType.name,
-        description: newPackageType.description,
-        sessionCount: newPackageType.sessionCount,
-        price: newPackageType.price,
-        duration: newPackageType.duration,
-        category: finalCategory,
+      setIsLoading(true)
+      const supabase = createClient()
+
+      // Update package in database
+      const { error: updateError } = await supabase
+        .from('packages')
+        .update({
+          name: newPackageType.name,
+          description: newPackageType.description,
+          price: newPackageType.price,
+          duration_days: newPackageType.duration,
+          session_count: newPackageType.sessionCount,
+          package_type: finalCategory,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingType.id)
+
+      if (updateError) {
+        throw updateError
       }
 
-      const updatedTypes = packageTypes.map((t) => (t.id === editingType.id ? updatedType : t))
-      setPackageTypes(updatedTypes)
-      localStorage.setItem("package-types", JSON.stringify(updatedTypes))
-
-      // Add new category to available categories if it's custom
-      if (newPackageType.useCustomCategory && !availableCategories.includes(finalCategory)) {
-        const updatedCategories = [...availableCategories, finalCategory]
-        setAvailableCategories(updatedCategories)
-        localStorage.setItem("package-categories", JSON.stringify(updatedCategories))
-      }
-
-      // Sync with session types
-      await syncSessionTypes(finalCategory)
+      // Reload data to get fresh from database
+      await loadData()
 
       setEditingType(null)
       setNewPackageType({
@@ -575,7 +595,7 @@ export default function PackagesPage() {
 
       toast({
         title: "Package Type Updated",
-        description: `${updatedType.name} has been updated successfully.`,
+        description: `${newPackageType.name} has been updated successfully.`,
       })
     } catch (error) {
       console.error("Error updating package type:", error)
@@ -584,14 +604,31 @@ export default function PackagesPage() {
         description: "Failed to update package type. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleDeletePackageType = async (typeId: string) => {
     try {
-      const updatedTypes = packageTypes.filter((t) => t.id !== typeId)
-      setPackageTypes(updatedTypes)
-      localStorage.setItem("package-types", JSON.stringify(updatedTypes))
+      setIsLoading(true)
+      const supabase = createClient()
+
+      // Deactivate package instead of deleting (safer approach)
+      const { error: deleteError } = await supabase
+        .from('packages')
+        .update({
+          is_active: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', typeId)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      // Reload data to get fresh from database
+      await loadData()
 
       toast({
         title: "Package Type Deleted",
@@ -604,37 +641,39 @@ export default function PackagesPage() {
         description: "Failed to delete package type. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const updatePaymentStatus = async (packageId: string, newStatus: "paid" | "unpaid") => {
+  const updatePaymentStatus = async (memberPackageId: string, newStatus: "paid" | "unpaid") => {
     try {
       setIsLoading(true)
+      const supabase = createClient()
 
-      const updatedPackages = assignedPackages.map((pkg) => {
-        if (pkg.id === packageId) {
-          return { ...pkg, paymentStatus: newStatus }
-        }
-        return pkg
-      })
-
-      setAssignedPackages(updatedPackages)
-      localStorage.setItem("member-packages-records", JSON.stringify(updatedPackages))
-
-      const packageInfo = assignedPackages.find((pkg) => pkg.id === packageId)
-      if (packageInfo) {
-        const activities = JSON.parse(localStorage.getItem("admin-activities") || "[]")
-        activities.unshift({
-          id: `activity-${Date.now()}`,
-          type: "payment_updated",
-          message: `Payment status updated for ${packageInfo.memberName}`,
-          details: `${packageInfo.packageType} package marked as ${newStatus}`,
-          timestamp: new Date().toISOString(),
-          memberId: packageInfo.memberId,
-          memberName: packageInfo.memberName,
-        })
-        localStorage.setItem("admin-activities", JSON.stringify(activities.slice(0, 50)))
+      // Find the member package first
+      const packageInfo = assignedPackages.find(pkg => pkg.id === memberPackageId)
+      if (!packageInfo) {
+        throw new Error("Package not found")
       }
+
+      // Update payment status in payments table for this specific package
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .update({
+          status: newStatus === 'paid' ? 'completed' : 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('member_id', packageInfo.memberId)
+        .eq('package_id', packageInfo.packageTypeId)
+
+      if (paymentError) {
+        console.error("Error updating payment:", paymentError)
+        throw paymentError
+      }
+
+      // Reload data to reflect changes
+      await loadData()
 
       toast({
         title: "Payment Status Updated",
@@ -795,12 +834,17 @@ export default function PackagesPage() {
                           <SelectTrigger>
                             <SelectValue placeholder="Select a member" />
                           </SelectTrigger>
-                          <SelectContent>
-                            {members.map((member) => (
-                              <SelectItem key={member.id} value={member.id}>
-                                {member.name} ({member.email})
-                              </SelectItem>
-                            ))}
+                          <SelectContent className="max-h-48">
+                            {members
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map((member) => (
+                                <SelectItem key={member.id} value={member.id}>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{member.name}</span>
+                                    <span className="text-xs text-muted-foreground">{member.email}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -814,12 +858,18 @@ export default function PackagesPage() {
                           <SelectTrigger>
                             <SelectValue placeholder="Select a package type" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-h-48">
                             {packageTypes
                               .filter((t) => t.isActive)
+                              .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
                               .map((type) => (
                                 <SelectItem key={type.id} value={type.id}>
-                                  {type.name} - {type.sessionCount} sessions (${type.price})
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{type.name}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {type.sessionCount} sessions • ${type.price} • {type.category}
+                                    </span>
+                                  </div>
                                 </SelectItem>
                               ))}
                           </SelectContent>

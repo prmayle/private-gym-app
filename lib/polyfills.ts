@@ -6,17 +6,17 @@ if (typeof window === 'undefined' && typeof process !== 'undefined') {
   // @ts-ignore - Override process.emit to filter warnings
   process.emit = function (name, data, ...args) {
     // Suppress specific deprecation warnings
-    if (name === 'warning' && typeof data === 'object') {
+    if (name === 'warning' && typeof data === 'object' && data !== null) {
       // Suppress punycode deprecation warnings
-      if (data.name === 'DeprecationWarning' && data.message?.includes('punycode')) {
+      if ((data as any).name === 'DeprecationWarning' && (data as any).message?.includes('punycode')) {
         return false;
       }
       
       // Suppress other common deprecation warnings that don't affect functionality
-      if (data.name === 'DeprecationWarning' && (
-        data.message?.includes('buffer') ||
-        data.message?.includes('util.types.isDate') ||
-        data.message?.includes('util.types.isRegExp')
+      if ((data as any).name === 'DeprecationWarning' && (
+        (data as any).message?.includes('buffer') ||
+        (data as any).message?.includes('util.types.isDate') ||
+        (data as any).message?.includes('util.types.isRegExp')
       )) {
         return false;
       }

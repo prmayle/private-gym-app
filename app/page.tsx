@@ -85,32 +85,7 @@ const defaultHomeConfig = {
 	trainers: {
 		title: "Our Expert Trainers",
 		subtitle: "Meet the professionals who will guide your fitness journey",
-		trainers: [
-			{
-				id: "default-trainer-1",
-				name: "Mike Johnson",
-				role: "Head Trainer",
-				specialization: "Strength & Conditioning",
-				bio: "With over 10 years of experience, Mike specializes in strength training and athletic performance.",
-				image: "/placeholder.svg?height=300&width=300",
-			},
-			{
-				id: "default-trainer-2",
-				name: "Sarah Williams",
-				role: "Senior Trainer",
-				specialization: "HIIT & Cardio",
-				bio: "Sarah is passionate about high-intensity training and helping clients achieve their weight loss goals.",
-				image: "/placeholder.svg?height=300&width=300",
-			},
-			{
-				id: "default-trainer-3",
-				name: "David Lee",
-				role: "Nutrition Specialist",
-				specialization: "Nutrition & Wellness",
-				bio: "David combines nutrition science with practical fitness advice to create holistic health plans.",
-				image: "/placeholder.svg?height=300&width=300",
-			},
-		],
+		trainers: [],
 	},
 	testimonials: {
 		title: "What Our Members Say",
@@ -193,6 +168,8 @@ export default function Home() {
 			const supabase = createClient();
 			const data = await getHomePageConfig(supabase);
 
+			console.log("🔍 data:", data);
+
 			if (data) {
 				// Merge database config with defaults
 				const mergedConfig = {
@@ -205,7 +182,13 @@ export default function Home() {
 						features:
 							data.features?.features || defaultHomeConfig.features.features,
 					},
-					trainers: defaultHomeConfig.trainers, // Keep static for now
+					trainers: {
+						title: data.trainers?.title || defaultHomeConfig.trainers.title,
+						subtitle:
+							data.trainers?.subtitle || defaultHomeConfig.trainers.subtitle,
+						trainers:
+							data.trainers?.trainers || defaultHomeConfig.trainers.trainers,
+					},
 					testimonials: {
 						title:
 							data.testimonials?.title || defaultHomeConfig.testimonials.title,
@@ -220,6 +203,7 @@ export default function Home() {
 					footer: { ...defaultHomeConfig.footer, ...(data.footer || {}) },
 				};
 				setHomeConfig(mergedConfig);
+				console.log("🔍 mergedConfig:", mergedConfig);
 			}
 		} catch (err) {
 			setError(null);
@@ -385,23 +369,24 @@ export default function Home() {
 						{homeConfig.trainers.subtitle}
 					</p>
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-						{homeConfig.trainers.trainers.map((trainer, index) => (
-							<div
-								key={trainer.id || `trainer-${index}`}
-								className="bg-card p-6 rounded-lg shadow-md flex flex-col items-center">
-								<img
-									src={trainer.image || "/placeholder.svg"}
-									alt={trainer.name}
-									className="w-32 h-32 rounded-full object-cover mb-4 border-2 border-primary"
-								/>
-								<h3 className="text-xl font-semibold">{trainer.name}</h3>
-								<p className="text-primary font-medium">{trainer.role}</p>
-								<p className="text-sm text-foreground/70 mb-3">
-									{trainer.specialization}
-								</p>
-								<p className="text-foreground/80 text-sm">{trainer.bio}</p>
-							</div>
-						))}
+						{homeConfig.trainers.trainers
+							.filter((trainer) => trainer.isAvailable)
+							.map((trainer, index) => (
+								<div
+									key={trainer.id || `trainer-${index}`}
+									className="bg-card p-6 rounded-lg shadow-md flex flex-col items-center">
+									<img
+										src={trainer.profilePhotoUrl || "/placeholder.svg"}
+										alt={trainer.name}
+										className="w-32 h-32 rounded-full object-cover mb-4 border-2 border-primary"
+									/>
+									<h3 className="text-xl font-semibold">{trainer.name}</h3>
+									<p className="text-sm text-foreground/70 mb-3">
+										{trainer.specializations}
+									</p>
+									<p className="text-foreground/80 text-sm">{trainer.bio}</p>
+								</div>
+							))}
 					</div>
 				</div>
 			</section>
@@ -486,10 +471,24 @@ export default function Home() {
 							</div>
 						</div>
 						{homeConfig.contact.showMap && (
-							<div className="bg-card h-64 rounded-lg shadow-md flex items-center justify-center">
-								<p className="text-foreground/50">
-									Map would be displayed here
-								</p>
+							<div className="bg-card rounded-lg shadow-md overflow-hidden">
+								{homeConfig.contact.mapLocation ? (
+									<iframe
+										width="100%"
+										height="256"
+										style={{ border: 0 }}
+										loading="lazy"
+										allowFullScreen
+										referrerPolicy="no-referrer-when-downgrade"
+										src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY'}&q=${encodeURIComponent(homeConfig.contact.mapLocation)}`}
+									/>
+								) : (
+									<div className="h-64 flex items-center justify-center">
+										<p className="text-foreground/50">
+											No location configured
+										</p>
+									</div>
+								)}
 							</div>
 						)}
 					</div>

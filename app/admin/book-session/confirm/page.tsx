@@ -19,6 +19,7 @@ interface Session {
   type: string
   trainer: string
   capacity: { booked: number; total: number }
+  bookedMembers?: string[]
   description?: string
 }
 

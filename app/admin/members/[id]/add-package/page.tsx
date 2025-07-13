@@ -9,14 +9,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, DollarSign } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
 
 const availablePackages = [
-  { id: "1", name: "Personal Training", sessions: 10, price: 500, duration: 30 },
-  { id: "2", name: "Group Class", sessions: 12, price: 240, duration: 30 },
-  { id: "3", name: "Fitness Assessment", sessions: 4, price: 200, duration: 15 },
-  { id: "4", name: "Nutrition Consultation", sessions: 6, price: 300, duration: 30 },
-  { id: "5", name: "Monthly Pass", sessions: 20, price: 150, duration: 30 },
-  { id: "6", name: "Premium Package", sessions: 15, price: 750, duration: 60 },
+  { id: "1", name: "Personal Training", sessions: 10, price: 500, duration: 30, package_type: "personal_training" },
+  { id: "2", name: "Group Class", sessions: 12, price: 240, duration: 30, package_type: "group_class" },
+  { id: "3", name: "Fitness Assessment", sessions: 4, price: 200, duration: 15, package_type: "fitness_assessment" },
+  { id: "4", name: "Nutrition Consultation", sessions: 6, price: 300, duration: 30, package_type: "nutrition_consultation" },
+  { id: "5", name: "Monthly Pass", sessions: 20, price: 150, duration: 30, package_type: "monthly" },
+  { id: "6", name: "Premium Package", sessions: 15, price: 750, duration: 60, package_type: "monthly" },
 ]
 
 export default function AddPackagePage() {
@@ -31,11 +32,12 @@ export default function AddPackagePage() {
   // Get member name for display
   const getMemberName = () => {
     const members = JSON.parse(localStorage.getItem("gym-members") || "[]")
-    const member = members.find((m) => m.id === params.id)
+    const memberId = Array.isArray(params.id) ? params.id[0] : params.id
+    const member = members.find((m: any) => m.id === memberId)
     return member?.name || "Unknown Member"
   }
 
-  const calculateEndDate = (startDate, duration) => {
+  const calculateEndDate = (startDate: string, duration: number) => {
     if (!startDate) return ""
     const start = new Date(startDate)
     const end = new Date(start)
@@ -56,74 +58,97 @@ export default function AddPackagePage() {
     setIsLoading(true)
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
+      const supabase = createClient()
       const packageInfo = availablePackages.find((pkg) => pkg.id === selectedPackage)
+      
+      if (!packageInfo) {
+        toast({
+          title: "Error",
+          description: "Selected package not found.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const memberId = Array.isArray(params.id) ? params.id[0] : params.id
+      if (!memberId) {
+        toast({
+          title: "Error",
+          description: "Member ID not found.",
+          variant: "destructive",
+        })
+        return
+      }
+
       const endDate = calculateEndDate(startDate, packageInfo.duration)
-      const memberName = getMemberName()
 
-      // Create package record for packages list
-      const packageRecord = {
-        id: `pkg-${Date.now()}`,
-        memberId: params.id,
-        memberName: memberName,
-        packageType: packageInfo.name,
-        sessions: packageInfo.sessions,
-        remainingSessions: packageInfo.sessions,
-        price: packageInfo.price,
-        startDate,
-        endDate,
-        paymentStatus: paymentStatus.toLowerCase(),
-        status: "Active", // Use normalized status
-        purchaseDate: new Date().toISOString(),
-        createdBy: "admin",
-        createdAt: new Date().toISOString(),
+      // First, ensure the package exists in the packages table
+      let { data: existingPackage, error: packageCheckError } = await supabase
+        .from('packages')
+        .select('id')
+        .eq('name', packageInfo.name)
+        .eq('package_type', packageInfo.package_type)
+        .single()
+
+      if (packageCheckError && packageCheckError.code !== 'PGRST116') {
+        throw packageCheckError
       }
 
-      // Save to member-packages-records for packages list view
-      const existingPackages = JSON.parse(localStorage.getItem("member-packages-records") || "[]")
-      existingPackages.push(packageRecord)
-      localStorage.setItem("member-packages-records", JSON.stringify(existingPackages))
+      // Create package if it doesn't exist
+      if (!existingPackage) {
+        const { data: newPackage, error: createPackageError } = await supabase
+          .from('packages')
+          .insert({
+            name: packageInfo.name,
+            description: `${packageInfo.name} package with ${packageInfo.sessions} sessions`,
+            price: packageInfo.price,
+            duration_days: packageInfo.duration,
+            session_count: packageInfo.sessions,
+            package_type: packageInfo.package_type,
+            features: [packageInfo.name],
+            is_active: true
+          })
+          .select('id')
+          .single()
 
-      // Update member packages for session booking functionality
-      const memberPackages = JSON.parse(localStorage.getItem("member-packages") || "{}")
-      if (!memberPackages[params.id]) {
-        memberPackages[params.id] = {}
+        if (createPackageError) {
+          throw createPackageError
+        }
+        existingPackage = newPackage
       }
-      memberPackages[params.id][packageInfo.name] = {
-        remaining: packageInfo.sessions,
-        total: packageInfo.sessions,
-        expiry: endDate,
-        status: "active",
-        paymentStatus: paymentStatus.toLowerCase(),
-      }
-      localStorage.setItem("member-packages", JSON.stringify(memberPackages))
 
-      // Log activity for dashboard
-      const activities = JSON.parse(localStorage.getItem("admin-activities") || "[]")
-      activities.unshift({
-        id: `activity-${Date.now()}`,
-        type: "package_assigned",
-        category: "packages",
-        message: `Package assigned to member`,
-        details: `${packageInfo.name} package assigned to ${memberName}`,
-        timestamp: new Date().toISOString(),
-        memberId: params.id,
-        memberName: memberName,
-      })
-      localStorage.setItem("admin-activities", JSON.stringify(activities.slice(0, 50))) // Keep last 50 activities
+      // Create member package assignment
+      const { data: memberPackage, error: memberPackageError } = await supabase
+        .from('member_packages')
+        .insert({
+          member_id: memberId,
+          package_id: existingPackage.id,
+          start_date: startDate,
+          end_date: endDate,
+          sessions_remaining: packageInfo.sessions,
+          status: 'active',
+          payment_status: paymentStatus.toLowerCase()
+        })
+        .select()
+        .single()
+
+      if (memberPackageError) {
+        throw memberPackageError
+      }
 
       toast({
         title: "Package Added Successfully",
-        description: `${packageInfo.name} package has been added to ${memberName}'s account with ${paymentStatus.toLowerCase()} status.`,
+        description: `${packageInfo.name} package has been assigned successfully with ${paymentStatus.toLowerCase()} status.`,
       })
 
-      // Navigate back to packages page to see the new package
+      // Navigate back to packages page
       router.push("/admin/packages")
+      
     } catch (error) {
+      console.error("Error adding package:", error)
       toast({
         title: "Error",
-        description: "Failed to add package. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to add package. Please try again.",
         variant: "destructive",
       })
     } finally {
