@@ -10,7 +10,6 @@ const nextConfig = {
     unoptimized: true,
   },
   // Optimize for development
-  swcMinify: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
@@ -33,7 +32,6 @@ const nextConfig = {
   },
   // Experimental features for better performance
   experimental: {
-    optimizeCss: true,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
 }
