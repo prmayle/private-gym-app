@@ -87,7 +87,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				if (mounted && session) {
 					setSession(session);
 					setUser(session.user);
-					await loadUserProfiles(session.user.id);
+					// Load profiles in background, don't block initial loading
+					loadUserProfiles(session.user.id).catch(console.error);
 				}
 			} catch (error) {
 				console.error("Error in getInitialSession:", error);
@@ -112,7 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					setUser(session?.user ?? null);
 
 					if (session?.user) {
-						await loadUserProfiles(session.user.id);
+						// Load profiles in background, don't block state change
+						loadUserProfiles(session.user.id).catch(console.error);
 					} else {
 						setUserProfile(null);
 						setMemberProfile(null);
@@ -127,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			mounted = false;
 			subscription.unsubscribe();
 		};
-	}, []);
+	}, [supabase]);
 
 	// Load user profiles from database
 	const loadUserProfiles = useCallback(
@@ -141,14 +143,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				const profile = await getUserProfile(supabase, userId);
 				
 				// Only update state if this is still the latest request
-				if (profileLoadingRef === currentRequest) {
+				if (currentRequest === userId) {
 					setUserProfile(profile);
 
 					// Load member profile if user is a member
 					if (profile.role === "member") {
 						try {
 							const memberData = await getMemberProfile(supabase, userId);
-							if (profileLoadingRef === currentRequest) {
+							if (currentRequest === userId) {
 								setMemberProfile(memberData);
 							}
 						} catch (error) {
@@ -156,12 +158,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 							console.log(
 								"Member profile not found (this is normal for new users)"
 							);
-							if (profileLoadingRef === currentRequest) {
+							if (currentRequest === userId) {
 								setMemberProfile(null);
 							}
 						}
 					} else {
-						if (profileLoadingRef === currentRequest) {
+						if (currentRequest === userId) {
 							setMemberProfile(null);
 						}
 					}
@@ -171,12 +173,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				// Don't throw here - user might not have profile yet
 			} finally {
 				// Clear loading ref if this was the latest request
-				if (profileLoadingRef === currentRequest) {
+				if (currentRequest === userId) {
 					setProfileLoadingRef(null);
 				}
 			}
 		},
-		[supabase, profileLoadingRef]
+		[supabase]
 	);
 
 	// Sign up function

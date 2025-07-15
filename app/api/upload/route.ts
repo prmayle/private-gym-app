@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { put } from '@vercel/blob';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📁 LOCAL FILE UPLOAD API - START');
+    console.log('📁 VERCEL BLOB UPLOAD API - START');
     
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -40,37 +38,24 @@ export async function POST(request: NextRequest) {
     const fileExt = file.name.split('.').pop() || 'jpg';
     const fileName = `${section}-${field}-${Date.now()}.${fileExt}`;
     
-    // Create directory path
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'home-config');
+    console.log('☁️ Uploading to Vercel Blob with filename:', fileName);
     
-    // Ensure directory exists
-    if (!existsSync(uploadDir)) {
-      console.log('📁 Creating upload directory:', uploadDir);
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    // Full file path
-    const filePath = join(uploadDir, fileName);
+    // Upload to Vercel Blob
+    const blob = await put(fileName, file, {
+      access: 'public',
+      handleUploadUrl: '/api/upload',
+    });
     
-    // Convert file to buffer and write to disk
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    
-    console.log('💾 Writing file to:', filePath);
-    await writeFile(filePath, buffer);
-    
-    // Return the API URL path for serving uploaded files
-    const publicPath = `/api/uploads/home-config/${fileName}`;
-    
-    console.log('✅ File uploaded successfully:', publicPath);
+    console.log('✅ File uploaded successfully to Vercel Blob:', blob.url);
     
     return NextResponse.json({ 
       success: true, 
-      filePath: publicPath,
+      filePath: blob.url,
       fileName: fileName,
       originalName: file.name,
       size: file.size,
-      type: file.type
+      type: file.type,
+      blobUrl: blob.url
     });
 
   } catch (error) {

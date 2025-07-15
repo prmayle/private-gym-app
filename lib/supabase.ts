@@ -144,6 +144,14 @@ export interface Database {
           price: number | null
           created_at: string
           updated_at: string
+          current_bookings: number
+          location: string | null
+          equipment_needed: string[] | null
+          is_recurring: boolean
+          recurrence_rule: string | null
+          recurrence_end_date: string | null
+          original_session_id: string | null
+          template_id: string | null
         }
         Insert: {
           id?: string
@@ -158,6 +166,14 @@ export interface Database {
           price?: number | null
           created_at?: string
           updated_at?: string
+          current_bookings?: number
+          location?: string | null
+          equipment_needed?: string[] | null
+          is_recurring?: boolean
+          recurrence_rule?: string | null
+          recurrence_end_date?: string | null
+          original_session_id?: string | null
+          template_id?: string | null
         }
         Update: {
           id?: string
@@ -172,6 +188,108 @@ export interface Database {
           price?: number | null
           created_at?: string
           updated_at?: string
+          current_bookings?: number
+          location?: string | null
+          equipment_needed?: string[] | null
+          is_recurring?: boolean
+          recurrence_rule?: string | null
+          recurrence_end_date?: string | null
+          original_session_id?: string | null
+          template_id?: string | null
+        }
+      }
+      member_packages: {
+        Row: {
+          id: string
+          member_id: string
+          package_id: string
+          start_date: string
+          end_date: string | null
+          sessions_remaining: number | null
+          status: 'active' | 'expired' | 'suspended'
+          purchased_at: string
+          created_at: string
+          updated_at: string
+          sessions_total: number
+          activated_at: string | null
+          auto_renew: boolean
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          package_id: string
+          start_date: string
+          end_date?: string | null
+          sessions_remaining?: number | null
+          status?: 'active' | 'expired' | 'suspended'
+          purchased_at?: string
+          created_at?: string
+          updated_at?: string
+          sessions_total?: number
+          activated_at?: string | null
+          auto_renew?: boolean
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          package_id?: string
+          start_date?: string
+          end_date?: string | null
+          sessions_remaining?: number | null
+          status?: 'active' | 'expired' | 'suspended'
+          purchased_at?: string
+          created_at?: string
+          updated_at?: string
+          sessions_total?: number
+          activated_at?: string | null
+          auto_renew?: boolean
+        }
+      }
+      trainers: {
+        Row: {
+          id: string
+          user_id: string
+          specializations: string[] | null
+          certifications: string[] | null
+          bio: string | null
+          hourly_rate: number | null
+          profile_photo_url: string | null
+          is_available: boolean
+          created_at: string
+          updated_at: string
+          experience_years: number
+          hire_date: string
+          max_sessions_per_day: number
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          specializations?: string[] | null
+          certifications?: string[] | null
+          bio?: string | null
+          hourly_rate?: number | null
+          profile_photo_url?: string | null
+          is_available?: boolean
+          created_at?: string
+          updated_at?: string
+          experience_years?: number
+          hire_date?: string
+          max_sessions_per_day?: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          specializations?: string[] | null
+          certifications?: string[] | null
+          bio?: string | null
+          hourly_rate?: number | null
+          profile_photo_url?: string | null
+          is_available?: boolean
+          created_at?: string
+          updated_at?: string
+          experience_years?: number
+          hire_date?: string
+          max_sessions_per_day?: number
         }
       }
       bookings: {
@@ -179,34 +297,61 @@ export interface Database {
           id: string
           member_id: string
           session_id: string
+          member_package_id: string | null
           booking_time: string
           status: 'confirmed' | 'pending' | 'cancelled' | 'attended'
-          attended: boolean | null
           notes: string | null
+          attended: boolean
           created_at: string
           updated_at: string
+          attendance_time: string | null
+          cancelled_at: string | null
+          rating: number | null
+          feedback: string | null
+          check_in_time: string | null
+          check_out_time: string | null
+          late_arrival: boolean
+          early_departure: boolean
         }
         Insert: {
           id?: string
           member_id: string
           session_id: string
+          member_package_id?: string | null
           booking_time?: string
           status?: 'confirmed' | 'pending' | 'cancelled' | 'attended'
-          attended?: boolean | null
           notes?: string | null
+          attended?: boolean
           created_at?: string
           updated_at?: string
+          attendance_time?: string | null
+          cancelled_at?: string | null
+          rating?: number | null
+          feedback?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          late_arrival?: boolean
+          early_departure?: boolean
         }
         Update: {
           id?: string
           member_id?: string
           session_id?: string
+          member_package_id?: string | null
           booking_time?: string
           status?: 'confirmed' | 'pending' | 'cancelled' | 'attended'
-          attended?: boolean | null
           notes?: string | null
+          attended?: boolean
           created_at?: string
           updated_at?: string
+          attendance_time?: string | null
+          cancelled_at?: string | null
+          rating?: number | null
+          feedback?: string | null
+          check_in_time?: string | null
+          check_out_time?: string | null
+          late_arrival?: boolean
+          early_departure?: boolean
         }
       }
       gym_settings: {
@@ -457,6 +602,35 @@ export interface Database {
           updated_at?: string
         }
       }
+      activity_logs: {
+        Row: {
+          id: string
+          user_id: string
+          action: string
+          target_type: string
+          target_id: string
+          details: any
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          action: string
+          target_type: string
+          target_id: string
+          details?: any
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          action?: string
+          target_type?: string
+          target_id?: string
+          details?: any
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -485,6 +659,9 @@ export type UserProfile = Tables<'profiles'>
 export type MemberProfile = Tables<'members'>
 export type Package = Tables<'packages'>
 export type Session = Tables<'sessions'>
+export type MemberPackage = Tables<'member_packages'>
+export type Trainer = Tables<'trainers'>
+export type Booking = Tables<'bookings'>
 export type GymSetting = Tables<'gym_settings'>
 export type Page = Tables<'pages'>
 export type Section = Tables<'sections'>

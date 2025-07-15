@@ -4,7 +4,8 @@
 	"private": true,
 	"scripts": {
 		"build": "next build",
-		"dev": "next dev",
+		"dev": "next dev --turbo",
+		"dev:debug": "next dev --turbo --inspect",
 		"lint": "next lint",
 		"start": "next start"
 	},
@@ -40,6 +41,7 @@
 		"@supabase/auth-helpers-nextjs": "^0.10.0",
 		"@supabase/ssr": "^0.6.1",
 		"@supabase/supabase-js": "^2.50.4",
+		"@vercel/blob": "^1.1.1",
 		"autoprefixer": "^10.4.20",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",

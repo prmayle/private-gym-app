@@ -1087,7 +1087,7 @@ export default function HomeConfigPage() {
 			const result = await response.json();
 			console.log("✅ Upload successful, server response:", result);
 
-			const publicPath = `${result.filePath}`;
+			const publicPath = result.filePath;
 			console.log("🔗 Generated public path for image:", publicPath);
 
 			// Update config with new image URL based on section and field

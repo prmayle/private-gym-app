@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { getCurrentUser } from "@/utils/auth"
-import { generateReport } from "@/utils/reports"
+import { createClient } from "@/utils/supabase/client"
+import { useAuth } from "@/contexts/AuthContext"
 
 const REPORT_TYPES = [
   { value: "revenue-per-package", label: "Revenue per Package", icon: Package },
@@ -23,22 +23,47 @@ const REPORT_TYPES = [
 
 const SESSION_STATUSES = [
   { value: "all", label: "All Statuses" },
-  { value: "Active", label: "Active" },
-  { value: "Inactive", label: "Inactive" },
-  { value: "Completed", label: "Completed" },
-  { value: "Cancelled", label: "Cancelled" },
-  { value: "Full", label: "Full" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "completed", label: "Completed" },
 ]
+
+interface Member {
+  id: string
+  name: string
+  email: string
+}
+
+interface Package {
+  id: string
+  name: string
+  package_type: string
+}
+
+interface ReportData {
+  [key: string]: any
+}
+
+interface FormData {
+  reportType: string
+  startDate: string
+  endDate: string
+  packageFilter: string
+  memberFilter: string
+  sessionStatus: string
+  emailAddress: string
+  notes: string
+}
 
 export default function ReportsPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const auth = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [currentUser, setCurrentUser] = useState(null)
-  const [members, setMembers] = useState([])
-  const [packages, setPackages] = useState([])
+  const [members, setMembers] = useState<Member[]>([])
+  const [packages, setPackages] = useState<Package[]>([])
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     reportType: "",
     startDate: "",
     endDate: "",
@@ -51,50 +76,76 @@ export default function ReportsPage() {
 
   useEffect(() => {
     // Check authentication
-    const user = getCurrentUser()
-    if (!user || user.role !== "admin") {
+    if (!auth.user) {
       router.push("/login")
       return
     }
-    setCurrentUser(user)
-    setFormData((prev) => ({ ...prev, emailAddress: user.email }))
+    setFormData((prev) => ({ ...prev, emailAddress: auth.user?.email || '' }))
 
     // Load data for filters
     loadFilterData()
-  }, [router])
+  }, [router, auth.user])
 
-  const loadFilterData = () => {
+  const loadFilterData = async () => {
     try {
-      // Load members
-      const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
-      const defaultMembers = [
-        { id: "1", name: "John Doe", email: "john@example.com" },
-        { id: "2", name: "Jane Smith", email: "jane@example.com" },
-        { id: "3", name: "Michael Johnson", email: "michael@example.com" },
-        { id: "4", name: "Emily Williams", email: "emily@example.com" },
-        { id: "5", name: "Robert Brown", email: "robert@example.com" },
-      ]
-      const allMembers = storedMembers.length > 0 ? [...storedMembers, ...defaultMembers] : defaultMembers
-      setMembers(allMembers)
+      setIsLoading(true)
+      const supabase = createClient()
+
+      // Load members with profiles
+      const { data: membersData, error: membersError } = await supabase
+        .from('members')
+        .select(`
+          id,
+          user_id,
+          membership_status,
+          profiles (
+            full_name,
+            email
+          )
+        `)
+        .eq('membership_status', 'active')
+        .order('joined_at', { ascending: false })
+
+      if (membersError) {
+        console.error('Error loading members:', membersError)
+      } else {
+        const transformedMembers: Member[] = (membersData || []).map(member => ({
+          id: member.id,
+          name: (member.profiles as any)?.full_name || `Member ${member.id}`,
+          email: (member.profiles as any)?.email || 'No email'
+        }))
+        setMembers(transformedMembers)
+      }
 
       // Load packages
-      const packageTypes = [
-        { id: "personal-training", name: "Personal Training" },
-        { id: "group-class", name: "Group Class" },
-        { id: "nutrition-consultation", name: "Nutrition Consultation" },
-        { id: "fitness-assessment", name: "Fitness Assessment" },
-      ]
-      setPackages(packageTypes)
+      const { data: packagesData, error: packagesError } = await supabase
+        .from('packages')
+        .select('id, name, package_type')
+        .eq('is_active', true)
+
+      if (packagesError) {
+        console.error('Error loading packages:', packagesError)
+      } else {
+        const transformedPackages: Package[] = (packagesData || []).map(pkg => ({
+          id: pkg.id,
+          name: pkg.name,
+          package_type: pkg.package_type
+        }))
+        setPackages(transformedPackages)
+      }
+
     } catch (error) {
-      console.error("Error loading filter data:", error)
+      console.error('Error loading filter data:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!formData.reportType) {
@@ -127,15 +178,15 @@ export default function ReportsPage() {
     setIsLoading(true)
 
     try {
-      // Generate the report
-      const reportData = await generateReport(formData)
+      // Generate the report using Supabase data
+      const reportData = await generateReportFromDatabase(formData)
 
-      // Simulate email sending (in a real app, this would be a server action)
-      await simulateEmailSending(reportData, formData)
+      // Save report to database
+      await saveReportToDatabase(reportData, formData)
 
       toast({
         title: "Report Generated Successfully",
-        description: `Report has been generated and sent to ${formData.emailAddress}`,
+        description: `Report has been generated and will be sent to ${formData.emailAddress}`,
       })
 
       // Reset form
@@ -146,7 +197,7 @@ export default function ReportsPage() {
         packageFilter: "all",
         memberFilter: "all",
         sessionStatus: "all",
-        emailAddress: currentUser?.email || "",
+        emailAddress: auth.user?.email || "",
         notes: "",
       })
     } catch (error) {
@@ -161,41 +212,172 @@ export default function ReportsPage() {
     }
   }
 
-  const simulateEmailSending = async (reportData, formData) => {
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+  const generateReportFromDatabase = async (formData: FormData): Promise<ReportData> => {
+    const supabase = createClient()
+    const { reportType, startDate, endDate, packageFilter, memberFilter, sessionStatus } = formData
 
-    // In a real application, this would send the email via an API route
-    console.log("Report would be sent to:", formData.emailAddress)
-    console.log("Report data:", reportData)
-
-    // Store the report in localStorage for demo purposes
-    const reports = JSON.parse(localStorage.getItem("admin-reports") || "[]")
-    const newReport = {
-      id: Date.now().toString(),
-      type: formData.reportType,
-      dateRange: `${formData.startDate} to ${formData.endDate}`,
-      generatedAt: new Date().toISOString(),
-      sentTo: formData.emailAddress,
-      filters: {
-        package: formData.packageFilter,
-        member: formData.memberFilter,
-        sessionStatus: formData.sessionStatus,
-      },
-      notes: formData.notes,
-      data: reportData,
+    switch (reportType) {
+      case 'revenue-per-package':
+        return await generateRevenuePerPackageReport(supabase, startDate, endDate)
+      case 'sessions-by-status':
+        return await generateSessionsByStatusReport(supabase, startDate, endDate)
+      case 'income-per-date':
+        return await generateIncomePerDateReport(supabase, startDate, endDate)
+      case 'income-per-member':
+        return await generateIncomePerMemberReport(supabase, startDate, endDate)
+      case 'attendance-per-session':
+        return await generateAttendancePerSessionReport(supabase, startDate, endDate)
+      default:
+        throw new Error('Invalid report type')
     }
-
-    reports.unshift(newReport)
-    localStorage.setItem("admin-reports", JSON.stringify(reports.slice(0, 50))) // Keep last 50 reports
   }
 
-  const getReportTypeIcon = (reportType) => {
-    const type = REPORT_TYPES.find((t) => t.value === reportType)
-    return type ? type.icon : FileText
+  const generateRevenuePerPackageReport = async (supabase: any, startDate: string, endDate: string) => {
+    const { data, error } = await supabase
+      .from('member_packages')
+      .select(`
+        price,
+        packages (name, package_type)
+      `)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+
+    if (error) throw error
+
+    const revenue: { [key: string]: number } = {}
+    data.forEach((mp: any) => {
+      const packageName = mp.packages?.name || 'Unknown'
+      revenue[packageName] = (revenue[packageName] || 0) + (mp.price || 0)
+    })
+
+    return { revenue, totalRevenue: Object.values(revenue).reduce((a: number, b: number) => a + b, 0) }
   }
 
-  if (!currentUser) {
+  const generateSessionsByStatusReport = async (supabase: any, startDate: string, endDate: string) => {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('status')
+      .gte('start_time', startDate)
+      .lte('start_time', endDate)
+
+    if (error) throw error
+
+    const statusCounts: { [key: string]: number } = {}
+    data.forEach((session: any) => {
+      statusCounts[session.status] = (statusCounts[session.status] || 0) + 1
+    })
+
+    return { statusCounts, totalSessions: data.length }
+  }
+
+  const generateIncomePerDateReport = async (supabase: any, startDate: string, endDate: string) => {
+    const { data, error } = await supabase
+      .from('member_packages')
+      .select('price, created_at')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+      .order('created_at')
+
+    if (error) throw error
+
+    const dailyIncome: { [key: string]: number } = {}
+    data.forEach((mp: any) => {
+      const date = new Date(mp.created_at).toISOString().split('T')[0]
+      dailyIncome[date] = (dailyIncome[date] || 0) + (mp.price || 0)
+    })
+
+    return { dailyIncome, totalIncome: Object.values(dailyIncome).reduce((a: number, b: number) => a + b, 0) }
+  }
+
+  const generateIncomePerMemberReport = async (supabase: any, startDate: string, endDate: string) => {
+    const { data, error } = await supabase
+      .from('member_packages')
+      .select(`
+        price,
+        member_id,
+        members (
+          profiles (
+            full_name
+          )
+        )
+      `)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+
+    if (error) throw error
+
+    const memberIncome: { [key: string]: number } = {}
+    data.forEach((mp: any) => {
+      const memberName = (mp.members as any)?.profiles?.full_name || 'Unknown Member'
+      memberIncome[memberName] = (memberIncome[memberName] || 0) + (mp.price || 0)
+    })
+
+    return { memberIncome, totalIncome: Object.values(memberIncome).reduce((a: number, b: number) => a + b, 0) }
+  }
+
+  const generateAttendancePerSessionReport = async (supabase: any, startDate: string, endDate: string) => {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        title,
+        start_time,
+        max_capacity,
+        current_bookings,
+        bookings (attended)
+      `)
+      .gte('start_time', startDate)
+      .lte('start_time', endDate)
+
+    if (error) throw error
+
+    const attendanceData = data.map((session: any) => {
+      const attendedCount = session.bookings?.filter((b: any) => b.attended).length || 0
+      const attendanceRate = session.current_bookings > 0 ? (attendedCount / session.current_bookings) * 100 : 0
+      
+      return {
+        sessionTitle: session.title,
+        date: new Date(session.start_time).toISOString().split('T')[0],
+        capacity: session.max_capacity,
+        booked: session.current_bookings,
+        attended: attendedCount,
+        attendanceRate: Math.round(attendanceRate * 100) / 100
+      }
+    })
+
+    return { attendanceData, totalSessions: data.length }
+  }
+
+  const saveReportToDatabase = async (reportData: ReportData, formData: FormData) => {
+    const supabase = createClient()
+    
+    try {
+      const { error } = await supabase
+        .from('reports')
+        .insert({
+          type: formData.reportType,
+          start_date: formData.startDate,
+          end_date: formData.endDate,
+          sent_to: formData.emailAddress,
+          filters: {
+            package: formData.packageFilter,
+            member: formData.memberFilter,
+            sessionStatus: formData.sessionStatus,
+          },
+          notes: formData.notes,
+          data: reportData,
+          created_by: auth.user?.id
+        })
+
+      if (error) {
+        console.error('Error saving report:', error)
+      }
+    } catch (error) {
+      console.error('Error saving report to database:', error)
+    }
+  }
+
+  if (!auth.user) {
     return (
       <div className="container mx-auto py-6">
         <div className="text-center">Loading...</div>

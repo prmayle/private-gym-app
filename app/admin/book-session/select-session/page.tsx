@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Search, Calendar, Clock, User, Users, ChevronRight, Filter, CheckCircle } from "lucide-react"
 
 interface Session {
@@ -65,185 +66,126 @@ export default function SelectSessionPage() {
   const loadMemberAndSessions = async () => {
     try {
       setLoading(true)
+      const supabase = createClient()
 
-      // Load member data
-      const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
-      let foundMember = storedMembers.find((m: any) => m.id === memberId)
+      // Load member data from Supabase
+      const { data: memberData, error: memberError } = await supabase
+        .from('members')
+        .select(`
+          id,
+          user_id,
+          joined_at,
+          membership_status,
+          profiles (
+            id,
+            email,
+            full_name,
+            phone
+          )
+        `)
+        .eq('id', memberId)
+        .single()
 
-      // Fallback to default members if not found
-      if (!foundMember) {
-        const defaultMembers = [
-          {
-            id: "1",
-            name: "John Doe",
-            email: "john.doe@email.com",
-            packages: [
-              {
-                id: "pkg1",
-                name: "Personal Training",
-                sessions: 10,
-                remaining: 6,
-                type: "Personal Training",
-              },
-              {
-                id: "pkg2",
-                name: "Group Classes",
-                sessions: 20,
-                remaining: 15,
-                type: "Group Class",
-              },
-            ],
-          },
-          {
-            id: "2",
-            name: "Jane Smith",
-            email: "jane.smith@email.com",
-            packages: [
-              {
-                id: "pkg3",
-                name: "Personal Training",
-                sessions: 8,
-                remaining: 4,
-                type: "Personal Training",
-              },
-            ],
-          },
-          {
-            id: "4",
-            name: "Emily Williams",
-            email: "emily.williams@email.com",
-            packages: [
-              {
-                id: "pkg4",
-                name: "Group Classes",
-                sessions: 12,
-                remaining: 8,
-                type: "Group Class",
-              },
-              {
-                id: "pkg5",
-                name: "Yoga Sessions",
-                sessions: 10,
-                remaining: 7,
-                type: "Yoga",
-              },
-            ],
-          },
-          {
-            id: "5",
-            name: "Robert Brown",
-            email: "robert.brown@email.com",
-            packages: [
-              {
-                id: "pkg6",
-                name: "HIIT Classes",
-                sessions: 15,
-                remaining: 12,
-                type: "Group Class",
-              },
-            ],
-          },
-        ]
-        foundMember = defaultMembers.find((m) => m.id === memberId)
+      if (memberError) {
+        throw memberError
       }
 
-      if (!foundMember) {
-        toast({
-          title: "Member Not Found",
-          description: "The selected member could not be found.",
-          variant: "destructive",
-        })
-        router.push("/admin/book-session")
-        return
+      // Load member packages to get current packages for this member
+      const { data: memberPackagesData, error: packagesError } = await supabase
+        .from('member_packages')
+        .select(`
+          id,
+          member_id,
+          sessions_remaining,
+          status,
+          start_date,
+          end_date,
+          packages (
+            id,
+            name,
+            package_type,
+            session_count
+          )
+        `)
+        .eq('member_id', memberId)
+        .eq('status', 'active')
+        .gt('sessions_remaining', 0)
+
+      if (packagesError) {
+        console.error("Error loading member packages:", packagesError)
+      }
+
+      // Transform member data
+      const memberPackages = (memberPackagesData || []).map(mp => ({
+        id: mp.id,
+        name: (mp.packages as any)?.name || 'Unknown Package',
+        sessions: (mp.packages as any)?.session_count || 0,
+        remaining: mp.sessions_remaining || 0,
+        expiryDate: mp.end_date,
+        type: (mp.packages as any)?.package_type || 'Unknown'
+      }))
+
+      const foundMember: Member = {
+        id: memberData.id,
+        name: (memberData.profiles as any)?.full_name || 'No Name',
+        email: (memberData.profiles as any)?.email || 'No Email',
+        packages: memberPackages
       }
 
       setMember(foundMember)
 
-      // Load available sessions
-      const storedSessions = JSON.parse(localStorage.getItem("gym-calendar-slots") || "[]")
+      // Load available sessions from Supabase
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          title,
+          start_time,
+          end_time,
+          session_type,
+          status,
+          current_bookings,
+          max_capacity,
+          description,
+          trainer_id,
+          trainers (
+            profiles (
+              full_name
+            )
+          )
+        `)
+        .eq('status', 'scheduled')
+        .gte('start_time', new Date().toISOString())
+        .order('start_time', { ascending: true })
 
-      // Mock sessions for demonstration
-      const mockSessions: Session[] = [
-        {
-          id: "s1",
-          title: "Personal Training Session",
-          date: "2025-01-15",
-          time: "10:00 AM - 11:00 AM",
-          type: "Personal Training",
-          trainer: "Mike Johnson",
-          status: "Available",
-          capacity: { booked: 0, total: 1 },
-          bookedMembers: [],
-          description: "One-on-one personal training session",
-        },
-        {
-          id: "s2",
-          title: "Group HIIT Class",
-          date: "2025-01-15",
-          time: "2:00 PM - 3:00 PM",
-          type: "Group Class",
-          trainer: "Sarah Williams",
-          status: "Available",
-          capacity: { booked: 5, total: 10 },
-          bookedMembers: ["Alice", "Bob", "Charlie", "Diana", "Eve"],
-          description: "High-intensity interval training class",
-        },
-        {
-          id: "s3",
-          title: "Yoga Flow Session",
-          date: "2025-01-16",
-          time: "9:00 AM - 10:00 AM",
-          type: "Yoga",
-          trainer: "Emma Thompson",
-          status: "Available",
-          capacity: { booked: 3, total: 12 },
-          bookedMembers: ["Frank", "Grace", "Henry"],
-          description: "Relaxing yoga flow for all levels",
-        },
-        {
-          id: "s4",
-          title: "Personal Training Session",
-          date: "2025-01-16",
-          time: "11:00 AM - 12:00 PM",
-          type: "Personal Training",
-          trainer: "David Lee",
-          status: "Available",
-          capacity: { booked: 0, total: 1 },
-          bookedMembers: [],
-          description: "Strength training focused session",
-        },
-        {
-          id: "s5",
-          title: "Group Fitness Class",
-          date: "2025-01-17",
-          time: "6:00 PM - 7:00 PM",
-          type: "Group Class",
-          trainer: "Sarah Williams",
-          status: "Full",
-          capacity: { booked: 15, total: 15 },
-          bookedMembers: [],
-          description: "Full body workout class",
-        },
-        {
-          id: "s6",
-          title: "Morning Yoga",
-          date: "2025-01-18",
-          time: "7:00 AM - 8:00 AM",
-          type: "Yoga",
-          trainer: "Emma Thompson",
-          status: "Available",
-          capacity: { booked: 2, total: 10 },
-          bookedMembers: ["Ivy", "Jack"],
-          description: "Start your day with gentle yoga",
-        },
-      ]
+      if (sessionsError) {
+        console.error("Error loading sessions:", sessionsError)
+      }
 
-      // Combine stored and mock sessions, filter only available ones
-      const allSessions = [...storedSessions, ...mockSessions].filter(
-        (session) => session.status === "Available" && new Date(session.date) >= new Date(),
-      )
+      // Transform sessions data
+      const transformedSessions: Session[] = (sessionsData || []).map(session => {
+        const startTime = new Date(session.start_time)
+        const endTime = new Date(session.end_time)
+        const isAvailable = (session.current_bookings || 0) < (session.max_capacity || 1)
+        
+        return {
+          id: session.id,
+          title: session.title,
+          date: startTime.toISOString().split('T')[0],
+          time: `${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          type: session.session_type,
+          trainer: (session.trainers as any)?.profiles?.full_name || 'Unknown Trainer',
+          status: isAvailable ? "Available" : "Full",
+          capacity: {
+            booked: session.current_bookings || 0,
+            total: session.max_capacity || 1
+          },
+          bookedMembers: [],
+          description: session.description || ''
+        }
+      }).filter(session => session.status === "Available")
 
-      setSessions(allSessions)
+      setSessions(transformedSessions)
     } catch (error) {
       console.error("Error loading data:", error)
       toast({
@@ -251,6 +193,11 @@ export default function SelectSessionPage() {
         description: "Failed to load member and session data.",
         variant: "destructive",
       })
+      
+      // If member not found, redirect back
+      if (error?.message?.includes('No rows found')) {
+        router.push("/admin/book-session")
+      }
     } finally {
       setLoading(false)
     }

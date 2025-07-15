@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
+import { createClient } from "@/utils/supabase/client"
 import { ArrowLeft, Calendar, User, Users, CheckCircle, AlertCircle, Package, Loader2 } from "lucide-react"
 
 interface Session {
@@ -57,165 +58,119 @@ export default function ConfirmBookingPage() {
     try {
       setLoading(true)
       setError(null)
+      const supabase = createClient()
 
-      // Load member data
-      const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
-      let foundMember = storedMembers.find((m: any) => m.id === memberId)
+      // Load member data from Supabase
+      const { data: memberData, error: memberError } = await supabase
+        .from('members')
+        .select(`
+          id,
+          user_id,
+          joined_at,
+          membership_status,
+          profiles (
+            id,
+            email,
+            full_name,
+            phone
+          )
+        `)
+        .eq('id', memberId)
+        .single()
 
-      // Fallback to default members
-      if (!foundMember) {
-        const defaultMembers = [
-          {
-            id: "1",
-            name: "John Doe",
-            email: "john.doe@email.com",
-            packages: [
-              {
-                id: "pkg1",
-                name: "Personal Training",
-                sessions: 10,
-                remaining: 6,
-                type: "Personal Training",
-              },
-              {
-                id: "pkg2",
-                name: "Group Classes",
-                sessions: 20,
-                remaining: 15,
-                type: "Group Class",
-              },
-            ],
-          },
-          {
-            id: "2",
-            name: "Jane Smith",
-            email: "jane.smith@email.com",
-            packages: [
-              {
-                id: "pkg3",
-                name: "Personal Training",
-                sessions: 8,
-                remaining: 4,
-                type: "Personal Training",
-              },
-            ],
-          },
-          {
-            id: "4",
-            name: "Emily Williams",
-            email: "emily.williams@email.com",
-            packages: [
-              {
-                id: "pkg4",
-                name: "Group Classes",
-                sessions: 12,
-                remaining: 8,
-                type: "Group Class",
-              },
-              {
-                id: "pkg5",
-                name: "Yoga Sessions",
-                sessions: 10,
-                remaining: 7,
-                type: "Yoga",
-              },
-            ],
-          },
-          {
-            id: "5",
-            name: "Robert Brown",
-            email: "robert.brown@email.com",
-            packages: [
-              {
-                id: "pkg6",
-                name: "HIIT Classes",
-                sessions: 15,
-                remaining: 12,
-                type: "Group Class",
-              },
-            ],
-          },
-        ]
-        foundMember = defaultMembers.find((m) => m.id === memberId)
-      }
-
-      if (!foundMember) {
+      if (memberError) {
         setError("Member not found")
         return
       }
 
+      // Load member packages
+      const { data: memberPackagesData, error: packagesError } = await supabase
+        .from('member_packages')
+        .select(`
+          id,
+          member_id,
+          sessions_remaining,
+          status,
+          start_date,
+          end_date,
+          packages (
+            id,
+            name,
+            package_type,
+            session_count
+          )
+        `)
+        .eq('member_id', memberId)
+        .eq('status', 'active')
+        .gt('sessions_remaining', 0)
+
+      if (packagesError) {
+        console.error("Error loading member packages:", packagesError)
+      }
+
+      // Transform member data
+      const memberPackages = (memberPackagesData || []).map(mp => ({
+        id: mp.id,
+        name: (mp.packages as any)?.name || 'Unknown Package',
+        sessions: (mp.packages as any)?.session_count || 0,
+        remaining: mp.sessions_remaining || 0,
+        expiryDate: mp.end_date,
+        type: (mp.packages as any)?.package_type || 'Unknown'
+      }))
+
+      const foundMember: Member = {
+        id: memberData.id,
+        name: (memberData.profiles as any)?.full_name || 'No Name',
+        email: (memberData.profiles as any)?.email || 'No Email',
+        packages: memberPackages
+      }
+
       setMember(foundMember)
 
-      // Load session data
-      const storedSessions = JSON.parse(localStorage.getItem("gym-calendar-slots") || "[]")
-      const mockSessions: Session[] = [
-        {
-          id: "s1",
-          title: "Personal Training Session",
-          date: "2025-01-15",
-          time: "10:00 AM - 11:00 AM",
-          type: "Personal Training",
-          trainer: "Mike Johnson",
-          capacity: { booked: 0, total: 1 },
-          description: "One-on-one personal training session",
-        },
-        {
-          id: "s2",
-          title: "Group HIIT Class",
-          date: "2025-01-15",
-          time: "2:00 PM - 3:00 PM",
-          type: "Group Class",
-          trainer: "Sarah Williams",
-          capacity: { booked: 5, total: 10 },
-          description: "High-intensity interval training class",
-        },
-        {
-          id: "s3",
-          title: "Yoga Flow Session",
-          date: "2025-01-16",
-          time: "9:00 AM - 10:00 AM",
-          type: "Yoga",
-          trainer: "Emma Thompson",
-          capacity: { booked: 3, total: 12 },
-          description: "Relaxing yoga flow for all levels",
-        },
-        {
-          id: "s4",
-          title: "Personal Training Session",
-          date: "2025-01-16",
-          time: "11:00 AM - 12:00 PM",
-          type: "Personal Training",
-          trainer: "David Lee",
-          capacity: { booked: 0, total: 1 },
-          description: "Strength training focused session",
-        },
-        {
-          id: "s5",
-          title: "Group Fitness Class",
-          date: "2025-01-17",
-          time: "6:00 PM - 7:00 PM",
-          type: "Group Class",
-          trainer: "Sarah Williams",
-          capacity: { booked: 15, total: 15 },
-          description: "Full body workout class",
-        },
-        {
-          id: "s6",
-          title: "Morning Yoga",
-          date: "2025-01-18",
-          time: "7:00 AM - 8:00 AM",
-          type: "Yoga",
-          trainer: "Emma Thompson",
-          capacity: { booked: 2, total: 10 },
-          description: "Start your day with gentle yoga",
-        },
-      ]
+      // Load session data from Supabase
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          title,
+          start_time,
+          end_time,
+          session_type,
+          status,
+          current_bookings,
+          max_capacity,
+          description,
+          trainer_id,
+          trainers (
+            profiles (
+              full_name
+            )
+          )
+        `)
+        .eq('id', sessionId)
+        .single()
 
-      const foundSession = [...storedSessions, ...mockSessions].find((s) => s.id === sessionId)
-
-      if (!foundSession) {
+      if (sessionError) {
         setError("Session not found")
         return
+      }
+
+      // Transform session data
+      const startTime = new Date(sessionData.start_time)
+      const endTime = new Date(sessionData.end_time)
+      
+      const foundSession: Session = {
+        id: sessionData.id,
+        title: sessionData.title,
+        date: startTime.toISOString().split('T')[0],
+        time: `${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+        type: sessionData.session_type,
+        trainer: (sessionData.trainers as any)?.profiles?.full_name || 'Unknown Trainer',
+        capacity: {
+          booked: sessionData.current_bookings || 0,
+          total: sessionData.max_capacity || 1
+        },
+        description: sessionData.description || ''
       }
 
       setSession(foundSession)
@@ -232,6 +187,7 @@ export default function ConfirmBookingPage() {
 
     try {
       setBooking(true)
+      const supabase = createClient()
 
       // Find matching package
       const matchingPackage = member.packages?.find((pkg: any) => {
@@ -244,83 +200,73 @@ export default function ConfirmBookingPage() {
         throw new Error("No matching package found")
       }
 
-      // Simulate booking process
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Create booking in database
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          member_id: member.id,
+          session_id: session.id,
+          member_package_id: matchingPackage.id,
+          booking_time: new Date().toISOString(),
+          status: 'confirmed',
+          notes: 'Booked by admin',
+          created_by: 'admin'
+        })
+        .select()
+        .single()
+
+      if (bookingError) {
+        throw bookingError
+      }
 
       // Update session capacity
-      const updatedSession = {
-        ...session,
-        capacity: {
-          ...session.capacity,
-          booked: session.capacity.booked + 1,
-        },
-        bookedMembers: [...(session.bookedMembers || []), member.name],
+      const { error: sessionUpdateError } = await supabase
+        .from('sessions')
+        .update({
+          current_bookings: session.capacity.booked + 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', session.id)
+
+      if (sessionUpdateError) {
+        throw sessionUpdateError
       }
 
       // Update package remaining sessions
-      const updatedPackages = member.packages.map((pkg: any) => {
-        if (pkg.id === matchingPackage.id) {
-          return { ...pkg, remaining: pkg.remaining - 1 }
-        }
-        return pkg
-      })
+      const { error: packageUpdateError } = await supabase
+        .from('member_packages')
+        .update({
+          sessions_remaining: matchingPackage.remaining - 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', matchingPackage.id)
 
-      // Save updated session to localStorage
-      const allSessions = JSON.parse(localStorage.getItem("gym-calendar-slots") || "[]")
-      const sessionIndex = allSessions.findIndex((s: any) => s.id === sessionId)
-
-      if (sessionIndex !== -1) {
-        allSessions[sessionIndex] = updatedSession
-      } else {
-        allSessions.push(updatedSession)
+      if (packageUpdateError) {
+        throw packageUpdateError
       }
 
-      localStorage.setItem("gym-calendar-slots", JSON.stringify(allSessions))
+      // Create notification for member
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: member.id,
+          title: 'Session Booked',
+          message: `Your ${session.title} session has been booked for ${new Date(session.date).toLocaleDateString()}`,
+          type: 'booking',
+          is_read: false,
+          metadata: {
+            session_id: session.id,
+            session_title: session.title,
+            session_date: session.date,
+            session_time: session.time,
+            trainer: session.trainer,
+            booked_by: 'admin'
+          }
+        })
 
-      // Update member packages in localStorage
-      const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
-      const memberIndex = storedMembers.findIndex((m: any) => m.id === memberId)
-
-      if (memberIndex !== -1) {
-        storedMembers[memberIndex] = {
-          ...storedMembers[memberIndex],
-          packages: updatedPackages,
-        }
-        localStorage.setItem("gym-members", JSON.stringify(storedMembers))
+      if (notificationError) {
+        console.error("Error creating notification:", notificationError)
       }
-
-      // Save booking to member-booked-sessions
-      const memberBookings = JSON.parse(localStorage.getItem("member-booked-sessions") || "[]")
-      memberBookings.push({
-        id: sessionId,
-        memberId,
-        memberName: member.name,
-        sessionTitle: session.title,
-        sessionType: session.type,
-        date: session.date,
-        time: session.time,
-        trainer: session.trainer,
-        bookedAt: new Date().toISOString(),
-        bookedBy: "admin",
-      })
-
-      localStorage.setItem("member-booked-sessions", JSON.stringify(memberBookings))
-
-      // Log activity
-      const activities = JSON.parse(localStorage.getItem("admin-activities") || "[]")
-      activities.unshift({
-        id: `activity-${Date.now()}`,
-        type: "session_booked",
-        message: "Session booked for member",
-        details: `${session.title} booked for ${member.name}`,
-        timestamp: new Date().toISOString(),
-        category: "bookings",
-        memberId: member.id,
-        memberName: member.name,
-        sessionId: session.id,
-        sessionTitle: session.title,
-      })
-      localStorage.setItem("admin-activities", JSON.stringify(activities))
 
       toast({
         title: "Booking Confirmed",

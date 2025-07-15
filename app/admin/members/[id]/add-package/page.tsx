@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, DollarSign } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
+import { activityLogger } from '@/lib/activity-logger'
 
 const availablePackages = [
   { id: "1", name: "Personal Training", sessions: 10, price: 500, duration: 30, package_type: "personal_training" },
@@ -126,8 +127,9 @@ export default function AddPackagePage() {
           start_date: startDate,
           end_date: endDate,
           sessions_remaining: packageInfo.sessions,
+          sessions_total: packageInfo.sessions,
           status: 'active',
-          payment_status: paymentStatus.toLowerCase()
+          purchased_at: new Date().toISOString()
         })
         .select()
         .single()
@@ -135,6 +137,38 @@ export default function AddPackagePage() {
       if (memberPackageError) {
         throw memberPackageError
       }
+
+      // Create payment record
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          member_id: memberId,
+          package_id: existingPackage.id,
+          amount: packageInfo.price,
+          payment_method: 'manual',
+          status: paymentStatus.toLowerCase() === 'paid' ? 'completed' : 'pending',
+          payment_date: paymentStatus.toLowerCase() === 'paid' ? new Date().toISOString() : null
+        })
+
+      if (paymentError) {
+        console.error('Payment record creation failed:', paymentError)
+        // Don't throw error, just log it since member package was created successfully
+      }
+
+      // Log activity
+      await activityLogger.logActivity(
+        'package_assigned',
+        'member',
+        memberId,
+        {
+          packageName: packageInfo.name,
+          memberName: 'Member',
+          packageId: existingPackage.id,
+          sessions: packageInfo.sessions,
+          price: packageInfo.price,
+          paymentStatus: paymentStatus.toLowerCase()
+        }
+      )
 
       toast({
         title: "Package Added Successfully",

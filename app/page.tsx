@@ -157,18 +157,26 @@ export default function Home() {
 	const { user, loading: authLoading } = useAuth();
 
 	useEffect(() => {
-		loadHomePageConfig();
+		// Load config in background without blocking render
+		loadHomePageConfig().catch(console.error);
 	}, []);
 
 	const loadHomePageConfig = async () => {
 		try {
-			setIsLoading(true);
+			// Start with defaults immediately, then enhance with DB data
+			setIsLoading(false); // Don't block rendering
 			setError(null);
 
 			const supabase = createClient();
-			const data = await getHomePageConfig(supabase);
-
-			console.log("🔍 data:", data);
+			// Add timeout to prevent hanging
+			const timeoutPromise = new Promise((_, reject) => 
+				setTimeout(() => reject(new Error('Database timeout')), 5000)
+			);
+			
+			const data = await Promise.race([
+				getHomePageConfig(supabase),
+				timeoutPromise
+			]);
 
 			if (data) {
 				// Merge database config with defaults
@@ -203,29 +211,27 @@ export default function Home() {
 					footer: { ...defaultHomeConfig.footer, ...(data.footer || {}) },
 				};
 				setHomeConfig(mergedConfig);
-				console.log("🔍 mergedConfig:", mergedConfig);
 			}
 		} catch (err) {
-			setError(null);
+			// Don't set error, just use defaults
 			console.warn(
 				"Failed to load page config, using defaults:",
 				err instanceof Error ? err.message : "Unknown error"
 			);
-		} finally {
-			setIsLoading(false);
 		}
 	};
 
-	if (isLoading) {
-		return (
-			<div className="min-h-screen bg-background flex items-center justify-center">
-				<div className="text-center">
-					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-					<p className="text-foreground/70">Loading...</p>
-				</div>
-			</div>
-		);
-	}
+	// Remove blocking loading screen - let page render with defaults
+	// if (isLoading) {
+	// 	return (
+	// 		<div className="min-h-screen bg-background flex items-center justify-center">
+	// 			<div className="text-center">
+	// 				<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+	// 				<p className="text-foreground/70">Loading...</p>
+	// 			</div>
+	// 		</div>
+	// 	);
+	// }
 
 	if (error) {
 		return (
@@ -306,6 +312,12 @@ export default function Home() {
 									src={homeConfig.about.image || "/placeholder.svg"}
 									alt="About Core Factory"
 									className="rounded-lg shadow-lg w-full"
+									onError={(e) => {
+										const target = e.target as HTMLImageElement;
+										if (target.src !== "/placeholder.svg") {
+											target.src = "/placeholder.svg";
+										}
+									}}
 								/>
 							</div>
 						)}
@@ -379,6 +391,12 @@ export default function Home() {
 										src={trainer.profilePhotoUrl || "/placeholder.svg"}
 										alt={trainer.name}
 										className="w-32 h-32 rounded-full object-cover mb-4 border-2 border-primary"
+										onError={(e) => {
+											const target = e.target as HTMLImageElement;
+											if (target.src !== "/placeholder.svg") {
+												target.src = "/placeholder.svg";
+											}
+										}}
 									/>
 									<h3 className="text-xl font-semibold">{trainer.name}</h3>
 									<p className="text-sm text-foreground/70 mb-3">
@@ -410,6 +428,12 @@ export default function Home() {
 										src={testimonial.image || "/placeholder.svg"}
 										alt={testimonial.name}
 										className="w-20 h-20 rounded-full object-cover mb-4"
+										onError={(e) => {
+											const target = e.target as HTMLImageElement;
+											if (target.src !== "/placeholder.svg") {
+												target.src = "/placeholder.svg";
+											}
+										}}
 									/>
 									<p className="italic mb-4">"{testimonial.content}"</p>
 									<div>

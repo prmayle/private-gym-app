@@ -49,7 +49,7 @@ import {
 	Edit,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { getRecentActivities, ActivityLog } from "@/utils/activity-logger";
+import { activityLogger } from "@/lib/activity-logger";
 
 interface DashboardStats {
 	totalMembers: number;
@@ -602,19 +602,19 @@ export default function AdminDashboard() {
 
 			// Load real activities from the database
 			try {
-				const activities = await getRecentActivities(20);
+				const activities = await activityLogger.getRecentActivity(20);
 				const transformedActivities: RecentActivity[] = activities.map(
 					(activity) => ({
 						id: activity.id || "unknown",
-						type: activity.action_type,
-						category: activity.entity_type,
-						message: activity.description,
-						details: activity.metadata
-							? JSON.stringify(activity.metadata)
+						type: activity.action,
+						category: activity.target_type,
+						message: activityLogger.formatActivityMessage(activity),
+						details: activity.details
+							? JSON.stringify(activity.details)
 							: undefined,
 						timestamp: activity.created_at || new Date().toISOString(),
 						status: "success",
-						priority: activity.action_type === "create" ? "medium" : "low",
+						priority: activity.action.includes("create") ? "medium" : "low",
 					})
 				);
 
