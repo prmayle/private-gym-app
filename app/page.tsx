@@ -17,9 +17,10 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { getHomePageConfig, type TypedSupabaseClient } from "@/lib/supabase";
+import { getHomePageConfig, getSliderImages, type TypedSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserDropdown } from "@/components/ui/user-dropdown";
+import { ImageSlider } from "@/components/ui/image-slider";
 
 // Import WhatsApp icon
 const WhatsAppIcon = () => (
@@ -43,14 +44,12 @@ const defaultHomeConfig = {
 		buttonText: "Join Now",
 		buttonLink:
 			"https://wa.me/15551234567?text=Hi%2C%20I%27m%20interested%20in%20joining%20Core%20Factory",
-		backgroundImage: "/placeholder.svg?height=600&width=1200",
 	},
 	about: {
 		title: "Our Mission",
 		content:
 			"At Core Factory, we believe in personalized fitness journeys. Our private gym offers exclusive training sessions, expert coaches, and a supportive community to help you achieve your fitness goals.",
 		showImage: true,
-		image: "/placeholder.svg?height=400&width=600",
 		bulletPoints: [
 			"Premium Equipment",
 			"Expert Trainers",
@@ -154,6 +153,8 @@ export default function Home() {
 	const [homeConfig, setHomeConfig] = useState(defaultHomeConfig);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [heroSliderImages, setHeroSliderImages] = useState<any[]>([]);
+	const [aboutSliderImages, setAboutSliderImages] = useState<any[]>([]);
 	const { user, loading: authLoading } = useAuth();
 
 	useEffect(() => {
@@ -173,10 +174,35 @@ export default function Home() {
 				setTimeout(() => reject(new Error('Database timeout')), 5000)
 			);
 			
-			const data = await Promise.race([
-				getHomePageConfig(supabase),
-				timeoutPromise
+			const [data, heroSliderData, aboutSliderData] = await Promise.all([
+				Promise.race([
+					getHomePageConfig(supabase),
+					timeoutPromise
+				]),
+				getSliderImages(supabase, 'hero').catch(() => []),
+				getSliderImages(supabase, 'about').catch(() => [])
 			]);
+
+			// Set slider images
+			if (heroSliderData.length > 0) {
+				setHeroSliderImages(heroSliderData.map(img => ({
+					id: img.id,
+					imageUrl: img.image_url,
+					title: img.title,
+					subtitle: img.subtitle,
+					sortOrder: img.sort_order
+				})));
+			}
+
+			if (aboutSliderData.length > 0) {
+				setAboutSliderImages(aboutSliderData.map(img => ({
+					id: img.id,
+					imageUrl: img.image_url,
+					title: img.title,
+					subtitle: img.subtitle,
+					sortOrder: img.sort_order
+				})));
+			}
 
 			if (data) {
 				// Merge database config with defaults
@@ -274,22 +300,40 @@ export default function Home() {
 			</nav>
 
 			{/* Hero Section */}
-			<section
-				className="pt-24 pb-16 md:pt-32 md:pb-24 px-4 flex items-center justify-center text-center"
-				style={{
-					backgroundImage: `linear-gradient(rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.9)), url(${homeConfig.hero.backgroundImage})`,
-					backgroundSize: "cover",
-					backgroundPosition: "center",
-				}}>
-				<div className="container mx-auto max-w-3xl">
-					<h1 className="text-3xl md:text-5xl font-bold mb-4 text-primary">
+			<section className="pt-16 relative min-h-[70vh] flex items-center justify-center text-center">
+				{/* Background Slider */}
+				<div className="absolute inset-0 z-0">
+					{heroSliderImages.length > 0 ? (
+						<ImageSlider
+							images={heroSliderImages}
+							className="w-full h-full"
+							showControls={true}
+							showIndicators={true}
+							autoPlay={true}
+							interval={6000}
+						/>
+					) : (
+						<div
+							className="w-full h-full bg-cover bg-center bg-gradient-to-r from-primary/20 to-primary/40"
+							style={{
+								backgroundImage: `url(/placeholder.svg?height=600&width=1200)`,
+							}}
+						/>
+					)}
+					{/* Dark Overlay */}
+					<div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70 z-10" />
+				</div>
+
+				{/* Content */}
+				<div className="container mx-auto max-w-3xl px-4 relative z-20">
+					<h1 className="text-3xl md:text-5xl font-bold mb-4 text-white drop-shadow-lg">
 						{homeConfig.hero.title}
 					</h1>
-					<p className="text-xl md:text-2xl mb-8 text-foreground/80">
+					<p className="text-xl md:text-2xl mb-8 text-white/90 drop-shadow-md">
 						{homeConfig.hero.subtitle}
 					</p>
 					{homeConfig.hero.showButton && (
-						<Button size="lg" asChild>
+						<Button size="lg" asChild className="shadow-lg">
 							<a
 								href={homeConfig.hero.buttonLink}
 								target="_blank"
@@ -308,17 +352,23 @@ export default function Home() {
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
 						{homeConfig.about.showImage && (
 							<div className="order-2 md:order-1">
-								<img
-									src={homeConfig.about.image || "/placeholder.svg"}
-									alt="About Core Factory"
-									className="rounded-lg shadow-lg w-full"
-									onError={(e) => {
-										const target = e.target as HTMLImageElement;
-										if (target.src !== "/placeholder.svg") {
-											target.src = "/placeholder.svg";
-										}
-									}}
-								/>
+								{aboutSliderImages.length > 0 ? (
+									<ImageSlider
+										images={aboutSliderImages}
+										className="rounded-lg shadow-lg w-full h-64 md:h-80"
+										showControls={true}
+										showIndicators={true}
+										autoPlay={true}
+										interval={7000}
+									/>
+								) : (
+									<div className="rounded-lg shadow-lg w-full h-64 md:h-80 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
+										<div className="text-center text-muted-foreground">
+											<p className="text-lg font-medium mb-2">No images available</p>
+											<p className="text-sm">Add images in the admin panel</p>
+										</div>
+									</div>
+								)}
 							</div>
 						)}
 						<div

@@ -24,9 +24,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Eye, Plus, Trash, Upload } from "lucide-react";
+import { ArrowLeft, Eye, Plus, Trash, Upload, GripVertical, Move } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import Image from "next/image";
+import { getSliderImages, upsertSliderImage, deleteSliderImage, updateSliderImageOrder } from "@/lib/supabase";
+import { ImageManager } from "@/components/ui/image-manager";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 // Type definitions for home page configuration
 interface HeroConfig {
@@ -35,14 +38,12 @@ interface HeroConfig {
 	showButton: boolean;
 	buttonText: string;
 	buttonLink: string;
-	backgroundImage: string;
 }
 
 interface AboutConfig {
 	title: string;
 	content: string;
 	showImage: boolean;
-	image: string;
 	bulletPoints: string[];
 }
 
@@ -111,6 +112,13 @@ interface FooterConfig {
 	quickLinks: string[];
 }
 
+interface SliderImageConfig {
+	id: string;
+	sectionName: string;
+	imageUrl: string;
+	sortOrder: number;
+}
+
 interface HomePageConfig {
 	hero: HeroConfig;
 	about: AboutConfig;
@@ -125,8 +133,12 @@ export default function HomeConfigPage() {
 	const { toast } = useToast();
 	const [config, setConfig] = useState<HomePageConfig | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [globalLoading, setGlobalLoading] = useState(false);
+	const [loadingMessage, setLoadingMessage] = useState("Processing...");
 	const [saving, setSaving] = useState(false);
 	const [activeTab, setActiveTab] = useState("hero");
+	const [heroSliderImages, setHeroSliderImages] = useState<SliderImageConfig[]>([]);
+	const [aboutSliderImages, setAboutSliderImages] = useState<SliderImageConfig[]>([]);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	// Load data once on mount
@@ -205,8 +217,8 @@ export default function HomeConfigPage() {
 				homePage = newPage;
 			}
 
-			// Load page sections, features, testimonials, and trainers in parallel
-			const [sectionsResult, featuresResult, testimonialsResult, trainersResult] =
+			// Load page sections, features, testimonials, trainers, and slider images in parallel
+			const [sectionsResult, featuresResult, testimonialsResult, trainersResult, heroSliderResult, aboutSliderResult] =
 				await Promise.all([
 					supabase
 						.from("page_sections")
@@ -243,6 +255,9 @@ export default function HomeConfigPage() {
 							profiles(full_name)
 						`)
 						.eq("is_available", true),
+
+					getSliderImages(supabase, 'hero'),
+					getSliderImages(supabase, 'about')
 				]);
 
 			// Build config object
@@ -334,6 +349,25 @@ export default function HomeConfigPage() {
 				testimonialsResult
 			);
 			console.log("🔍 after processing Config data:", configData);
+
+			// Process slider images
+			if (heroSliderResult) {
+				setHeroSliderImages(heroSliderResult.map(img => ({
+					id: img.id,
+					sectionName: img.section_name,
+					imageUrl: img.image_url,
+					sortOrder: img.sort_order
+				})));
+			}
+
+			if (aboutSliderResult) {
+				setAboutSliderImages(aboutSliderResult.map(img => ({
+					id: img.id,
+					sectionName: img.section_name,
+					imageUrl: img.image_url,
+					sortOrder: img.sort_order
+				})));
+			}
 
 			// Only set config if we have data from Supabase, no static defaults
 			if (Object.keys(configData).length > 0) {
@@ -786,10 +820,163 @@ export default function HomeConfigPage() {
 		});
 	};
 
+	// Slider Image Management Functions
+	const handleSliderImageUpload = async (sectionName: 'hero' | 'about', files: FileList) => {
+		try {
+			setGlobalLoading(true);
+			setLoadingMessage(`Uploading ${files.length} image${files.length > 1 ? 's' : ''}...`);
+
+			const supabase = createClient();
+			const currentImages = sectionName === 'hero' ? heroSliderImages : aboutSliderImages;
+
+			// Process each file
+			for (let i = 0; i < files.length; i++) {
+				const file = files[i];
+				const formData = new FormData();
+				formData.append("file", file);
+				formData.append("section", "slider");
+				formData.append("field", "image");
+
+				// Upload to local API
+				const response = await fetch("/api/upload", {
+					method: "POST",
+					body: formData,
+				});
+
+				if (!response.ok) {
+					throw new Error(`Failed to upload ${file.name}`);
+				}
+
+				const result = await response.json();
+				const imageUrl = result.filePath;
+
+				// Save to database
+				await upsertSliderImage(supabase, {
+					sectionName,
+					imageUrl,
+					sortOrder: currentImages.length + i
+				});
+			}
+
+			// Reload slider images
+			await reloadSliderImages();
+
+			toast({
+				title: "Success",
+				description: `${files.length} image${files.length > 1 ? 's' : ''} uploaded successfully`,
+			});
+		} catch (error) {
+			console.error('Upload error:', error);
+			toast({
+				title: "Error",
+				description: "Failed to upload images",
+				variant: "destructive",
+			});
+		} finally {
+			setGlobalLoading(false);
+		}
+	};
+
+	const handleSliderImageReorder = async (sectionName: 'hero' | 'about', fromIndex: number, toIndex: number) => {
+		try {
+			setGlobalLoading(true);
+			setLoadingMessage("Reordering images...");
+
+			const currentImages = sectionName === 'hero' ? heroSliderImages : aboutSliderImages;
+			const reorderedImages = [...currentImages];
+			const [movedImage] = reorderedImages.splice(fromIndex, 1);
+			reorderedImages.splice(toIndex, 0, movedImage);
+
+			// Update sort orders
+			const supabase = createClient();
+			for (let i = 0; i < reorderedImages.length; i++) {
+				await updateSliderImageOrder(supabase, reorderedImages[i].id, i);
+			}
+
+			// Update local state
+			if (sectionName === 'hero') {
+				setHeroSliderImages(reorderedImages.map((img, idx) => ({ ...img, sortOrder: idx })));
+			} else {
+				setAboutSliderImages(reorderedImages.map((img, idx) => ({ ...img, sortOrder: idx })));
+			}
+
+			toast({
+				title: "Success",
+				description: "Images reordered successfully",
+			});
+		} catch (error) {
+			toast({
+				title: "Error",
+				description: "Failed to reorder images",
+				variant: "destructive",
+			});
+		} finally {
+			setGlobalLoading(false);
+		}
+	};
+
+	const handleSliderImageDelete = async (sectionName: 'hero' | 'about', imageId: string) => {
+		try {
+			setGlobalLoading(true);
+			setLoadingMessage("Deleting image...");
+
+			const supabase = createClient();
+			await deleteSliderImage(supabase, imageId);
+
+			// Reload slider images
+			await reloadSliderImages();
+
+			toast({
+				title: "Success",
+				description: "Image deleted successfully",
+			});
+		} catch (error) {
+			toast({
+				title: "Error",
+				description: "Failed to delete image",
+				variant: "destructive",
+			});
+		} finally {
+			setGlobalLoading(false);
+		}
+	};
+
+	const reloadSliderImages = async () => {
+		try {
+			const supabase = createClient();
+			const [heroSliderResult, aboutSliderResult] = await Promise.all([
+				getSliderImages(supabase, 'hero'),
+				getSliderImages(supabase, 'about')
+			]);
+
+			if (heroSliderResult) {
+				setHeroSliderImages(heroSliderResult.map(img => ({
+					id: img.id,
+					sectionName: img.section_name,
+					imageUrl: img.image_url,
+					sortOrder: img.sort_order
+				})));
+			}
+
+			if (aboutSliderResult) {
+				setAboutSliderImages(aboutSliderResult.map(img => ({
+					id: img.id,
+					sectionName: img.section_name,
+					imageUrl: img.image_url,
+					sortOrder: img.sort_order
+				})));
+			}
+		} catch (error) {
+			console.error('Failed to reload slider images:', error);
+		}
+	};
+
 	const saveAllSettings = async () => {
-		if (saving || !config) return;
+		if (saving || globalLoading || !config) return;
 
 		try {
+			setGlobalLoading(true);
+			setLoadingMessage("Saving all settings...");
 			setSaving(true);
 			const supabase = createClient();
 
@@ -898,53 +1085,53 @@ export default function HomeConfigPage() {
 				}
 			};
 
-			// Save all sections sequentially to avoid race conditions
-			await updateOrCreateSection("hero", config.hero, 0);
-			await updateOrCreateSection("about", config.about, 1);
-			await updateOrCreateSection(
-				"features",
-				{
+			// Step 1: Save all sections in parallel
+			setLoadingMessage("Saving page sections...");
+			const sectionPromises = [
+				updateOrCreateSection("hero", config.hero, 0),
+				updateOrCreateSection("about", config.about, 1),
+				updateOrCreateSection("features", {
 					title: config.features.title,
 					subtitle: config.features.subtitle,
-				},
-				2
-			);
-			await updateOrCreateSection(
-				"trainers",
-				{
+				}, 2),
+				updateOrCreateSection("trainers", {
 					title: config.trainers.title,
 					subtitle: config.trainers.subtitle,
-				},
-				3
-			);
-			await updateOrCreateSection(
-				"testimonials",
-				{
+				}, 3),
+				updateOrCreateSection("testimonials", {
 					title: config.testimonials.title,
 					subtitle: config.testimonials.subtitle,
-				},
-				4
-			);
-			await updateOrCreateSection("contact", config.contact, 5);
-			await updateOrCreateSection("footer", config.footer, 6);
+				}, 4),
+				updateOrCreateSection("contact", config.contact, 5),
+				updateOrCreateSection("footer", config.footer, 6)
+			];
+			await Promise.all(sectionPromises);
 
-			// Save all features
-			const featurePromises = config.features.features.map(async (feature) => {
-				const { error } = await supabase.from("features").upsert({
-					id: feature.id.startsWith("new-") ? undefined : feature.id,
-					title: feature.title,
-					description: feature.description,
-					icon: feature.icon,
-					is_active: true,
-					updated_at: new Date().toISOString(),
+			// Step 2: Save features in batch
+			if (config.features.features.length > 0) {
+				setLoadingMessage("Saving features...");
+				const featurePromises = config.features.features.map(async (feature) => {
+					return supabase.from("features").upsert({
+						id: feature.id.startsWith("new-") ? undefined : feature.id,
+						title: feature.title,
+						description: feature.description,
+						icon: feature.icon,
+						is_active: true,
+						updated_at: new Date().toISOString(),
+					});
 				});
-				if (error) throw error;
-			});
+				const featureResults = await Promise.allSettled(featurePromises);
+				const featureFailures = featureResults.filter(r => r.status === 'rejected');
+				if (featureFailures.length > 0) {
+					console.warn(`${featureFailures.length} features failed to save`);
+				}
+			}
 
-			// Save all testimonials
-			const testimonialPromises = config.testimonials.testimonials.map(
-				async (testimonial) => {
-					const { error } = await supabase.from("testimonials").upsert({
+			// Step 3: Save testimonials in batch
+			if (config.testimonials.testimonials.length > 0) {
+				setLoadingMessage("Saving testimonials...");
+				const testimonialPromises = config.testimonials.testimonials.map(async (testimonial) => {
+					return supabase.from("testimonials").upsert({
 						id: testimonial.id.startsWith("new-") ? undefined : testimonial.id,
 						name: testimonial.name,
 						role: testimonial.role,
@@ -953,14 +1140,16 @@ export default function HomeConfigPage() {
 						is_active: true,
 						updated_at: new Date().toISOString(),
 					});
-					if (error) throw error;
+				});
+				const testimonialResults = await Promise.allSettled(testimonialPromises);
+				const testimonialFailures = testimonialResults.filter(r => r.status === 'rejected');
+				if (testimonialFailures.length > 0) {
+					console.warn(`${testimonialFailures.length} testimonials failed to save`);
 				}
-			);
+			}
 
-			// Execute feature and testimonial saves in parallel
-			await Promise.all([...featurePromises, ...testimonialPromises]);
-
-			// Reload config to get updated data
+			// Step 4: Reload config
+			setLoadingMessage("Refreshing data...");
 			await loadHomeConfig();
 
 			toast({
@@ -978,6 +1167,7 @@ export default function HomeConfigPage() {
 			});
 		} finally {
 			setSaving(false);
+			setGlobalLoading(false);
 		}
 	};
 
@@ -985,7 +1175,8 @@ export default function HomeConfigPage() {
 	const handleImageUpload = async (
 		section: string,
 		field: string,
-		testimonialId?: string
+		testimonialId?: string,
+		sliderImageId?: string
 	) => {
 		console.log(
 			"🖼️ Initiating image upload for section:",
@@ -993,7 +1184,9 @@ export default function HomeConfigPage() {
 			"field:",
 			field,
 			"testimonialId:",
-			testimonialId
+			testimonialId,
+			"sliderImageId:",
+			sliderImageId
 		);
 		if (fileInputRef.current) {
 			console.log(
@@ -1002,7 +1195,9 @@ export default function HomeConfigPage() {
 				"field:",
 				field,
 				"testimonialId:",
-				testimonialId
+				testimonialId,
+				"sliderImageId:",
+				sliderImageId
 			);
 			// Store the section and field for when file is selected
 			fileInputRef.current.dataset.section = section;
@@ -1010,13 +1205,18 @@ export default function HomeConfigPage() {
 			if (testimonialId) {
 				fileInputRef.current.dataset.testimonialId = testimonialId;
 			}
+			if (sliderImageId) {
+				fileInputRef.current.dataset.sliderImageId = sliderImageId;
+			}
 			console.log(
 				"🖱️ Triggering file input click for section:",
 				section,
 				"field:",
 				field,
 				"testimonialId:",
-				testimonialId
+				testimonialId,
+				"sliderImageId:",
+				sliderImageId
 			);
 			fileInputRef.current.click();
 		} else {
@@ -1039,6 +1239,7 @@ export default function HomeConfigPage() {
 		const section = event.target.dataset.section;
 		const field = event.target.dataset.field;
 		const testimonialId = event.target.dataset.testimonialId;
+		const sliderImageId = event.target.dataset.sliderImageId;
 
 		console.log(
 			"📁 Starting file upload process for section:",
@@ -1046,7 +1247,9 @@ export default function HomeConfigPage() {
 			"field:",
 			field,
 			"testimonialId:",
-			testimonialId
+			testimonialId,
+			"sliderImageId:",
+			sliderImageId
 		);
 
 		try {
@@ -1068,6 +1271,11 @@ export default function HomeConfigPage() {
 			// For testimonial uploads, add the testimonial ID to the form data
 			if (section === "testimonial" && testimonialId) {
 				formData.append("testimonialId", testimonialId);
+			}
+
+			// For slider image uploads, add the slider image ID to the form data
+			if (section === "slider" && sliderImageId) {
+				formData.append("sliderImageId", sliderImageId);
 			}
 
 			// Upload to local API
@@ -1156,6 +1364,25 @@ export default function HomeConfigPage() {
 						"not found in config"
 					);
 				}
+			} else if (section === "slider" && field === "image" && sliderImageId) {
+				console.log(
+					"🖼️ Processing slider image update for ID:",
+					sliderImageId
+				);
+
+				// Find and update the slider image
+				const heroIndex = heroSliderImages.findIndex(img => img.id === sliderImageId);
+				const aboutIndex = aboutSliderImages.findIndex(img => img.id === sliderImageId);
+
+				if (heroIndex !== -1) {
+					console.log("✏️ Updating hero slider image at index", heroIndex);
+					updateSliderImage('hero', heroIndex, 'imageUrl', publicPath);
+				} else if (aboutIndex !== -1) {
+					console.log("✏️ Updating about slider image at index", aboutIndex);
+					updateSliderImage('about', aboutIndex, 'imageUrl', publicPath);
+				} else {
+					console.log("⚠️ Slider image with ID", sliderImageId, "not found");
+				}
 			} else {
 				console.log("⚠️ Unknown section/field combination:", section, field);
 			}
@@ -1200,21 +1427,8 @@ export default function HomeConfigPage() {
 
 	return (
 		<div className="container mx-auto py-6 space-y-6 relative">
-			{/* Loading Overlay */}
-			{saving && (
-				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-					<div className="bg-white/95 shadow-2xl rounded-2xl p-8 flex items-center space-x-4 border border-gray-200">
-						<div className="relative">
-							<div className="animate-spin rounded-full h-8 w-8 border-3 border-gray-300 border-t-blue-500"></div>
-							<div className="absolute top-0 left-0 animate-ping rounded-full h-8 w-8 border-2 border-blue-400 opacity-20"></div>
-						</div>
-						<div className="flex flex-col">
-							<span className="text-lg font-semibold text-gray-900">Saving changes...</span>
-							<span className="text-sm text-gray-600">Please wait a moment</span>
-						</div>
-					</div>
-				</div>
-			)}
+			{/* Global Loading Overlay */}
+			<LoadingOverlay show={globalLoading} message={loadingMessage} />
 
 			<div className="flex items-center justify-between">
 				<div className="flex items-center">
@@ -1260,7 +1474,8 @@ export default function HomeConfigPage() {
 								Configure the main banner of your home page
 							</CardDescription>
 						</CardHeader>
-						<CardContent className="space-y-4">
+						<CardContent className="space-y-6">
+							{/* Basic Hero Settings */}
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="space-y-2">
 									<Label htmlFor="heroTitle">Title</Label>
@@ -1284,83 +1499,70 @@ export default function HomeConfigPage() {
 								</div>
 							</div>
 
-							<div className="space-y-2">
-								<div className="flex items-center justify-between">
-									<Label htmlFor="heroBackground">Background Image</Label>
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() =>
-											handleImageUpload("hero", "backgroundImage")
-										}>
-										<Upload className="h-4 w-4 mr-2" />
-										Upload
-									</Button>
-								</div>
-								<div className="border rounded-md p-2">
-									<Image
-										src={config.hero.backgroundImage || "/placeholder.svg"}
-										alt="Hero Background"
-										width={800}
-										height={160}
-										className="w-full h-40 object-cover rounded-md"
-										onError={(e) => {
-											const target = e.target as HTMLImageElement;
-											if (target.src !== "/placeholder.svg") {
-												console.log("Image failed to load:", target.src);
-												target.src = "/placeholder.svg";
-											}
-										}}
-										onLoad={() => {
-											console.log(
-												"Hero image loaded successfully:",
-												config.hero.backgroundImage
-											);
-										}}
+							{/* Call-to-Action Button */}
+							<div className="space-y-4">
+								<div className="flex items-center space-x-2">
+									<Switch
+										id="heroShowButton"
+										checked={config.hero.showButton}
+										onCheckedChange={(checked) =>
+											updateConfig("hero", { showButton: checked })
+										}
 									/>
+									<Label htmlFor="heroShowButton">
+										Show Call-to-Action Button
+									</Label>
 								</div>
+
+								{config.hero.showButton && (
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+										<div className="space-y-2">
+											<Label htmlFor="heroButtonText">Button Text</Label>
+											<Input
+												id="heroButtonText"
+												value={config.hero.buttonText}
+												onChange={(e) =>
+													updateConfig("hero", { buttonText: e.target.value })
+												}
+											/>
+										</div>
+										<div className="space-y-2">
+											<Label htmlFor="heroButtonLink">Button Link</Label>
+											<Input
+												id="heroButtonLink"
+												value={config.hero.buttonLink}
+												onChange={(e) =>
+													updateConfig("hero", { buttonLink: e.target.value })
+												}
+											/>
+										</div>
+									</div>
+								)}
 							</div>
 
-							<div className="flex items-center space-x-2">
-								<Switch
-									id="heroShowButton"
-									checked={config.hero.showButton}
-									onCheckedChange={(checked) =>
-										updateConfig("hero", { showButton: checked })
-									}
+							{/* Background Images/Slider */}
+							<div className="space-y-4">
+								<div>
+									<h3 className="text-lg font-medium mb-2">Background Images</h3>
+									<p className="text-sm text-muted-foreground mb-4">
+										Upload multiple images to create a slideshow, or a single image for a static background.
+									</p>
+								</div>
+
+								<ImageManager
+									images={heroSliderImages}
+									onImagesChange={setHeroSliderImages}
+									onImageUpload={(files) => handleSliderImageUpload('hero', files)}
+									onImageDelete={(imageId) => handleSliderImageDelete('hero', imageId)}
+									onImageReorder={(fromIndex, toIndex) => handleSliderImageReorder('hero', fromIndex, toIndex)}
+									maxImages={5}
+									loading={globalLoading}
 								/>
-								<Label htmlFor="heroShowButton">
-									Show Call-to-Action Button
-								</Label>
 							</div>
-
-							{config.hero.showButton && (
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<div className="space-y-2">
-										<Label htmlFor="heroButtonText">Button Text</Label>
-										<Input
-											id="heroButtonText"
-											value={config.hero.buttonText}
-											onChange={(e) =>
-												updateConfig("hero", { buttonText: e.target.value })
-											}
-										/>
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="heroButtonLink">Button Link</Label>
-										<Input
-											id="heroButtonLink"
-											value={config.hero.buttonLink}
-											onChange={(e) =>
-												updateConfig("hero", { buttonLink: e.target.value })
-											}
-										/>
-									</div>
-								</div>
-							)}
 						</CardContent>
 					</Card>
 				</TabsContent>
+
 
 				{/* About Section */}
 				<TabsContent value="about" className="space-y-4">
@@ -1371,31 +1573,35 @@ export default function HomeConfigPage() {
 								Configure the introduction section of your home page
 							</CardDescription>
 						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="space-y-2">
-								<Label htmlFor="aboutTitle">Title</Label>
-								<Input
-									id="aboutTitle"
-									value={config.about.title}
-									onChange={(e) =>
-										updateConfig("about", { title: e.target.value })
-									}
-								/>
+						<CardContent className="space-y-6">
+							{/* Basic About Settings */}
+							<div className="space-y-4">
+								<div className="space-y-2">
+									<Label htmlFor="aboutTitle">Title</Label>
+									<Input
+										id="aboutTitle"
+										value={config.about.title}
+										onChange={(e) =>
+											updateConfig("about", { title: e.target.value })
+										}
+									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="aboutContent">Content</Label>
+									<Textarea
+										id="aboutContent"
+										rows={4}
+										value={config.about.content}
+										onChange={(e) =>
+											updateConfig("about", { content: e.target.value })
+										}
+									/>
+								</div>
 							</div>
 
-							<div className="space-y-2">
-								<Label htmlFor="aboutContent">Content</Label>
-								<Textarea
-									id="aboutContent"
-									rows={4}
-									value={config.about.content}
-									onChange={(e) =>
-										updateConfig("about", { content: e.target.value })
-									}
-								/>
-							</div>
-
-							<div className="space-y-2">
+							{/* Bullet Points */}
+							<div className="space-y-4">
 								<div className="flex items-center justify-between">
 									<Label>Bullet Points</Label>
 									<Button variant="outline" size="sm" onClick={addBulletPoint}>
@@ -1423,6 +1629,7 @@ export default function HomeConfigPage() {
 								</div>
 							</div>
 
+							{/* Images Toggle */}
 							<div className="flex items-center space-x-2">
 								<Switch
 									id="aboutShowImage"
@@ -1431,51 +1638,34 @@ export default function HomeConfigPage() {
 										updateConfig("about", { showImage: checked })
 									}
 								/>
-								<Label htmlFor="aboutShowImage">Show Image</Label>
+								<Label htmlFor="aboutShowImage">Show Images</Label>
 							</div>
 
+							{/* Image Slider/Manager */}
 							{config.about.showImage && (
-								<div className="space-y-2">
-									<div className="flex items-center justify-between">
-										<Label htmlFor="aboutImage">Image</Label>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => handleImageUpload("about", "image")}>
-											<Upload className="h-4 w-4 mr-2" />
-											Upload
-										</Button>
+								<div className="space-y-4">
+									<div>
+										<h3 className="text-lg font-medium mb-2">About Images</h3>
+										<p className="text-sm text-muted-foreground mb-4">
+											Upload multiple images to create a slideshow, or a single image for a static display.
+										</p>
 									</div>
-									<div className="border rounded-md p-2">
-										<Image
-											src={config.about.image || "/placeholder.svg"}
-											alt="About Section"
-											width={800}
-											height={160}
-											className="w-full h-40 object-cover rounded-md"
-											onError={(e) => {
-												const target = e.target as HTMLImageElement;
-												if (target.src !== "/placeholder.svg") {
-													console.log(
-														"About image failed to load:",
-														target.src
-													);
-													target.src = "/placeholder.svg";
-												}
-											}}
-											onLoad={() => {
-												console.log(
-													"About image loaded successfully:",
-													config.about.image
-												);
-											}}
-										/>
-									</div>
+
+									<ImageManager
+										images={aboutSliderImages}
+										onImagesChange={setAboutSliderImages}
+										onImageUpload={(files) => handleSliderImageUpload('about', files)}
+										onImageDelete={(imageId) => handleSliderImageDelete('about', imageId)}
+										onImageReorder={(fromIndex, toIndex) => handleSliderImageReorder('about', fromIndex, toIndex)}
+										maxImages={5}
+										loading={globalLoading}
+									/>
 								</div>
 							)}
 						</CardContent>
 					</Card>
 				</TabsContent>
+
 
 				{/* Features/Services Section */}
 				<TabsContent value="features" className="space-y-4">
