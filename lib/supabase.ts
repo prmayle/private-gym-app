@@ -631,6 +631,47 @@ export interface Database {
           created_at?: string
         }
       }
+      slider_images: {
+        Row: {
+          id: string
+          section_name: string
+          image_url: string
+          title: string | null
+          subtitle: string | null
+          sort_order: number
+          is_active: boolean
+          created_by: string | null
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          section_name: string
+          image_url: string
+          title?: string | null
+          subtitle?: string | null
+          sort_order?: number
+          is_active?: boolean
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          section_name?: string
+          image_url?: string
+          title?: string | null
+          subtitle?: string | null
+          sort_order?: number
+          is_active?: boolean
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -669,6 +710,7 @@ export type PageSection = Tables<'page_sections'>
 export type Feature = Tables<'features'>
 export type Testimonial = Tables<'testimonials'>
 export type GlobalSetting = Tables<'global_settings'>
+export type SliderImage = Tables<'slider_images'>
 
 // Flexible type for Supabase client - fixes linter errors
 export type TypedSupabaseClient = ReturnType<typeof import('@/utils/supabase/client').createClient>
@@ -1285,5 +1327,126 @@ export const setGlobalSetting = async (
   } catch (err) {
     console.warn('Global setting update failed:', err instanceof Error ? err.message : 'Unknown error')
     throw err
+  }
+}
+
+// Slider Image Helper Functions
+
+// Get slider images for a specific section
+export const getSliderImages = async (
+  supabase: TypedSupabaseClient,
+  sectionName: string
+): Promise<SliderImage[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('slider_images')
+      .select('*')
+      .eq('section_name', sectionName)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  } catch (err) {
+    console.error(`Failed to get slider images for ${sectionName}:`, err)
+    return []
+  }
+}
+
+// Upsert a slider image
+export const upsertSliderImage = async (
+  supabase: TypedSupabaseClient,
+  image: {
+    id?: string
+    sectionName: string
+    imageUrl: string
+    sortOrder?: number
+  }
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('slider_images')
+      .upsert({
+        id: image.id || undefined,
+        section_name: image.sectionName,
+        image_url: image.imageUrl,
+        title: null,
+        subtitle: null,
+        sort_order: image.sortOrder || 0,
+        is_active: true,
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    console.error('Failed to upsert slider image:', errorMessage)
+    throw new Error(`Failed to upsert slider image: ${errorMessage}`)
+  }
+}
+
+// Delete a slider image (soft delete)
+export const deleteSliderImage = async (
+  supabase: TypedSupabaseClient,
+  imageId: string
+) => {
+  try {
+    const { error } = await supabase
+      .from('slider_images')
+      .update({ 
+        is_active: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', imageId)
+
+    if (error) throw error
+  } catch (err) {
+    console.error('Failed to delete slider image:', err)
+    throw err
+  }
+}
+
+// Update slider image order
+export const updateSliderImageOrder = async (
+  supabase: TypedSupabaseClient,
+  imageId: string,
+  newOrder: number
+) => {
+  try {
+    const { error } = await supabase
+      .from('slider_images')
+      .update({
+        sort_order: newOrder,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', imageId)
+
+    if (error) throw error
+  } catch (err) {
+    console.error('Failed to update slider image order:', err)
+    throw err
+  }
+}
+
+// Get all slider images (for admin interface)
+export const getAllSliderImages = async (
+  supabase: TypedSupabaseClient
+): Promise<SliderImage[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('slider_images')
+      .select('*')
+      .eq('is_active', true)
+      .order('section_name', { ascending: true })
+      .order('sort_order', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  } catch (err) {
+    console.error('Failed to get all slider images:', err)
+    return []
   }
 } 
