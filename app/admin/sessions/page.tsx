@@ -14,6 +14,8 @@ import { ReactivationDialog } from "@/components/ui/reactivation-dialog"
 import { createClient } from "@/utils/supabase/client"
 import { ActivityLogger } from "@/utils/activity-logger"
 import { useAuth } from "@/contexts/AuthContext"
+import { emailService } from "@/lib/email-service"
+import { SessionTimeRangePicker } from "@/components/ui/date-time-picker"
 import {
   Dialog,
   DialogContent,
@@ -122,13 +124,7 @@ const canBookMember = (status: Session["status"]): boolean => {
 }
 
 // Mock trainers and session types
-const trainers = [
-  { id: "1", name: "Mike Johnson" },
-  { id: "2", name: "Sarah Williams" },
-  { id: "3", name: "David Lee" },
-  { id: "4", name: "Emma Thompson" },
-  { id: "5", name: "Lisa Johnson" },
-]
+// Trainers will be loaded from database
 
 const sessionTypes = [
   "Personal Training",
@@ -169,6 +165,7 @@ export default function SessionsPage() {
 
   const [customSlots, setCustomSlots] = useState<Session[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
+  const [trainers, setTrainers] = useState<Array<{id: string, name: string, user_id: string}>>([])
   const [loading, setLoading] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false)
@@ -193,8 +190,8 @@ export default function SessionsPage() {
   // Form state for creating new sessions
   const [newSession, setNewSession] = useState({
     title: "",
-    date: "",
-    time: "",
+    startDate: undefined as Date | undefined,
+    endDate: undefined as Date | undefined,
     type: "",
     trainer: "",
     capacity: 1,
@@ -264,6 +261,7 @@ export default function SessionsPage() {
             name: trainer.profiles?.full_name || 'Unknown Trainer',
             user_id: trainer.user_id
           }))
+          setTrainers(trainersData)
         }
       } catch (error) {
         console.error("Trainers table might not exist:", error)
@@ -530,10 +528,20 @@ export default function SessionsPage() {
   }
 
   const handleCreateSession = async () => {
-    if (!newSession.title || !newSession.date || !newSession.time || !newSession.type || !newSession.trainer) {
+    if (!newSession.title || !newSession.startDate || !newSession.endDate || !newSession.type || !newSession.trainer) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate that end time is after start time
+    if (newSession.endDate <= newSession.startDate) {
+      toast({
+        title: "Validation Error",
+        description: "End time must be after start time",
         variant: "destructive",
       })
       return
@@ -543,23 +551,15 @@ export default function SessionsPage() {
       setLoading(true)
       const supabase = createClient()
 
-      // Parse time format (e.g., "10:00 AM - 11:00 AM")
-      const [startTimeStr, endTimeStr] = newSession.time.split(' - ')
-      const startDateTime = new Date(`${newSession.date} ${startTimeStr}`)
-      const endDateTime = new Date(`${newSession.date} ${endTimeStr}`)
-
-      // Find the trainer ID from the selected trainer name
-      const selectedTrainer = trainers.find(t => t.name === newSession.trainer)
-      
-      // Insert into sessions table
+      // Insert into sessions table  
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .insert({
           title: newSession.title,
           description: newSession.description,
-          trainer_id: selectedTrainer?.id || null,
-          start_time: startDateTime.toISOString(),
-          end_time: endDateTime.toISOString(),
+          trainer_id: newSession.trainer || null,
+          start_time: newSession.startDate.toISOString(),
+          end_time: newSession.endDate.toISOString(),
           session_type: newSession.type,
           status: 'scheduled',
           max_capacity: newSession.capacity,
@@ -577,11 +577,12 @@ export default function SessionsPage() {
 
       // Log activity
       if (auth.user && sessionData) {
+        const selectedTrainer = trainers.find(t => t.id === newSession.trainer)
         await ActivityLogger.sessionCreated(
           newSession.title,
           sessionData.id,
           auth.user.id,
-          selectedTrainer?.name
+          selectedTrainer?.name || 'Unknown Trainer'
         )
       }
 
@@ -591,8 +592,8 @@ export default function SessionsPage() {
       // Reset form
       setNewSession({
         title: "",
-        date: "",
-        time: "",
+        startDate: undefined,
+        endDate: undefined,
         type: "",
         trainer: "",
         capacity: 1,
@@ -909,6 +910,25 @@ export default function SessionsPage() {
         throw updateError
       }
 
+      // Get bookings to notify members before cancelling
+      const { data: bookingsToCancel, error: fetchBookingsError } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          members!inner (
+            profiles!inner (
+              full_name,
+              email
+            )
+          )
+        `)
+        .eq('session_id', session.id)
+        .eq('status', 'confirmed')
+
+      if (fetchBookingsError) {
+        console.error("Error fetching bookings:", fetchBookingsError)
+      }
+
       // Cancel all bookings for this session
       const { error: cancelBookingsError } = await supabase
         .from('bookings')
@@ -924,12 +944,37 @@ export default function SessionsPage() {
         console.error("Error cancelling bookings:", cancelBookingsError)
       }
 
+      // Send cancellation emails to affected members
+      if (bookingsToCancel && bookingsToCancel.length > 0) {
+        try {
+          const membersToNotify = bookingsToCancel.map((booking: any) => ({
+            name: booking.members?.profiles?.full_name || 'Member',
+            email: booking.members?.profiles?.email || ''
+          })).filter(member => member.email)
+
+          if (membersToNotify.length > 0) {
+            const emailResult = await emailService.sendBulkCancellationNotices(
+              session.title,
+              session.date,
+              session.time,
+              membersToNotify,
+              'Session cancelled by administrator'
+            )
+            
+            console.log(`📧 Sent cancellation emails: ${emailResult.successful} successful, ${emailResult.failed} failed`)
+          }
+        } catch (emailError) {
+          console.error("Error sending cancellation emails:", emailError)
+          // Don't fail the cancellation if email fails
+        }
+      }
+
       // Reload data to reflect changes
       await loadData()
 
       toast({
         title: "Session Deactivated",
-        description: "The session has been deactivated and bookings cancelled.",
+        description: `Session deactivated and ${bookingsToCancel?.length || 0} members notified via email.`,
       })
     } catch (error) {
       console.error("Error deactivating session:", error)
@@ -1024,7 +1069,9 @@ export default function SessionsPage() {
 
   // Get unique values for filters
   const uniqueTypes = [...new Set(sessions.map((s) => s.type))]
-  const uniqueTrainers = [...new Set(sessions.map((s) => s.trainer))]
+  const uniqueTrainers = trainers.filter(trainer => 
+    sessions.some(session => session.trainer === trainer.name)
+  )
 
   return (
     <main className="p-6 space-y-6">
@@ -1064,26 +1111,12 @@ export default function SessionsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="date">Date *</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={newSession.date}
-                    onChange={(e) => setNewSession((prev) => ({ ...prev, date: e.target.value }))}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="time">Time *</Label>
-                  <Input
-                    id="time"
-                    value={newSession.time}
-                    onChange={(e) => setNewSession((prev) => ({ ...prev, time: e.target.value }))}
-                    placeholder="e.g., 10:00 AM - 11:00 AM"
-                  />
-                </div>
-              </div>
+              <SessionTimeRangePicker
+                startDate={newSession.startDate}
+                endDate={newSession.endDate}
+                onStartDateChange={(date) => setNewSession((prev) => ({ ...prev, startDate: date }))}
+                onEndDateChange={(date) => setNewSession((prev) => ({ ...prev, endDate: date }))}
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -1115,7 +1148,7 @@ export default function SessionsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {trainers.map((trainer) => (
-                        <SelectItem key={trainer.id} value={trainer.name}>
+                        <SelectItem key={trainer.id} value={trainer.id}>
                           {trainer.name}
                         </SelectItem>
                       ))}
@@ -1225,8 +1258,8 @@ export default function SessionsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Trainers</SelectItem>
                   {uniqueTrainers.map((trainer) => (
-                    <SelectItem key={trainer} value={trainer}>
-                      {trainer}
+                    <SelectItem key={trainer.id} value={trainer.name}>
+                      {trainer.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -602,7 +602,7 @@ export default function AdminDashboard() {
 
 			// Load real activities from the database
 			try {
-				const activities = await activityLogger.getRecentActivity(20);
+				const activities = await activityLogger.getRecentActivity(50);
 				const transformedActivities: RecentActivity[] = activities.map(
 					(activity) => ({
 						id: activity.id || "unknown",
@@ -1165,7 +1165,7 @@ export default function AdminDashboard() {
 									<CardContent>
 										<ScrollArea className="h-[300px]">
 											<div className="space-y-3">
-												{group.activities.slice(0, 5).map((activity) => (
+												{group.activities.slice(0, 8).map((activity) => (
 													<div
 														key={activity.id}
 														className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border"

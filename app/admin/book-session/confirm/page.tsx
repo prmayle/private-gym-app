@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { createClient } from "@/utils/supabase/client"
+import { emailService } from "@/lib/email-service"
 import { ArrowLeft, Calendar, User, Users, CheckCircle, AlertCircle, Package, Loader2 } from "lucide-react"
 
 interface Session {
@@ -268,9 +269,32 @@ export default function ConfirmBookingPage() {
         console.error("Error creating notification:", notificationError)
       }
 
+      // Send booking confirmation email
+      try {
+        await emailService.sendBookingConfirmation({
+          memberName: member.name,
+          memberEmail: member.email,
+          sessionTitle: session.title,
+          sessionDate: new Date(session.date).toLocaleDateString('en-US', { 
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }),
+          sessionTime: session.time,
+          trainerName: session.trainer,
+          sessionLocation: session.location || 'Main Gym Floor',
+          sessionType: session.type
+        })
+        console.log('📧 Booking confirmation email sent successfully')
+      } catch (emailError) {
+        console.error("Error sending booking confirmation email:", emailError)
+        // Don't fail the booking if email fails
+      }
+
       toast({
         title: "Booking Confirmed",
-        description: `${session.title} has been successfully booked for ${member.name}`,
+        description: `${session.title} has been successfully booked for ${member.name}. Confirmation email sent.`,
       })
 
       // Redirect to success or back to admin

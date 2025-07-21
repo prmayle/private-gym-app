@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Search, Filter, Calendar, Users, Package, ActivityIcon, Clock } from "lucide-react"
+import { activityLogger, ActivityLog } from "@/lib/activity-logger"
 
 interface Activity {
   id: string
@@ -36,114 +37,29 @@ export default function ActivityPage() {
     filterActivities()
   }, [activities, searchQuery, typeFilter])
 
-  const loadActivities = () => {
+  const loadActivities = async () => {
     try {
       setIsLoading(true)
-      const storedActivities = JSON.parse(localStorage.getItem("admin-activities") || "[]")
-
-      // Generate sample activities if none exist
-      if (storedActivities.length === 0) {
-        const sampleActivities = generateSampleActivities()
-        localStorage.setItem("admin-activities", JSON.stringify(sampleActivities))
-        setActivities(sampleActivities)
-      } else {
-        setActivities(storedActivities)
-      }
+      const activityLogs = await activityLogger.getRecentActivity(100)
+      
+      // Transform ActivityLog[] to Activity[]
+      const transformedActivities: Activity[] = activityLogs.map((log: ActivityLog & { profiles?: any }) => ({
+        id: log.id,
+        type: log.action,
+        message: activityLogger.formatActivityMessage(log),
+        timestamp: log.created_at,
+        details: log.details
+      }))
+      
+      setActivities(transformedActivities)
     } catch (error) {
       console.error("Error loading activities:", error)
+      setActivities([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  const generateSampleActivities = (): Activity[] => {
-    const now = new Date()
-    return [
-      {
-        id: "1",
-        type: "member_registered",
-        message: "New member John Doe registered",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 30).toISOString(),
-        memberId: "1",
-        memberName: "John Doe",
-        details: "Signed up for Personal Training package",
-      },
-      {
-        id: "2",
-        type: "session_booked",
-        message: "Jane Smith booked Morning Yoga session",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 60 * 2).toISOString(),
-        memberId: "2",
-        memberName: "Jane Smith",
-        details: "Session scheduled for tomorrow at 9:00 AM",
-      },
-      {
-        id: "3",
-        type: "package_assigned",
-        message: "Emily Williams purchased Personal Training package",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 60 * 4).toISOString(),
-        memberId: "4",
-        memberName: "Emily Williams",
-        details: "10-session package, expires in 3 months",
-      },
-      {
-        id: "4",
-        type: "session_completed",
-        message: "HIIT Training session completed",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 60 * 6).toISOString(),
-        details: "8 participants attended, session duration: 45 minutes",
-      },
-      {
-        id: "5",
-        type: "member_updated",
-        message: "Robert Brown profile updated",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 60 * 8).toISOString(),
-        memberId: "5",
-        memberName: "Robert Brown",
-        details: {
-          contact: "555-123-4567",
-          emergencyContact: "Jane Brown",
-        },
-      },
-      {
-        id: "6",
-        type: "session_cancelled",
-        message: "Evening Pilates session cancelled",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 60 * 12).toISOString(),
-        details: "Cancelled due to trainer unavailability, members notified",
-      },
-      {
-        id: "7",
-        type: "package_expired",
-        message: "Michael Johnson's Group Class package expired",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 60 * 24).toISOString(),
-        memberId: "3",
-        memberName: "Michael Johnson",
-        details: "Package expired, renewal reminder sent",
-      },
-      {
-        id: "8",
-        type: "member_deactivated",
-        message: "Member account deactivated",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 60 * 36).toISOString(),
-        details: "Account deactivated due to non-payment",
-      },
-      {
-        id: "9",
-        type: "session_created",
-        message: "New Zumba class session created",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 60 * 48).toISOString(),
-        details: "Weekly recurring session, Fridays at 7:00 PM",
-      },
-      {
-        id: "10",
-        type: "payment_received",
-        message: "Payment received for membership renewal",
-        timestamp: new Date(now.getTime() - 1000 * 60 * 60 * 72).toISOString(),
-        details: "Monthly membership fee processed successfully",
-      },
-    ]
-  }
 
   const filterActivities = () => {
     let filtered = activities
@@ -165,13 +81,13 @@ export default function ActivityPage() {
       filtered = filtered.filter((activity) => {
         switch (typeFilter) {
           case "members":
-            return ["member_registered", "member_updated", "member_deactivated"].includes(activity.type)
+            return ["member_created", "member_updated", "member_deleted"].includes(activity.type)
           case "sessions":
-            return ["session_booked", "session_cancelled", "session_completed", "session_created"].includes(
+            return ["session_created", "session_updated", "session_deleted", "session_booked", "session_cancelled"].includes(
               activity.type,
             )
           case "packages":
-            return ["package_assigned", "package_expired", "payment_received"].includes(activity.type)
+            return ["package_assigned", "package_removed", "payment_created", "payment_updated"].includes(activity.type)
           default:
             return true
         }
@@ -184,18 +100,20 @@ export default function ActivityPage() {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case "member_registered":
+      case "member_created":
       case "member_updated":
-      case "member_deactivated":
+      case "member_deleted":
         return <Users className="h-4 w-4" />
+      case "session_created":
+      case "session_updated":
+      case "session_deleted":
       case "session_booked":
       case "session_cancelled":
-      case "session_completed":
-      case "session_created":
         return <Calendar className="h-4 w-4" />
       case "package_assigned":
-      case "package_expired":
-      case "payment_received":
+      case "package_removed":
+      case "payment_created":
+      case "payment_updated":
         return <Package className="h-4 w-4" />
       default:
         return <ActivityIcon className="h-4 w-4" />
@@ -204,18 +122,20 @@ export default function ActivityPage() {
 
   const getActivityColor = (type: string) => {
     switch (type) {
-      case "member_registered":
+      case "member_created":
       case "session_booked":
       case "package_assigned":
       case "session_created":
-      case "payment_received":
+      case "payment_created":
         return "text-green-600 bg-green-50"
       case "session_cancelled":
-      case "package_expired":
-      case "member_deactivated":
+      case "member_deleted":
+      case "session_deleted":
+      case "package_removed":
         return "text-red-600 bg-red-50"
-      case "session_completed":
+      case "session_updated":
       case "member_updated":
+      case "payment_updated":
         return "text-blue-600 bg-blue-50"
       default:
         return "text-gray-600 bg-gray-50"
@@ -224,16 +144,22 @@ export default function ActivityPage() {
 
   const getActivityTypeLabel = (type: string) => {
     const typeMap: { [key: string]: string } = {
-      member_registered: "Member Registered",
+      member_created: "Member Created",
       member_updated: "Member Updated",
-      member_deactivated: "Member Deactivated",
+      member_deleted: "Member Deleted",
+      session_created: "Session Created",
+      session_updated: "Session Updated",
+      session_deleted: "Session Deleted",
       session_booked: "Session Booked",
       session_cancelled: "Session Cancelled",
-      session_completed: "Session Completed",
-      session_created: "Session Created",
       package_assigned: "Package Assigned",
-      package_expired: "Package Expired",
-      payment_received: "Payment Received",
+      package_removed: "Package Removed",
+      payment_created: "Payment Created",
+      payment_updated: "Payment Updated",
+      notification_sent: "Notification Sent",
+      user_login: "User Login",
+      user_logout: "User Logout",
+      settings_updated: "Settings Updated",
     }
     return typeMap[type] || type
   }
