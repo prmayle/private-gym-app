@@ -164,7 +164,7 @@ export default function ManagePackagesPage() {
         .insert({
           member_id: currentMemberId,
           package_id: selectedPackage,
-          request_notes: requestNote || null,
+          notes: requestNote || null,
           status: 'pending',
           requested_at: new Date().toISOString()
         })

@@ -27,6 +27,14 @@ const nextConfig: NextConfig = {
 
     return config;
   },
+  // Turbopack configuration (for development only)
+	turbopack: {
+		resolveAlias: {
+			canvas: "./empty-module.js",
+		},
+		resolveExtensions: [".mdx", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"],
+		moduleIdStrategy: "deterministic",
+	},
   
   // Additional optimizations
   experimental: {

@@ -21,22 +21,10 @@ import {
 	Lock,
 	Mail,
 	Info,
-	UserPlus,
-	LogIn,
-	CheckCircle,
-	AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 
 // Enhanced error message mapping for better user experience
 const getErrorMessage = (
@@ -188,18 +176,6 @@ export default function LoginPage() {
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
-	const [activeTab, setActiveTab] = useState("login");
-
-	// Sign up form state
-	const [signUpData, setSignUpData] = useState({
-		email: "",
-		password: "",
-		confirmPassword: "",
-		fullName: "",
-		phone: "",
-		role: "member" as "admin" | "member" | "trainer",
-	});
-	const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
 	const router = useRouter();
 	const { toast } = useToast();
@@ -276,122 +252,10 @@ export default function LoginPage() {
 		}
 	};
 
-	const handleSignUp = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setIsLoading(true);
-
-		// Client-side validation
-		if (signUpData.password !== signUpData.confirmPassword) {
-			toast({
-				title: "Passwords Don't Match",
-				description: "Please make sure your passwords match.",
-				variant: "destructive",
-			});
-			setIsLoading(false);
-			return;
-		}
-
-		if (signUpData.password.length < 8) {
-			toast({
-				title: "Password Too Short",
-				description: "Password must be at least 8 characters long.",
-				variant: "destructive",
-			});
-			setIsLoading(false);
-			return;
-		}
-
-		if (!signUpData.fullName.trim()) {
-			toast({
-				title: "Full Name Required",
-				description: "Please enter your full name.",
-				variant: "destructive",
-			});
-			setIsLoading(false);
-			return;
-		}
-
-		// Email validation
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!emailRegex.test(signUpData.email)) {
-			toast({
-				title: "Invalid Email",
-				description: "Please enter a valid email address.",
-				variant: "destructive",
-			});
-			setIsLoading(false);
-			return;
-		}
-
-		try {
-			const { data, error } = await auth.signUp(
-				signUpData.email,
-				signUpData.password,
-				{
-					full_name: signUpData.fullName,
-					role: signUpData.role,
-				}
-			);
-
-			if (error) {
-				const errorInfo = getErrorMessage(error);
-				toast({
-					title: errorInfo.title,
-					description: errorInfo.description,
-					variant: errorInfo.variant,
-				});
-				return;
-			}
-
-			if (data?.user) {
-				// Check if email confirmation is required
-				if (data.user.email_confirmed_at) {
-					toast({
-						title: "Account Created Successfully! 🎉",
-						description:
-							"Your account has been created and you can now sign in.",
-						variant: "default",
-					});
-				} else {
-					toast({
-						title: "Account Created! 📧",
-						description:
-							"Please check your email and click the verification link to complete your registration.",
-						variant: "default",
-					});
-				}
-
-				// Switch to login tab and pre-fill email
-				setActiveTab("login");
-				setEmail(signUpData.email);
-
-				// Reset form
-				setSignUpData({
-					email: "",
-					password: "",
-					confirmPassword: "",
-					fullName: "",
-					phone: "",
-					role: "member",
-				});
-			}
-		} catch (error: any) {
-			console.error("Sign up error:", error);
-			const errorInfo = getErrorMessage(error);
-			toast({
-				title: errorInfo.title,
-				description: errorInfo.description,
-				variant: "destructive",
-			});
-		} finally {
-			setIsLoading(false);
-		}
-	};
 
 	const fillDemoCredentials = (email: string, password: string) => {
 		setEmail(email);
 		setPassword(password);
-		setActiveTab("login");
 	};
 
 	// Show loading if auth is still initializing
@@ -440,227 +304,69 @@ export default function LoginPage() {
 				<Card>
 					<CardHeader className="text-center">
 						<CardTitle className="text-2xl">Core Factory</CardTitle>
-						<CardDescription>Your gym management system</CardDescription>
+						<CardDescription>Sign in to access your account</CardDescription>
 					</CardHeader>
 
 					<CardContent>
-						<Tabs value={activeTab} onValueChange={setActiveTab}>
-							<TabsList className="grid w-full grid-cols-2">
-								<TabsTrigger value="login">
-									<LogIn className="h-4 w-4 mr-2" />
-									Login
-								</TabsTrigger>
-								<TabsTrigger value="signup">
-									<UserPlus className="h-4 w-4 mr-2" />
-									Sign Up
-								</TabsTrigger>
-							</TabsList>
+						<form onSubmit={handleLogin} className="space-y-4">
+							<div className="space-y-2">
+								<Label htmlFor="email">Email</Label>
+								<div className="relative">
+									<Input
+										id="email"
+										type="email"
+										placeholder="admin@corefactory.com"
+										value={email}
+										onChange={(e) => setEmail(e.target.value)}
+										required
+										disabled={isLoading}
+										className="pl-10"
+									/>
+									<Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+								</div>
+							</div>
 
-							{/* Login Tab */}
-							<TabsContent value="login">
-								<form onSubmit={handleLogin} className="space-y-4">
-									<div className="space-y-2">
-										<Label htmlFor="email">Email</Label>
-										<div className="relative">
-											<Input
-												id="email"
-												type="email"
-												placeholder="admin@corefactory.com"
-												value={email}
-												onChange={(e) => setEmail(e.target.value)}
-												required
-												disabled={isLoading}
-												className="pl-10"
-											/>
-											<Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-										</div>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="password">Password</Label>
-										<div className="relative">
-											<Input
-												id="password"
-												type={showPassword ? "text" : "password"}
-												placeholder="Enter your password"
-												value={password}
-												onChange={(e) => setPassword(e.target.value)}
-												required
-												disabled={isLoading}
-												className="pl-10 pr-10"
-											/>
-											<Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
-												onClick={() => setShowPassword(!showPassword)}
-												disabled={isLoading}>
-												{showPassword ? (
-													<EyeOff className="h-4 w-4" />
-												) : (
-													<Eye className="h-4 w-4" />
-												)}
-											</Button>
-										</div>
-									</div>
-
-									<Button type="submit" className="w-full" disabled={isLoading}>
-										{isLoading ? (
-											<>
-												<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-												Signing in...
-											</>
+							<div className="space-y-2">
+								<Label htmlFor="password">Password</Label>
+								<div className="relative">
+									<Input
+										id="password"
+										type={showPassword ? "text" : "password"}
+										placeholder="Enter your password"
+										value={password}
+										onChange={(e) => setPassword(e.target.value)}
+										required
+										disabled={isLoading}
+										className="pl-10 pr-10"
+									/>
+									<Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+										onClick={() => setShowPassword(!showPassword)}
+										disabled={isLoading}>
+										{showPassword ? (
+											<EyeOff className="h-4 w-4" />
 										) : (
-											"Sign In"
+											<Eye className="h-4 w-4" />
 										)}
 									</Button>
-								</form>
-							</TabsContent>
+								</div>
+							</div>
 
-							{/* Sign Up Tab */}
-							<TabsContent value="signup">
-								<form onSubmit={handleSignUp} className="space-y-4">
-									<div className="space-y-2">
-										<Label htmlFor="signUpEmail">Email</Label>
-										<Input
-											id="signUpEmail"
-											type="email"
-											placeholder="your.email@example.com"
-											value={signUpData.email}
-											onChange={(e) =>
-												setSignUpData((prev) => ({
-													...prev,
-													email: e.target.value,
-												}))
-											}
-											required
-											disabled={isLoading}
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="fullName">Full Name</Label>
-										<Input
-											id="fullName"
-											type="text"
-											placeholder="John Doe"
-											value={signUpData.fullName}
-											onChange={(e) =>
-												setSignUpData((prev) => ({
-													...prev,
-													fullName: e.target.value,
-												}))
-											}
-											required
-											disabled={isLoading}
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="phone">Phone (Optional)</Label>
-										<Input
-											id="phone"
-											type="tel"
-											placeholder="+1 (555) 123-4567"
-											value={signUpData.phone}
-											onChange={(e) =>
-												setSignUpData((prev) => ({
-													...prev,
-													phone: e.target.value,
-												}))
-											}
-											disabled={isLoading}
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="role">Role</Label>
-										<Select
-											value={signUpData.role}
-											onValueChange={(value: "admin" | "member" | "trainer") =>
-												setSignUpData((prev) => ({ ...prev, role: value }))
-											}
-											disabled={isLoading}>
-											<SelectTrigger>
-												<SelectValue placeholder="Select your role" />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="member">Member</SelectItem>
-												<SelectItem value="trainer">Trainer</SelectItem>
-												<SelectItem value="admin">Admin</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="signUpPassword">Password</Label>
-										<div className="relative">
-											<Input
-												id="signUpPassword"
-												type={showSignUpPassword ? "text" : "password"}
-												placeholder="Create a strong password (min 8 characters)"
-												value={signUpData.password}
-												onChange={(e) =>
-													setSignUpData((prev) => ({
-														...prev,
-														password: e.target.value,
-													}))
-												}
-												required
-												disabled={isLoading}
-												className="pr-10"
-											/>
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
-												onClick={() =>
-													setShowSignUpPassword(!showSignUpPassword)
-												}
-												disabled={isLoading}>
-												{showSignUpPassword ? (
-													<EyeOff className="h-4 w-4" />
-												) : (
-													<Eye className="h-4 w-4" />
-												)}
-											</Button>
-										</div>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="confirmPassword">Confirm Password</Label>
-										<Input
-											id="confirmPassword"
-											type="password"
-											placeholder="Confirm your password"
-											value={signUpData.confirmPassword}
-											onChange={(e) =>
-												setSignUpData((prev) => ({
-													...prev,
-													confirmPassword: e.target.value,
-												}))
-											}
-											required
-											disabled={isLoading}
-										/>
-									</div>
-
-									<Button type="submit" className="w-full" disabled={isLoading}>
-										{isLoading ? (
-											<>
-												<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-												Creating Account...
-											</>
-										) : (
-											"Create Account"
-										)}
-									</Button>
-								</form>
-							</TabsContent>
-						</Tabs>
+							<Button type="submit" className="w-full" disabled={isLoading}>
+								{isLoading ? (
+									<>
+										<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+										Signing in...
+									</>
+								) : (
+									"Sign In"
+								)}
+							</Button>
+						</form>
 					</CardContent>
 
 					<CardFooter className="flex flex-col space-y-4">

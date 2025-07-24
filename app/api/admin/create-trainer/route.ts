@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, full_name, phone, specializations, certifications, bio, hourly_rate, experience_years, max_sessions_per_day } = body
+    const { email, full_name, phone, specializations, certifications, bio, hourly_rate, experience_years, max_sessions_per_day, profile_photo_url } = body
 
     if (!email || !full_name) {
       return NextResponse.json({ error: 'Email and full name are required' }, { status: 400 })
@@ -140,6 +140,7 @@ export async function POST(request: NextRequest) {
           hourly_rate: hourly_rate || existingTrainer.hourly_rate || 50,
           experience_years: experience_years || existingTrainer.experience_years || 0,
           max_sessions_per_day: max_sessions_per_day || existingTrainer.max_sessions_per_day || 8,
+          profile_photo_url: profile_photo_url || existingTrainer.profile_photo_url || null,
           is_available: true,
           updated_at: new Date().toISOString()
         })
@@ -164,6 +165,7 @@ export async function POST(request: NextRequest) {
           hourly_rate: hourly_rate || 50,
           experience_years: experience_years || 0,
           max_sessions_per_day: max_sessions_per_day || 8,
+          profile_photo_url: profile_photo_url || null,
           is_available: true
         })
         .select('*')

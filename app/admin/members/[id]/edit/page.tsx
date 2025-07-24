@@ -12,21 +12,26 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, Save, User } from "lucide-react"
 import { normalizeStatus } from "@/types/status"
+import { createClient } from "@/utils/supabase/client"
+import { activityLogger } from "@/lib/activity-logger"
 
 interface Member {
   id: string
+  user_id: string
   name: string
   email: string
   phone: string
   joinDate: string
   status: string
-  packages: string[]
-  lastActivity: string
   address?: string
   emergencyContact?: string
   emergencyPhone?: string
   dateOfBirth?: string
   notes?: string
+  gender?: string
+  height?: number
+  weight?: number
+  medicalConditions?: string
 }
 
 export default function EditMemberPage() {
@@ -40,125 +45,109 @@ export default function EditMemberPage() {
     name: "",
     email: "",
     phone: "",
-    status: "Active",
+    status: "active",
     address: "",
     emergencyContact: "",
     emergencyPhone: "",
     dateOfBirth: "",
     notes: "",
+    gender: "",
+    height: "",
+    weight: "",
+    medicalConditions: "",
   })
 
   useEffect(() => {
     loadMember()
   }, [params.id])
 
-  const loadMember = () => {
+  const loadMember = async () => {
     try {
       setIsLoading(true)
-      const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
+      const supabase = createClient()
 
-      // Default members
-      const defaultMembers = [
-        {
-          id: "1",
-          name: "John Doe",
-          email: "john.doe@email.com",
-          phone: "+1234567890",
-          joinDate: "2023-01-15",
-          status: "Active",
-          packages: ["Personal Training", "Group Class"],
-          lastActivity: "2023-06-10",
-          address: "123 Main St, City, State 12345",
-          emergencyContact: "Jane Doe",
-          emergencyPhone: "+1234567899",
-          dateOfBirth: "1990-05-15",
-          notes: "Prefers morning sessions",
-        },
-        {
-          id: "2",
-          name: "Jane Smith",
-          email: "jane.smith@email.com",
-          phone: "+1234567891",
-          joinDate: "2023-02-20",
-          status: "Active",
-          packages: ["Personal Training"],
-          lastActivity: "2023-06-08",
-          address: "456 Oak Ave, City, State 12345",
-          emergencyContact: "John Smith",
-          emergencyPhone: "+1234567898",
-          dateOfBirth: "1985-08-22",
-          notes: "Has knee injury - avoid high impact exercises",
-        },
-        {
-          id: "3",
-          name: "Michael Johnson",
-          email: "michael.johnson@email.com",
-          phone: "+1234567892",
-          joinDate: "2023-03-10",
-          status: "Inactive",
-          packages: ["Group Class"],
-          lastActivity: "2023-05-15",
-          address: "789 Pine St, City, State 12345",
-          emergencyContact: "Sarah Johnson",
-          emergencyPhone: "+1234567897",
-          dateOfBirth: "1992-12-03",
-          notes: "Interested in nutrition counseling",
-        },
-        {
-          id: "4",
-          name: "Emily Williams",
-          email: "emily.williams@email.com",
-          phone: "+1234567893",
-          joinDate: "2023-04-05",
-          status: "Active",
-          packages: ["Personal Training", "Group Class"],
-          lastActivity: "2023-06-12",
-          address: "321 Elm St, City, State 12345",
-          emergencyContact: "David Williams",
-          emergencyPhone: "+1234567896",
-          dateOfBirth: "1988-03-18",
-          notes: "Training for marathon",
-        },
-        {
-          id: "5",
-          name: "Robert Brown",
-          email: "robert.brown@email.com",
-          phone: "+1234567894",
-          joinDate: "2023-05-12",
-          status: "Active",
-          packages: ["Group Class"],
-          lastActivity: "2023-06-11",
-          address: "654 Maple Ave, City, State 12345",
-          emergencyContact: "Lisa Brown",
-          emergencyPhone: "+1234567895",
-          dateOfBirth: "1995-07-09",
-          notes: "New member - needs orientation",
-        },
-      ]
-
-      const allMembers = [...storedMembers, ...defaultMembers]
-      const foundMember = allMembers.find((m) => m.id === params.id)
-
-      if (foundMember) {
-        setMember(foundMember)
-        setFormData({
-          name: foundMember.name || "",
-          email: foundMember.email || "",
-          phone: foundMember.phone || "",
-          status: normalizeStatus(foundMember.status),
-          address: foundMember.address || "",
-          emergencyContact: foundMember.emergencyContact || "",
-          emergencyPhone: foundMember.emergencyPhone || "",
-          dateOfBirth: foundMember.dateOfBirth || "",
-          notes: foundMember.notes || "",
+      if (!params.id) {
+        toast({
+          title: "Invalid Member ID",
+          description: "No member ID provided.",
+          variant: "destructive",
         })
-      } else {
+        router.push("/admin/members")
+        return
+      }
+
+      // Load member with profile data
+      const { data: memberData, error: memberError } = await supabase
+        .from('members')
+        .select(`
+          id,
+          user_id,
+          emergency_contact,
+          medical_conditions,
+          date_of_birth,
+          gender,
+          address,
+          height,
+          weight,
+          joined_at,
+          membership_status,
+          profiles!members_user_id_fkey (
+            id,
+            full_name,
+            email,
+            phone
+          )
+        `)
+        .eq('id', params.id)
+        .single()
+
+      if (memberError) {
+        console.error("Error loading member:", memberError)
         toast({
           title: "Member Not Found",
           description: "The requested member could not be found.",
           variant: "destructive",
         })
         router.push("/admin/members")
+        return
+      }
+
+      if (memberData) {
+        const member = {
+          id: memberData.id,
+          user_id: memberData.user_id,
+          name: memberData.profiles?.full_name || "",
+          email: memberData.profiles?.email || "",
+          phone: memberData.profiles?.phone || "",
+          joinDate: memberData.joined_at,
+          status: memberData.membership_status,
+          address: memberData.address || "",
+          emergencyContact: memberData.emergency_contact || "",
+          emergencyPhone: "", // This field needs to be added to the database schema
+          dateOfBirth: memberData.date_of_birth || "",
+          notes: "", // This field needs to be added to the database schema
+          gender: memberData.gender || "",
+          height: memberData.height || 0,
+          weight: memberData.weight || 0,
+          medicalConditions: memberData.medical_conditions || "",
+        }
+
+        setMember(member)
+        setFormData({
+          name: member.name,
+          email: member.email,
+          phone: member.phone,
+          status: member.status,
+          address: member.address,
+          emergencyContact: member.emergencyContact,
+          emergencyPhone: member.emergencyPhone,
+          dateOfBirth: member.dateOfBirth,
+          notes: member.notes,
+          gender: member.gender,
+          height: member.height ? member.height.toString() : "",
+          weight: member.weight ? member.weight.toString() : "",
+          medicalConditions: member.medicalConditions,
+        })
       }
     } catch (error) {
       console.error("Error loading member:", error)
@@ -183,6 +172,15 @@ export default function EditMemberPage() {
     try {
       setIsSaving(true)
 
+      if (!member) {
+        toast({
+          title: "Error",
+          description: "Member data not loaded.",
+          variant: "destructive",
+        })
+        return
+      }
+
       // Validate required fields
       if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim()) {
         toast({
@@ -204,33 +202,55 @@ export default function EditMemberPage() {
         return
       }
 
-      // Update member data
-      const updatedMember = {
-        ...member,
-        ...formData,
-        status: normalizeStatus(formData.status),
+      const supabase = createClient()
+
+      // Update profile table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', member.user_id)
+
+      if (profileError) {
+        console.error("Error updating profile:", profileError)
+        throw profileError
       }
 
-      // Update in localStorage if it's a custom member
-      const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
-      const isCustomMember = !["1", "2", "3", "4", "5"].includes(member!.id)
+      // Update member table
+      const { error: memberError } = await supabase
+        .from('members')
+        .update({
+          emergency_contact: formData.emergencyContact || null,
+          medical_conditions: formData.medicalConditions || null,
+          date_of_birth: formData.dateOfBirth || null,
+          gender: formData.gender || null,
+          address: formData.address || null,
+          height: formData.height ? parseFloat(formData.height) : null,
+          weight: formData.weight ? parseFloat(formData.weight) : null,
+          membership_status: formData.status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', member.id)
 
-      if (isCustomMember) {
-        const updatedStoredMembers = storedMembers.map((m: Member) => (m.id === member!.id ? updatedMember : m))
-        localStorage.setItem("gym-members", JSON.stringify(updatedStoredMembers))
+      if (memberError) {
+        console.error("Error updating member:", memberError)
+        throw memberError
       }
 
       // Log activity
-      const activities = JSON.parse(localStorage.getItem("admin-activities") || "[]")
-      activities.unshift({
-        id: `activity-${Date.now()}`,
-        type: "member_updated",
-        message: `${formData.name} profile updated`,
-        timestamp: new Date().toISOString(),
-        memberId: member!.id,
-        memberName: formData.name,
-      })
-      localStorage.setItem("admin-activities", JSON.stringify(activities.slice(0, 50)))
+      await activityLogger.logActivity(
+        'member_updated',
+        'member',
+        member.id,
+        {
+          memberName: formData.name,
+          updatedFields: Object.keys(formData)
+        }
+      )
 
       toast({
         title: "Member Updated",
@@ -242,7 +262,7 @@ export default function EditMemberPage() {
       console.error("Error saving member:", error)
       toast({
         title: "Save Failed",
-        description: "Failed to save member changes.",
+        description: "Failed to save member changes. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -353,7 +373,7 @@ export default function EditMemberPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status">Membership Status</Label>
               <Select
                 value={formData.status}
                 onValueChange={(value) => handleInputChange("status", value)}
@@ -363,8 +383,9 @@ export default function EditMemberPage() {
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -403,24 +424,56 @@ export default function EditMemberPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="emergencyPhone">Emergency Phone</Label>
+              <Label htmlFor="gender">Gender</Label>
+              <Select
+                value={formData.gender}
+                onValueChange={(value) => handleInputChange("gender", value)}
+                disabled={isSaving}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Not specified</SelectItem>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="height">Height (cm)</Label>
               <Input
-                id="emergencyPhone"
-                value={formData.emergencyPhone}
-                onChange={(e) => handleInputChange("emergencyPhone", e.target.value)}
-                placeholder="Enter emergency contact phone"
+                id="height"
+                type="number"
+                value={formData.height}
+                onChange={(e) => handleInputChange("height", e.target.value)}
+                placeholder="Enter height in cm"
+                disabled={isSaving}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="weight">Weight (kg)</Label>
+              <Input
+                id="weight"
+                type="number"
+                value={formData.weight}
+                onChange={(e) => handleInputChange("weight", e.target.value)}
+                placeholder="Enter weight in kg"
                 disabled={isSaving}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="medicalConditions">Medical Conditions</Label>
             <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => handleInputChange("notes", e.target.value)}
-              placeholder="Enter any additional notes about the member"
+              id="medicalConditions"
+              value={formData.medicalConditions}
+              onChange={(e) => handleInputChange("medicalConditions", e.target.value)}
+              placeholder="Enter any medical conditions or health notes"
               rows={4}
               disabled={isSaving}
             />
@@ -433,14 +486,13 @@ export default function EditMemberPage() {
                 <span className="text-blue-700">Member ID:</span> {member.id}
               </div>
               <div>
+                <span className="text-blue-700">User ID:</span> {member.user_id}
+              </div>
+              <div>
                 <span className="text-blue-700">Join Date:</span> {new Date(member.joinDate).toLocaleDateString()}
               </div>
               <div>
-                <span className="text-blue-700">Last Activity:</span>{" "}
-                {new Date(member.lastActivity).toLocaleDateString()}
-              </div>
-              <div>
-                <span className="text-blue-700">Packages:</span> {member.packages.length} active
+                <span className="text-blue-700">Current Status:</span> {member.status}
               </div>
             </div>
           </div>

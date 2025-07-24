@@ -28,11 +28,6 @@ interface AuthContextType {
 	loading: boolean;
 
 	// Authentication methods
-	signUp: (
-		email: string,
-		password: string,
-		metadata?: { full_name?: string; role?: string }
-	) => Promise<AuthResponse>;
 	signIn: (email: string, password: string) => Promise<AuthResponse>;
 	signOut: () => Promise<void>;
 	resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
@@ -181,56 +176,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		[supabase]
 	);
 
-	// Sign up function
-	const signUp = async (
-		email: string,
-		password: string,
-		metadata?: { full_name?: string; role?: string }
-	): Promise<AuthResponse> => {
-		try {
-			setLoading(true);
-
-			const { data, error } = await supabase.auth.signUp({
-				email,
-				password,
-				options: {
-					data: {
-						full_name: metadata?.full_name || "",
-						role: metadata?.role || "member",
-					},
-				},
-			});
-
-			if (error) {
-				toast({
-					title: "Sign up failed",
-					description: getErrorMessage(error),
-					variant: "destructive",
-				});
-				return { data: { user: null, session: null }, error };
-			}
-
-			if (data.user && !data.session) {
-				toast({
-					title: "Check your email!",
-					description: "We've sent you a confirmation link.",
-					variant: "default",
-				});
-			}
-
-			return { data, error: null };
-		} catch (error) {
-			const authError = error as AuthError;
-			toast({
-				title: "Sign up failed",
-				description: getErrorMessage(authError),
-				variant: "destructive",
-			});
-			return { data: { user: null, session: null }, error: authError };
-		} finally {
-			setLoading(false);
-		}
-	};
 
 	// Sign in function
 	const signIn = async (
@@ -474,7 +419,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		loading,
 
 		// Methods
-		signUp,
 		signIn,
 		signOut,
 		resetPassword,
