@@ -50,6 +50,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { activityLogger } from "@/lib/activity-logger";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardStats {
 	totalMembers: number;
@@ -91,6 +93,26 @@ interface UpcomingSession {
 	status: string;
 }
 
+interface PackageRequest {
+	id: string;
+	member_id: string;
+	package_id: string;
+	status: string;
+	requested_at: string;
+	notes?: string;
+	members?: {
+		profiles?: {
+			full_name?: string;
+			email?: string;
+		};
+	};
+	packages?: {
+		name: string;
+		price: number;
+		session_count: number;
+	};
+}
+
 interface ActivityGroup {
 	type: string;
 	title: string;
@@ -103,6 +125,7 @@ interface ActivityGroup {
 
 export default function AdminDashboard() {
 	const router = useRouter();
+	const { toast } = useToast();
 	const [stats, setStats] = useState<DashboardStats>({
 		totalMembers: 0,
 		activeMembers: 0,
@@ -120,6 +143,7 @@ export default function AdminDashboard() {
 	const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>(
 		[]
 	);
+	const [packageRequests, setPackageRequests] = useState<PackageRequest[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [selectedActivity, setSelectedActivity] =
 		useState<RecentActivity | null>(null);
@@ -131,8 +155,6 @@ export default function AdminDashboard() {
 
 	useEffect(() => {
 		loadDashboardData();
-		const interval = setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
-		return () => clearInterval(interval);
 	}, []);
 
 	const loadDashboardData = async () => {
@@ -143,11 +165,61 @@ export default function AdminDashboard() {
 			// Get current date for calculations
 			const now = new Date();
 			const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-			const startOfDay = new Date(
+			const endOfMonth = new Date(
 				now.getFullYear(),
-				now.getMonth(),
-				now.getDate()
+				now.getMonth() + 1,
+				0,
+				23,
+				59,
+				59,
+				999
 			);
+
+			// 1. Monthly Revenue: Sum of legit completed payments in current month
+			const { data: legitMonthlyPayments, error: legitMonthlyPaymentsError } =
+				await supabase
+					.from("payments")
+					.select(
+						"amount, status, payment_date, transaction_id, invoice_number"
+					)
+					.eq("status", "completed")
+					.neq("transaction_id", null)
+					.neq("invoice_number", null)
+					.gte("payment_date", startOfMonth.toISOString())
+					.lte("payment_date", endOfMonth.toISOString());
+
+			const monthlyRevenue = (legitMonthlyPayments || []).reduce(
+				(sum, payment) => sum + (Number(payment.amount) || 0),
+				0
+			);
+
+			// 2. Attendance Rate: Calculate from sessions table for current month
+			const { data: monthSessionsRaw, error: monthSessionsError } =
+				await supabase
+					.from("sessions")
+					.select("id, start_time, status, max_capacity, current_bookings")
+					.gte("start_time", startOfMonth.toISOString())
+					.lte("start_time", endOfMonth.toISOString());
+			const monthSessions = monthSessionsRaw || [];
+
+			const totalSessions = monthSessions.length;
+			let attendanceRate = 0;
+			if (totalSessions > 0) {
+				const totalCapacity = monthSessions.reduce(
+					(sum, s) => sum + (s.max_capacity || 0),
+					0
+				);
+				const totalAttended = monthSessions.reduce(
+					(sum, s) => sum + (s.current_bookings || 0),
+					0
+				);
+				attendanceRate =
+					totalCapacity > 0
+						? Math.round((totalAttended / totalCapacity) * 100)
+						: 0;
+				console.log("attendanceRate:", attendanceRate);
+				setAttendanceRate(attendanceRate);
+			}
 
 			// Load comprehensive data from Supabase with error handling
 			const [
@@ -155,8 +227,6 @@ export default function AdminDashboard() {
 				sessionsResult,
 				upcomingSessionsResult,
 				paymentsResult,
-				monthlyPaymentsResult,
-				bookingsResult,
 				notificationsResult,
 				recentBookingsResult,
 				recentMembersResult,
@@ -200,29 +270,6 @@ export default function AdminDashboard() {
 						(result) => result,
 						() => ({ data: [], error: null })
 					),
-
-				// Monthly payments (handle missing table gracefully)
-				supabase
-					.from("payments")
-					.select("amount, status, payment_date")
-					.eq("status", "completed")
-					.gte("payment_date", startOfMonth.toISOString())
-					.then(
-						(result) => result,
-						() => ({ data: [], error: null })
-					),
-
-				// Recent bookings for activity
-				supabase
-					.from("bookings")
-					.select(
-						`
-            id, booking_time, status,
-            member_id, session_id
-          `
-					)
-					.order("booking_time", { ascending: false })
-					.limit(10),
 
 				// Unread notifications count (handle missing table gracefully)
 				supabase
@@ -274,8 +321,28 @@ export default function AdminDashboard() {
 				// Package requests (handle missing table gracefully)
 				supabase
 					.from("package_requests")
-					.select("*")
-					.order("created_at", { ascending: false })
+					.select(
+						`
+						id,
+						member_id,
+						package_id,
+						status,
+						requested_at,
+						notes,
+						members (
+							profiles (
+								full_name,
+								email
+							)
+						),
+						packages (
+							name,
+							price,
+							session_count
+						)
+					`
+					)
+					.order("requested_at", { ascending: false })
 					.limit(10)
 					.then(
 						(result) => result,
@@ -329,17 +396,13 @@ export default function AdminDashboard() {
 				(paymentsResult.status === "fulfilled"
 					? paymentsResult.value.data
 					: []) || [];
-			const monthlyPayments =
-				(monthlyPaymentsResult.status === "fulfilled"
-					? monthlyPaymentsResult.value.data
-					: []) || [];
 			const notifications =
 				(notificationsResult.status === "fulfilled"
 					? notificationsResult.value.data
 					: []) || [];
 			const recentBookings =
-				(bookingsResult.status === "fulfilled"
-					? bookingsResult.value.data
+				(recentBookingsResult.status === "fulfilled"
+					? recentBookingsResult.value.data
 					: []) || [];
 			const recentMembers =
 				(recentMembersResult.status === "fulfilled"
@@ -349,6 +412,26 @@ export default function AdminDashboard() {
 				(packageRequestsResult.status === "fulfilled"
 					? packageRequestsResult.value.data
 					: []) || [];
+
+			// Transform package requests data
+			const transformedPackageRequests = packageRequests.map(
+				(request: any) => ({
+					id: request.id,
+					member_id: request.member_id,
+					package_id: request.package_id,
+					status: request.status,
+					requested_at: request.requested_at,
+					notes: request.notes,
+					members: Array.isArray(request.members)
+						? request.members[0]
+						: request.members,
+					packages: Array.isArray(request.packages)
+						? request.packages[0]
+						: request.packages,
+				})
+			);
+
+			setPackageRequests(transformedPackageRequests);
 			const equipment =
 				(equipmentResult.status === "fulfilled"
 					? equipmentResult.value.data
@@ -362,6 +445,8 @@ export default function AdminDashboard() {
 					? attendanceResult.value.data
 					: []) || [];
 
+			console.log("attendanceData:", attendanceResult);
+
 			// Calculate stats
 			const activeMembers = members.filter(
 				(m) => m.membership_status === "active"
@@ -369,8 +454,8 @@ export default function AdminDashboard() {
 			const todaySessions = sessions.filter((s) => {
 				const sessionDate = new Date(s.start_time);
 				return (
-					sessionDate >= startOfDay &&
-					sessionDate < new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)
+					sessionDate >= startOfMonth &&
+					sessionDate < new Date(startOfMonth.getTime() + 24 * 60 * 60 * 1000)
 				);
 			});
 			const completedSessions = sessions.filter((s) => {
@@ -381,10 +466,10 @@ export default function AdminDashboard() {
 				(sum, payment) => sum + (Number(payment.amount) || 0),
 				0
 			);
-			const monthlyRevenue = monthlyPayments.reduce(
-				(sum, payment) => sum + (Number(payment.amount) || 0),
-				0
-			);
+			// const monthlyRevenue = monthlyPayments.reduce(
+			// 	(sum, payment) => sum + (Number(payment.amount) || 0),
+			// 	0
+			// );
 
 			// Calculate additional metrics
 			const pendingPackageRequestsCount = packageRequests.filter(
@@ -421,17 +506,6 @@ export default function AdminDashboard() {
 				}),
 				{ total_booked: 0, total_attended: 0, total_no_shows: 0 }
 			);
-
-			const calculatedAttendanceRate =
-				totalAttendanceData.total_booked > 0
-					? Math.round(
-							(totalAttendanceData.total_attended /
-								totalAttendanceData.total_booked) *
-								100
-					  )
-					: 0;
-
-			setAttendanceRate(calculatedAttendanceRate);
 
 			// Generate real recent activities from database data
 			const realActivities: RecentActivity[] = [];
@@ -482,7 +556,7 @@ export default function AdminDashboard() {
 					category: "notifications",
 					message: `Package request received`,
 					details: `Status: ${request.status || "pending"}`,
-					timestamp: request.created_at || new Date().toISOString(),
+					timestamp: request.requested_at || new Date().toISOString(),
 					status: "warning",
 					priority: "medium",
 				});
@@ -515,7 +589,7 @@ export default function AdminDashboard() {
 				}
 			});
 
-			// Add package expiry warnings
+			// Fix package expiry warning activity (remove mp.packages usage, second pass)
 			memberPackages.forEach((mp) => {
 				if (mp.status === "active" && mp.end_date) {
 					const endDate = new Date(mp.end_date);
@@ -527,14 +601,12 @@ export default function AdminDashboard() {
 							id: `package-expiry-${mp.id}`,
 							type: "package_expiry_warning",
 							category: "packages",
-							message: `Package ${
-								(mp.packages as any)?.name || "Unknown"
-							} expiring soon`,
+							message: `Package expiring soon`,
 							details: `Expires in ${Math.ceil(daysUntilExpiry)} days, ${
 								mp.sessions_remaining || 0
 							} sessions remaining`,
 							timestamp: new Date().toISOString(),
-							packageType: (mp.packages as any)?.package_type || "Unknown",
+							packageType: "Unknown",
 							status: "warning",
 							priority: daysUntilExpiry <= 3 ? "high" : "medium",
 						});
@@ -902,10 +974,10 @@ export default function AdminDashboard() {
 				payment: "packages",
 			};
 
-			const category =
-				entityTypeToCategory[activity.category] ||
-				activity.category ||
-				"general";
+			let category: string = "general";
+			if (activity.category && typeof activity.category === "string") {
+				category = entityTypeToCategory[activity.category] || activity.category;
+			}
 			if (groups[category]) {
 				groups[category].activities.push(activity);
 			}
@@ -946,6 +1018,142 @@ export default function AdminDashboard() {
 	};
 
 	const activityGroups = groupActivitiesByType(recentActivities);
+
+	const auth = useAuth();
+
+	const handleApproveRequest = async (requestId: string) => {
+		try {
+			const supabase = createClient();
+			const request = packageRequests.find((r) => r.id === requestId);
+			if (!request) return;
+
+			// Update request status
+			const { error: updateError } = await supabase
+				.from("package_requests")
+				.update({
+					status: "approved",
+					approved_by: auth.user?.id,
+					approved_at: new Date().toISOString(),
+				})
+				.eq("id", requestId);
+
+			if (updateError) throw updateError;
+
+			// Create member package
+			const { error: packageError } = await supabase
+				.from("member_packages")
+				.insert({
+					member_id: request.member_id,
+					package_id: request.package_id,
+					start_date: new Date().toISOString().split("T")[0],
+					end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+						.toISOString()
+						.split("T")[0], // 1 year from now
+					sessions_remaining: request.packages?.session_count || 0,
+					sessions_total: request.packages?.session_count || 0,
+					status: "active",
+					activated_at: new Date().toISOString(),
+				});
+
+			if (packageError) throw packageError;
+
+			// Create notification for member
+			await supabase.from("notifications").insert({
+				user_id: request.member_id, // Use member_id directly
+				title: "Package Request Approved",
+				message: `Your request for ${request.packages?.name} package has been approved!`,
+				type: "alert",
+				is_read: false,
+				created_at: new Date().toISOString(),
+			});
+
+			// Log activity
+			await activityLogger.logActivity(
+				"member_updated", // Use valid action type
+				"member", // Use valid target type
+				request.member_id, // Use member_id as target_id
+				{
+					memberName: request.members?.profiles?.full_name,
+					packageName: request.packages?.name,
+					packagePrice: request.packages?.price,
+				}
+			);
+
+			// Update local state
+			setPackageRequests((prev) => prev.filter((r) => r.id !== requestId));
+			setStats((prev) => ({ ...prev, pendingTasks: prev.pendingTasks - 1 }));
+
+			toast({
+				title: "Request Approved",
+				description:
+					"Package request has been approved and member package created.",
+			});
+		} catch (error) {
+			console.error("Error approving request:", error);
+			toast({
+				title: "Error",
+				description: "Failed to approve package request.",
+				variant: "destructive",
+			});
+		}
+	};
+
+	const handleRejectRequest = async (requestId: string) => {
+		try {
+			const supabase = createClient();
+			const request = packageRequests.find((r) => r.id === requestId);
+			if (!request) return;
+
+			// Update request status
+			const { error: updateError } = await supabase
+				.from("package_requests")
+				.update({
+					status: "rejected",
+					approved_by: auth.user?.id,
+					approved_at: new Date().toISOString(),
+				})
+				.eq("id", requestId);
+
+			if (updateError) throw updateError;
+
+			// Create notification for member
+			await supabase.from("notifications").insert({
+				user_id: request.member_id, // Use member_id directly
+				title: "Package Request Rejected",
+				message: `Your request for ${request.packages?.name} package has been rejected. Please contact admin for more information.`,
+				type: "alert",
+				is_read: false,
+				created_at: new Date().toISOString(),
+			});
+
+			// Log activity
+			await activityLogger.logActivity(
+				"member_updated", // Use valid action type
+				"member", // Use valid target type
+				request.member_id, // Use member_id as target_id
+				{
+					memberName: request.members?.profiles?.full_name,
+					packageName: request.packages?.name,
+				}
+			);
+
+			// Update local state
+			setPackageRequests((prev) => prev.filter((r) => r.id !== requestId));
+			setStats((prev) => ({ ...prev, pendingTasks: prev.pendingTasks - 1 }));
+
+			toast({
+				title: "Request Rejected",
+				description: "Package request has been rejected.",
+			});
+		} catch (error) {
+			console.error("Error rejecting request:", error);
+			toast({
+				title: "Error",
+				description: "Failed to reject package request.",
+				variant: "destructive",
+			});
+		}
+	};
 
 	return (
 		<AdminRoute>
@@ -1308,6 +1516,115 @@ export default function AdminDashboard() {
 														className="text-xs mt-1">
 														{session.status}
 													</Badge>
+												</div>
+											</div>
+										</div>
+									))}
+								</div>
+							)}
+						</ScrollArea>
+					</CardContent>
+				</Card>
+
+				{/* Pending Package Requests */}
+				<Card>
+					<CardHeader>
+						<div className="flex items-center justify-between">
+							<div>
+								<CardTitle className="flex items-center gap-2">
+									<Package className="h-5 w-5" />
+									Pending Package Requests
+								</CardTitle>
+								<CardDescription>
+									Member requests for new packages
+								</CardDescription>
+							</div>
+							<Button variant="outline" size="sm" asChild>
+								<Link href="/admin/package-requests">
+									View All Requests
+									<ArrowRight className="h-3 w-3 ml-1" />
+								</Link>
+							</Button>
+						</div>
+					</CardHeader>
+					<CardContent>
+						<ScrollArea className="h-[300px]">
+							{loading && (
+								<div className="flex items-center justify-center h-32">
+									<p className="text-muted-foreground">
+										Loading package requests...
+									</p>
+								</div>
+							)}
+
+							{!loading && packageRequests.length === 0 && (
+								<div className="text-center py-8">
+									<Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+									<p className="text-muted-foreground">
+										No pending package requests
+									</p>
+								</div>
+							)}
+
+							{!loading && packageRequests.length > 0 && (
+								<div className="space-y-4">
+									{packageRequests.map((request) => (
+										<div
+											key={request.id}
+											className="p-3 rounded-lg border hover:bg-muted/50">
+											<div className="flex items-start justify-between">
+												<div className="flex-1">
+													<h4 className="font-medium text-sm">
+														{request.packages?.name} Package Request
+													</h4>
+													<p className="text-xs text-muted-foreground">
+														Requested by:{" "}
+														{request.members?.profiles?.full_name || "N/A"}
+													</p>
+													<p className="text-xs text-muted-foreground">
+														Requested on:{" "}
+														{new Date(
+															request.requested_at
+														).toLocaleDateString()}
+													</p>
+													<p className="text-xs text-muted-foreground">
+														Status: {request.status}
+													</p>
+													{request.notes && (
+														<p className="text-xs text-muted-foreground mt-1">
+															Notes: {request.notes}
+														</p>
+													)}
+												</div>
+												<div className="flex flex-col items-end gap-2">
+													{request.status === "pending" && (
+														<>
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() => handleApproveRequest(request.id)}
+																className="text-xs">
+																Approve
+															</Button>
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() => handleRejectRequest(request.id)}
+																className="text-xs text-red-600">
+																Reject
+															</Button>
+														</>
+													)}
+													{request.status === "approved" && (
+														<Badge variant="default" className="text-xs">
+															Approved
+														</Badge>
+													)}
+													{request.status === "rejected" && (
+														<Badge variant="destructive" className="text-xs">
+															Rejected
+														</Badge>
+													)}
 												</div>
 											</div>
 										</div>

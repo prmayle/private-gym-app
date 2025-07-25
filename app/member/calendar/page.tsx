@@ -1,38 +1,23 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
+import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/components/ui/use-toast"
 
-// Mock data for calendar events
-const mockEvents = [
-  {
-    id: "1",
-    title: "Personal Training",
-    date: "2023-06-15",
-    time: "10:00 AM - 11:00 AM",
-    type: "Personal Training",
-    trainer: "Mike Johnson",
-  },
-  {
-    id: "2",
-    title: "Group Class - HIIT",
-    date: "2023-06-17",
-    time: "11:30 AM - 12:30 PM",
-    type: "Group Class",
-    trainer: "Sarah Williams",
-  },
-  {
-    id: "3",
-    title: "Fitness Assessment",
-    date: "2023-06-20",
-    time: "2:00 PM - 3:00 PM",
-    type: "Assessment",
-    trainer: "Mike Johnson",
-  },
-]
+// 1. Add interface for calendar event data
+interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  type: string;
+  trainer: string;
+}
 
 // Generate dates for the week view
 const generateWeekDates = (startDate) => {
@@ -49,7 +34,87 @@ const generateWeekDates = (startDate) => {
 
 export default function MemberCalendarPage() {
   const router = useRouter()
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const auth = useAuth();
+  const { toast } = useToast();
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (auth.user) {
+      loadCalendarEvents();
+    }
+  }, [auth.user, currentDate]);
+
+  const loadCalendarEvents = async () => {
+    try {
+      setLoading(true);
+      const supabase = createClient();
+      // Get member profile
+      const { data: memberProfile, error: memberError } = await supabase
+        .from("members")
+        .select("id")
+        .eq("user_id", auth.user.id)
+        .single();
+      if (memberError || !memberProfile) {
+        toast({
+          title: "Error Loading Member Data",
+          description: "Could not load your member profile.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      // Get bookings for the week
+      const weekStart = new Date(currentDate);
+      weekStart.setDate(currentDate.getDate() - currentDate.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from("bookings")
+        .select(`
+          id,
+          booking_time,
+          sessions (
+            title,
+            session_type,
+            start_time,
+            end_time,
+            trainers (
+              profiles (full_name)
+            )
+          )
+        `)
+        .eq("member_id", memberProfile.id)
+        .gte("booking_time", weekStart.toISOString())
+        .lte("booking_time", weekEnd.toISOString());
+      if (bookingsError) {
+        console.error("Error loading bookings:", bookingsError);
+        setEvents([]);
+      } else {
+        const transformedEvents = (bookingsData || []).map((booking: any) => {
+          const session = Array.isArray(booking.sessions) ? booking.sessions[0] : booking.sessions;
+          return {
+            id: booking.id,
+            title: session?.title || "Session",
+            date: session?.start_time ? new Date(session.start_time).toISOString().split("T")[0] : "",
+            time:
+              session?.start_time && session?.end_time
+                ? `${new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${new Date(session.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                : "",
+            type: session?.session_type || "",
+            trainer: session?.trainers?.profiles?.full_name || "Trainer",
+          };
+        });
+        setEvents(transformedEvents);
+      }
+    } catch (error) {
+      console.error("Error loading calendar events:", error);
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Generate week dates
   const weekDates = generateWeekDates(currentDate)
@@ -76,7 +141,7 @@ export default function MemberCalendarPage() {
   // Get events for a specific date
   const getEventsForDate = (date) => {
     const dateString = date.toISOString().split("T")[0]
-    return mockEvents.filter((event) => event.date === dateString)
+    return events.filter((event) => event.date === dateString)
   }
 
   return (
@@ -112,7 +177,9 @@ export default function MemberCalendarPage() {
               <div key={index} className="border rounded-md overflow-hidden">
                 <div className="bg-muted p-2 text-center font-medium">{formatDate(date)}</div>
                 <div className="p-2 space-y-2 h-[300px] overflow-y-auto">
-                  {getEventsForDate(date).length > 0 ? (
+                  {loading ? (
+                    <div className="text-center text-muted-foreground text-sm py-4">Loading sessions...</div>
+                  ) : getEventsForDate(date).length > 0 ? (
                     getEventsForDate(date).map((event) => (
                       <div
                         key={event.id}

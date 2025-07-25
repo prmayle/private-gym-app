@@ -47,11 +47,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { TableStatusBadge } from "@/components/ui/status-badge";
-import { StatusFilter } from "@/components/ui/status-filter";
 import { normalizeStatus } from "@/types/status";
-import { ActivityLogger } from "@/utils/activity-logger";
+import { logActivity } from "@/utils/activity-logger";
 import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	ArrowLeft,
 	Search,
@@ -226,6 +224,10 @@ export default function PackagesPage() {
 	} | null>(null);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
+	// --- New state for monthly revenue and attendance rate ---
+	const [monthlyRevenue, setMonthlyRevenue] = useState(0);
+	const [attendanceRate, setAttendanceRate] = useState(0);
+
 	useEffect(() => {
 		loadData();
 	}, []);
@@ -244,6 +246,61 @@ export default function PackagesPage() {
 		try {
 			setIsLoading(true);
 			const supabase = createClient();
+
+			// --- Monthly Revenue Calculation ---
+			const now = new Date();
+			const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+			const endOfMonth = new Date(
+				now.getFullYear(),
+				now.getMonth() + 1,
+				0,
+				23,
+				59,
+				59,
+				999
+			);
+
+			const { data: legitPayments, error: legitPaymentsError } = await supabase
+				.from("payments")
+				.select("amount, status, payment_date, transaction_id, invoice_number")
+				.eq("status", "completed")
+				.neq("transaction_id", null)
+				.neq("invoice_number", null)
+				.gte("payment_date", startOfMonth.toISOString())
+				.lte("payment_date", endOfMonth.toISOString());
+
+			let monthlyRevenueValue = 0;
+			if (!legitPaymentsError && legitPayments) {
+				monthlyRevenueValue = legitPayments.reduce(
+					(sum, payment) => sum + (Number(payment.amount) || 0),
+					0
+				);
+			}
+			setMonthlyRevenue(monthlyRevenueValue);
+
+			// --- Attendance Rate Calculation ---
+			const { data: monthSessions, error: monthSessionsError } = await supabase
+				.from("sessions")
+				.select("id, start_time, max_capacity, current_bookings")
+				.gte("start_time", startOfMonth.toISOString())
+				.lte("start_time", endOfMonth.toISOString());
+
+			let attendanceRateValue = 0;
+			if (!monthSessionsError && monthSessions && monthSessions.length > 0) {
+				const totalCapacity = monthSessions.reduce(
+					(sum, s) => sum + (s.max_capacity || 0),
+					0
+				);
+				const totalAttended = monthSessions.reduce(
+					(sum, s) => sum + (s.current_bookings || 0),
+					0
+				);
+				attendanceRateValue =
+					totalCapacity > 0
+						? Math.round((totalAttended / totalCapacity) * 100)
+						: 0;
+			}
+			setAttendanceRate(attendanceRateValue);
 
 			// Load packages with joined package_types
 			const { data: packagesData, error: packagesError } = await supabase
@@ -522,7 +579,7 @@ export default function PackagesPage() {
 		}
 
 		try {
-			setIsLoading(true);
+			setIsCreatingPackage(true);
 			const supabase = createClient();
 
 			const selectedMember = members.find((m) => m.id === newPackage.memberId);
@@ -537,6 +594,29 @@ export default function PackagesPage() {
 			const startDate = new Date(newPackage.startDate);
 			const endDate = new Date(startDate);
 			endDate.setDate(startDate.getDate() + selectedType.duration);
+
+			// Create optimistic update first
+			const tempId = `temp-${Date.now()}`;
+			const newAssignedPackage: AssignedPackage = {
+				id: tempId,
+				memberId: selectedMember.id,
+				memberName: selectedMember.name,
+				packageTypeId: selectedType.id,
+				packageType: selectedType.name,
+				sessionCount: selectedType.sessionCount,
+				remainingSessions: selectedType.sessionCount,
+				price: selectedType.price,
+				startDate: newPackage.startDate,
+				endDate: endDate.toISOString().split("T")[0],
+				paymentStatus: newPackage.paymentStatus,
+				status: "Active",
+				purchaseDate: new Date().toISOString(),
+				createdBy: "admin",
+				createdAt: new Date().toISOString(),
+			};
+
+			// Optimistically update UI
+			setAssignedPackages((prev) => [newAssignedPackage, ...prev]);
 
 			// Insert into member_packages table
 			const { data: memberPackageData, error: memberPackageError } =
@@ -558,6 +638,8 @@ export default function PackagesPage() {
 					.single();
 
 			if (memberPackageError) {
+				// Revert optimistic update
+				setAssignedPackages((prev) => prev.filter((pkg) => pkg.id !== tempId));
 				throw memberPackageError;
 			}
 
@@ -574,26 +656,42 @@ export default function PackagesPage() {
 					status: newPackage.paymentStatus === "paid" ? "completed" : "pending",
 					currency: "USD",
 					invoice_number: `INV_${Date.now()}`,
-					processed_by: null, // Would be the admin user ID
+					processed_by: null,
 				});
 
 			if (paymentError) {
 				console.error("Error creating payment record:", paymentError);
-				// Don't fail the whole operation, just log the error
 			}
 
-			// Log activity
+			// Update with real data from database
+			setAssignedPackages((prev) =>
+				prev.map((pkg) =>
+					pkg.id === tempId
+						? {
+								...newAssignedPackage,
+								id: memberPackageData.id,
+						  }
+						: pkg
+				)
+			);
+
+			// Log activity to activity_logs table
 			if (auth.user && memberPackageData) {
-				await ActivityLogger.packageCreated(
-					selectedType.name,
-					selectedMember.name,
-					memberPackageData.id,
-					auth.user.id
-				);
+				await logActivity({
+					action_type: "create",
+					entity_type: "package",
+					entity_id: memberPackageData.id,
+					entity_name: selectedType.name,
+					description: `Package "${selectedType.name}" assigned to ${selectedMember.name}`,
+					performed_by: auth.user.id,
+					metadata: {
+						member_name: selectedMember.name,
+						package_type: selectedType.name,
+						price: selectedType.price,
+						sessions: selectedType.sessionCount,
+					},
+				});
 			}
-
-			// Reload data to get fresh from database
-			await loadData();
 
 			// Reset form
 			setNewPackage({
@@ -617,7 +715,7 @@ export default function PackagesPage() {
 				variant: "destructive",
 			});
 		} finally {
-			setIsLoading(false);
+			setIsCreatingPackage(false);
 		}
 	};
 
@@ -702,6 +800,24 @@ export default function PackagesPage() {
 
 			if (packageError) {
 				throw packageError;
+			}
+
+			// Log activity to activity_logs table
+			if (auth.user && packageData) {
+				await logActivity({
+					action_type: "create",
+					entity_type: "package",
+					entity_id: packageData.id,
+					entity_name: newPackageType.name,
+					description: `Package type "${newPackageType.name}" created with ${newPackageType.sessionCount} sessions at $${newPackageType.price}`,
+					performed_by: auth.user.id,
+					metadata: {
+						package_type: finalCategory,
+						sessions: newPackageType.sessionCount,
+						price: newPackageType.price,
+						duration: newPackageType.duration,
+					},
+				});
 			}
 
 			// Reload data to get fresh from database
@@ -824,6 +940,24 @@ export default function PackagesPage() {
 
 			if (updateError) {
 				throw updateError;
+			}
+
+			// Log activity to activity_logs table
+			if (auth.user) {
+				await logActivity({
+					action_type: "update",
+					entity_type: "package",
+					entity_id: editingType.id,
+					entity_name: newPackageType.name,
+					description: `Package type "${newPackageType.name}" updated`,
+					performed_by: auth.user.id,
+					metadata: {
+						package_type: finalCategory,
+						sessions: newPackageType.sessionCount,
+						price: newPackageType.price,
+						duration: newPackageType.duration,
+					},
+				});
 			}
 
 			// Reload data to get fresh from database
@@ -1092,7 +1226,6 @@ export default function PackagesPage() {
 		newStatus: "paid" | "unpaid"
 	) => {
 		try {
-			setIsLoading(true);
 			const supabase = createClient();
 
 			// Find the member package first
@@ -1102,6 +1235,16 @@ export default function PackagesPage() {
 			if (!packageInfo) {
 				throw new Error("Package not found");
 			}
+
+			// Optimistically update UI first
+			const oldStatus = packageInfo.paymentStatus;
+			setAssignedPackages((prev) =>
+				prev.map((pkg) =>
+					pkg.id === memberPackageId
+						? { ...pkg, paymentStatus: newStatus }
+						: pkg
+				)
+			);
 
 			// Update payment status in payments table for this specific package
 			const { error: paymentError } = await supabase
@@ -1114,12 +1257,34 @@ export default function PackagesPage() {
 				.eq("package_id", packageInfo.packageTypeId);
 
 			if (paymentError) {
+				// Revert optimistic update on error
+				setAssignedPackages((prev) =>
+					prev.map((pkg) =>
+						pkg.id === memberPackageId
+							? { ...pkg, paymentStatus: oldStatus }
+							: pkg
+					)
+				);
 				console.error("Error updating payment:", paymentError);
 				throw paymentError;
 			}
 
-			// Reload data to reflect changes
-			await loadData();
+			// Log activity to activity_logs table
+			if (auth.user) {
+				await logActivity({
+					action_type: "update",
+					entity_type: "package",
+					entity_id: memberPackageId,
+					entity_name: packageInfo.packageType,
+					description: `Payment status updated to ${newStatus} for ${packageInfo.memberName}'s ${packageInfo.packageType} package`,
+					performed_by: auth.user.id,
+					metadata: {
+						member_name: packageInfo.memberName,
+						old_status: oldStatus,
+						new_status: newStatus,
+					},
+				});
+			}
 
 			toast({
 				title: "Payment Status Updated",
@@ -1132,14 +1297,11 @@ export default function PackagesPage() {
 				description: "Failed to update payment status.",
 				variant: "destructive",
 			});
-		} finally {
-			setIsLoading(false);
 		}
 	};
 
 	const handleDeleteMemberPackage = async (memberPackageId: string) => {
 		try {
-			setIsLoading(true);
 			const supabase = createClient();
 
 			// Find the member package first
@@ -1150,6 +1312,11 @@ export default function PackagesPage() {
 				throw new Error("Package not found");
 			}
 
+			// Optimistically remove from UI
+			setAssignedPackages((prev) =>
+				prev.filter((pkg) => pkg.id !== memberPackageId)
+			);
+
 			// Delete from member_packages table
 			const { error: deleteError } = await supabase
 				.from("member_packages")
@@ -1157,6 +1324,8 @@ export default function PackagesPage() {
 				.eq("id", memberPackageId);
 
 			if (deleteError) {
+				// Revert optimistic update on error
+				setAssignedPackages((prev) => [...prev, packageInfo]);
 				throw deleteError;
 			}
 
@@ -1172,18 +1341,22 @@ export default function PackagesPage() {
 				// Don't fail the whole operation
 			}
 
-			// Log activity
+			// Log activity to activity_logs table
 			if (auth.user) {
-				await ActivityLogger.packageUpdated(
-					packageInfo.packageType,
-					memberPackageId,
-					auth.user.id,
-					{ action: "deleted", member_name: packageInfo.memberName }
-				);
+				await logActivity({
+					action_type: "delete",
+					entity_type: "package",
+					entity_id: memberPackageId,
+					entity_name: packageInfo.packageType,
+					description: `Package "${packageInfo.packageType}" deleted for ${packageInfo.memberName}`,
+					performed_by: auth.user.id,
+					metadata: {
+						member_name: packageInfo.memberName,
+						package_type: packageInfo.packageType,
+						price: packageInfo.price,
+					},
+				});
 			}
-
-			// Reload data to reflect changes
-			await loadData();
 
 			toast({
 				title: "Package Deleted",
@@ -1196,8 +1369,6 @@ export default function PackagesPage() {
 				description: "Failed to delete package. Please try again.",
 				variant: "destructive",
 			});
-		} finally {
-			setIsLoading(false);
 		}
 	};
 
@@ -1235,9 +1406,8 @@ export default function PackagesPage() {
 			.length,
 		paidPackages: assignedPackages.filter((pkg) => pkg.paymentStatus === "paid")
 			.length,
-		totalRevenue: assignedPackages
-			.filter((pkg) => pkg.paymentStatus === "paid")
-			.reduce((sum, pkg) => sum + pkg.price, 0),
+		monthlyRevenue, // new, accurate
+		attendanceRate, // new, accurate
 	};
 
 	// Pagination
@@ -1286,6 +1456,38 @@ export default function PackagesPage() {
 		setIsLoadingPackages(true);
 		try {
 			const supabase = createClient();
+
+			// Store old values for rollback
+			const oldValues = {
+				packageTypeId: editingPackage.packageTypeId,
+				startDate: editingPackage.startDate,
+				endDate: editingPackage.endDate,
+			};
+
+			// Find the new package type name
+			const newPackageType = packageTypes.find(
+				(p) => p.id === editForm.packageTypeId
+			);
+			const newPackageTypeName =
+				newPackageType?.name || editingPackage.packageType;
+
+			// Optimistically update UI first
+			setAssignedPackages((prev) =>
+				prev.map((pkg) =>
+					pkg.id === editingPackage.id
+						? {
+								...pkg,
+								packageTypeId: editForm.packageTypeId,
+								packageType: newPackageTypeName,
+								startDate: editForm.startDate,
+								endDate: editForm.endDate,
+								sessionCount: newPackageType?.sessionCount || pkg.sessionCount,
+								price: newPackageType?.price || pkg.price,
+						  }
+						: pkg
+				)
+			);
+
 			// Update the member_packages row
 			const { error } = await supabase
 				.from("member_packages")
@@ -1293,12 +1495,53 @@ export default function PackagesPage() {
 					package_id: editForm.packageTypeId,
 					start_date: editForm.startDate,
 					end_date: editForm.endDate,
+					sessions_total:
+						newPackageType?.sessionCount || editingPackage.sessionCount,
+					updated_at: new Date().toISOString(),
 				})
 				.eq("id", editingPackage.id);
-			if (error) throw error;
+
+			if (error) {
+				// Revert optimistic update on error
+				setAssignedPackages((prev) =>
+					prev.map((pkg) =>
+						pkg.id === editingPackage.id
+							? {
+									...pkg,
+									packageTypeId: oldValues.packageTypeId,
+									packageType: editingPackage.packageType,
+									startDate: oldValues.startDate,
+									endDate: oldValues.endDate,
+									sessionCount: editingPackage.sessionCount,
+									price: editingPackage.price,
+							  }
+							: pkg
+					)
+				);
+				throw error;
+			}
+
+			// Log activity to activity_logs table
+			if (auth.user) {
+				await logActivity({
+					action_type: "update",
+					entity_type: "package",
+					entity_id: editingPackage.id,
+					entity_name: newPackageTypeName,
+					description: `Package updated for ${editingPackage.memberName} - changed to ${newPackageTypeName}`,
+					performed_by: auth.user.id,
+					metadata: {
+						member_name: editingPackage.memberName,
+						old_package: editingPackage.packageType,
+						new_package: newPackageTypeName,
+						old_dates: `${oldValues.startDate} to ${oldValues.endDate}`,
+						new_dates: `${editForm.startDate} to ${editForm.endDate}`,
+					},
+				});
+			}
+
 			setIsEditPackageOpen(false);
 			setEditingPackage(null);
-			await loadData();
 			toast({
 				title: "Package Updated",
 				description: "The assigned package has been updated.",
@@ -1446,7 +1689,7 @@ export default function PackagesPage() {
 			</div>
 
 			{/* Statistics Cards */}
-			<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+			<div className="grid grid-cols-1 md:grid-cols-5 gap-4">
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 						<CardTitle className="text-sm font-medium">
@@ -1493,13 +1736,27 @@ export default function PackagesPage() {
 
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+						<CardTitle className="text-sm font-medium">
+							Monthly Revenue
+						</CardTitle>
 						<TrendingUp className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">
-							${stats.totalRevenue.toLocaleString()}
+							${stats.monthlyRevenue.toLocaleString()}
 						</div>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+						<CardTitle className="text-sm font-medium">
+							Attendance Rate
+						</CardTitle>
+						<Calendar className="h-4 w-4 text-muted-foreground" />
+					</CardHeader>
+					<CardContent>
+						<div className="text-2xl font-bold">{stats.attendanceRate}%</div>
 					</CardContent>
 				</Card>
 			</div>
@@ -1845,28 +2102,18 @@ export default function PackagesPage() {
 																	</DropdownMenuItem>
 																	{pkg.paymentStatus === "unpaid" ? (
 																		<DropdownMenuItem
-																			onClick={async () => {
-																				setIsLoadingPackages(true);
-																				await updatePaymentStatus(
-																					pkg.id,
-																					"paid"
-																				);
-																				setIsLoadingPackages(false);
-																			}}
+																			onClick={() =>
+																				updatePaymentStatus(pkg.id, "paid")
+																			}
 																			className="text-green-600">
 																			<DollarSign className="mr-2 h-4 w-4" />
 																			Mark as Paid
 																		</DropdownMenuItem>
 																	) : (
 																		<DropdownMenuItem
-																			onClick={async () => {
-																				setIsLoadingPackages(true);
-																				await updatePaymentStatus(
-																					pkg.id,
-																					"unpaid"
-																				);
-																				setIsLoadingPackages(false);
-																			}}
+																			onClick={() =>
+																				updatePaymentStatus(pkg.id, "unpaid")
+																			}
 																			className="text-red-600">
 																			<DollarSign className="mr-2 h-4 w-4" />
 																			Mark as Unpaid
@@ -1875,11 +2122,9 @@ export default function PackagesPage() {
 																	{(pkg.status === "Expired" ||
 																		pkg.status === "Inactive") && (
 																		<DropdownMenuItem
-																			onClick={async () => {
-																				setIsLoadingPackages(true);
-																				await handleDeleteMemberPackage(pkg.id);
-																				setIsLoadingPackages(false);
-																			}}
+																			onClick={() =>
+																				handleDeleteMemberPackage(pkg.id)
+																			}
 																			className="text-red-600">
 																			<Trash2 className="mr-2 h-4 w-4" />
 																			Delete Package

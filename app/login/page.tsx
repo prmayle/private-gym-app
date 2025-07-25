@@ -15,13 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import {
-	Eye,
-	EyeOff,
-	Lock,
-	Mail,
-	Info,
-} from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Info } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
@@ -201,10 +195,10 @@ export default function LoginPage() {
 			name: "System Administrator",
 		},
 		{
-			email: "member@corefactory.com",
-			password: "Member123!",
+			email: "corefactorymember@corefactory.com",
+			password: "TempPass020138!",
 			role: "Member",
-			name: "John Doe",
+			name: "Core Factory Member",
 		},
 	];
 
@@ -251,7 +245,6 @@ export default function LoginPage() {
 			setIsLoading(false);
 		}
 	};
-
 
 	const fillDemoCredentials = (email: string, password: string) => {
 		setEmail(email);

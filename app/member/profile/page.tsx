@@ -8,58 +8,116 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, Edit, Save, X } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { createClient } from "@/lib/supabase/client"
 
-// Mock current member data - in real app this would come from authentication
-const CURRENT_MEMBER_ID = "1"
+// 1. Add interface for member profile data
+interface MemberProfile {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  address: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  joinDate: string;
+  status: string;
+}
 
 export default function MemberProfile() {
   const router = useRouter()
+  const auth = useAuth();
   const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
   const [isChangingPhone, setIsChangingPhone] = useState(false)
   const [otpStep, setOtpStep] = useState(false)
   const [otp, setOtp] = useState("")
-  const [memberData, setMemberData] = useState({
-    id: "",
-    name: "",
-    email: "",
-    phone: "",
-    dateOfBirth: "",
-    address: "",
-    emergencyContact: "",
-    emergencyPhone: "",
-    joinDate: "",
-    status: "Active",
-  })
-  const [editedData, setEditedData] = useState(memberData)
+  const [memberData, setMemberData] = useState<MemberProfile | null>(null)
+  const [editedData, setEditedData] = useState<MemberProfile | null>(null)
+  const [loading, setLoading] = useState(true)
   const [newPhone, setNewPhone] = useState("")
 
   useEffect(() => {
-    // Load member data from localStorage
-    const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
-
-    // Try to find current member in stored members
-    let currentMember = storedMembers.find((member) => member.id === CURRENT_MEMBER_ID)
-
-    // If not found, use default member data
-    if (!currentMember) {
-      currentMember = {
-        id: "1",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        phone: "+1 234 567 890",
-        dateOfBirth: "1990-05-15",
-        address: "123 Main St, City, State 12345",
-        emergencyContact: "Jane Doe",
-        emergencyPhone: "+1 234 567 891",
-        joinDate: "2023-01-15",
-        status: "Active",
-      }
+    if (auth.user) {
+      loadMemberProfile();
     }
+  }, [auth.user]);
 
-    setMemberData(currentMember)
-    setEditedData(currentMember)
-  }, [])
+  const loadMemberProfile = async () => {
+    try {
+      setLoading(true);
+      const supabase = createClient();
+      // Get member profile
+      const { data: memberProfile, error: memberError } = await supabase
+        .from("members")
+        .select(`
+          id,
+          joined_at,
+          membership_status,
+          user_id,
+          emergency_contact,
+          address,
+          date_of_birth
+        `)
+        .eq("user_id", auth.user.id)
+        .single();
+      if (memberError || !memberProfile) {
+        toast({
+          title: "Error Loading Member Data",
+          description: "Could not load your member profile.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      // Get user profile for name/email/phone
+      const { data: userProfile, error: userError } = await supabase
+        .from("profiles")
+        .select("full_name, email, phone")
+        .eq("id", memberProfile.user_id)
+        .single();
+      if (userError || !userProfile) {
+        toast({
+          title: "Error Loading User Data",
+          description: "Could not load your user profile.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      setMemberData({
+        id: memberProfile.id,
+        name: userProfile.full_name || "",
+        email: userProfile.email || "",
+        phone: userProfile.phone || "",
+        dateOfBirth: memberProfile.date_of_birth || "",
+        address: memberProfile.address || "",
+        emergencyContact: memberProfile.emergency_contact || "",
+        emergencyPhone: "",
+        joinDate: new Date(memberProfile.joined_at).toLocaleDateString(),
+        status: memberProfile.membership_status,
+      });
+      setEditedData({
+        id: memberProfile.id,
+        name: userProfile.full_name || "",
+        email: userProfile.email || "",
+        phone: userProfile.phone || "",
+        dateOfBirth: memberProfile.date_of_birth || "",
+        address: memberProfile.address || "",
+        emergencyContact: memberProfile.emergency_contact || "",
+        emergencyPhone: "",
+        joinDate: new Date(memberProfile.joined_at).toLocaleDateString(),
+        status: memberProfile.membership_status,
+      });
+    } catch (error) {
+      console.error("Error loading member profile:", error);
+      setMemberData(null);
+      setEditedData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEdit = () => {
     setIsEditing(true)
@@ -76,8 +134,8 @@ export default function MemberProfile() {
   }
 
   const checkPhoneExists = (phone) => {
-    const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
-    return storedMembers.some((member) => member.phone === phone && member.id !== CURRENT_MEMBER_ID)
+    // This function is no longer needed as phone is fetched from Supabase
+    return false;
   }
 
   const handlePhoneChange = () => {
@@ -90,14 +148,15 @@ export default function MemberProfile() {
       return
     }
 
-    if (checkPhoneExists(newPhone)) {
-      toast({
-        title: "Phone Number Already Exists",
-        description: "This phone number is already registered to another member.",
-        variant: "destructive",
-      })
-      return
-    }
+    // This function is no longer needed as phone is fetched from Supabase
+    // if (checkPhoneExists(newPhone)) {
+    //   toast({
+    //     title: "Phone Number Already Exists",
+    //     description: "This phone number is already registered to another member.",
+    //     variant: "destructive",
+    //   })
+    //   return
+    // }
 
     setIsChangingPhone(true)
     setOtpStep(true)
@@ -119,7 +178,8 @@ export default function MemberProfile() {
     }
 
     // Simulate OTP verification
-    setEditedData({ ...editedData, phone: newPhone })
+    // This function is no longer needed as phone is fetched from Supabase
+    // setEditedData({ ...editedData, phone: newPhone })
     setIsChangingPhone(false)
     setOtpStep(false)
     setNewPhone("")
@@ -133,7 +193,7 @@ export default function MemberProfile() {
 
   const handleSave = () => {
     // Validate required fields
-    if (!editedData.name || !editedData.email) {
+    if (!editedData?.name || !editedData?.email) {
       toast({
         title: "Validation Error",
         description: "Name and email are required fields.",
@@ -143,22 +203,42 @@ export default function MemberProfile() {
     }
 
     // Update member data
-    const storedMembers = JSON.parse(localStorage.getItem("gym-members") || "[]")
-    const updatedMembers = storedMembers.map((member) => (member.id === CURRENT_MEMBER_ID ? editedData : member))
+    const supabase = createClient();
+    const updatedMember = {
+      ...editedData,
+      user_id: auth.user?.id, // Ensure user_id is updated
+      updated_at: new Date().toISOString(),
+    };
 
-    // If member not found in stored members, add them
-    if (!storedMembers.find((member) => member.id === CURRENT_MEMBER_ID)) {
-      updatedMembers.push(editedData)
+    const { error } = supabase
+      .from("members")
+      .upsert(updatedMember)
+      .eq("id", editedData.id);
+
+    if (error) {
+      toast({
+        title: "Error Updating Profile",
+        description: `Failed to update profile: ${error.message}`,
+        variant: "destructive",
+      });
+      return;
     }
 
-    localStorage.setItem("gym-members", JSON.stringify(updatedMembers))
-    setMemberData(editedData)
-    setIsEditing(false)
+    setMemberData(updatedMember);
+    setIsEditing(false);
 
     toast({
       title: "Profile Updated",
       description: "Your profile has been successfully updated.",
-    })
+    });
+  }
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>;
+  }
+
+  if (!memberData) {
+    return <div className="text-center py-8">Could not load member profile.</div>;
   }
 
   return (

@@ -672,6 +672,41 @@ export interface Database {
 					updated_at?: string;
 				};
 			};
+			notifications: {
+				Row: {
+					id: string;
+					user_id: string;
+					title: string;
+					message: string;
+					type: string;
+					is_read: boolean | null;
+					metadata: any | null;
+					created_at: string;
+					updated_at: string;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					title: string;
+					message: string;
+					type: string;
+					is_read?: boolean | null;
+					metadata?: any | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					title?: string;
+					message?: string;
+					type?: string;
+					is_read?: boolean | null;
+					metadata?: any | null;
+					created_at?: string;
+					updated_at?: string;
+				};
+			};
 		};
 		Views: {
 			[_ in never]: never;
@@ -713,6 +748,7 @@ export type Feature = Tables<"features">;
 export type Testimonial = Tables<"testimonials">;
 export type GlobalSetting = Tables<"global_settings">;
 export type SliderImage = Tables<"slider_images">;
+export type Notification = Tables<"notifications">;
 
 // Flexible type for Supabase client - fixes linter errors
 export type TypedSupabaseClient = ReturnType<

@@ -23,28 +23,25 @@ export interface ActivityLogInsert {
 }
 
 /**
- * Log an activity to the notifications table (repurposed for activity logging)
+ * Log an activity to the activity_logs table
  * This allows us to track all activities in the dashboard
  */
 export async function logActivity(activity: ActivityLogInsert): Promise<void> {
   try {
     const supabase = createClient()
 
-    // Use notifications table for activity logging with specific format
+    // Use activity_logs table for proper activity logging
     const { error } = await supabase
-      .from('notifications')
+      .from('activity_logs')
       .insert({
         user_id: activity.performed_by,
-        title: `${activity.action_type.toUpperCase()}: ${activity.entity_type}`,
-        message: activity.description,
-        type: 'system', // Using system type for activity logs
-        is_read: false,
-        metadata: {
-          activity_log: true,
-          action_type: activity.action_type,
-          entity_type: activity.entity_type,
-          entity_id: activity.entity_id,
+        action: `${activity.action_type.toUpperCase()}: ${activity.entity_type}`,
+        target_type: activity.entity_type,
+        target_id: activity.entity_id,
+        details: {
           entity_name: activity.entity_name,
+          description: activity.description,
+          action_type: activity.action_type,
           timestamp: new Date().toISOString(),
           ...activity.metadata
         }
@@ -68,10 +65,8 @@ export async function getRecentActivities(limit: number = 20): Promise<ActivityL
     const supabase = createClient()
 
     const { data, error } = await supabase
-      .from('notifications')
+      .from('activity_logs')
       .select('*')
-      .eq('type', 'system')
-      .not('metadata', 'is', null)
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -80,19 +75,17 @@ export async function getRecentActivities(limit: number = 20): Promise<ActivityL
       return []
     }
 
-    return (data || [])
-      .filter(notification => notification.metadata?.activity_log === true)
-      .map(notification => ({
-        id: notification.id,
-        action_type: notification.metadata.action_type,
-        entity_type: notification.metadata.entity_type,
-        entity_id: notification.metadata.entity_id,
-        entity_name: notification.metadata.entity_name,
-        description: notification.message,
-        performed_by: notification.user_id,
-        metadata: notification.metadata,
-        created_at: notification.created_at
-      }))
+    return (data || []).map(log => ({
+      id: log.id,
+      action_type: log.details?.action_type || 'unknown',
+      entity_type: log.target_type,
+      entity_id: log.target_id,
+      entity_name: log.details?.entity_name || 'Unknown',
+      description: log.details?.description || log.action,
+      performed_by: log.user_id,
+      metadata: log.details,
+      created_at: log.created_at
+    }))
   } catch (error) {
     console.error('Error fetching activities:', error)
     return []

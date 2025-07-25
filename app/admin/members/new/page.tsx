@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
 import { ArrowLeft, User, Phone, FileText, Package } from "lucide-react";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 interface NewMember {
 	name: string;
@@ -38,10 +46,20 @@ interface NewMember {
 	emergencyContactPhone: string;
 	medicalConditions: string;
 	fitnessGoals: string;
-	membershipType: string;
 	startDate: string;
-	paymentMethod: string;
 	notes: string;
+	height: string;
+	weight: string;
+	waiverSigned: boolean;
+}
+
+interface Package {
+	id: string;
+	name: string;
+	price: number;
+	duration_days?: number;
+	session_count?: number;
+	is_active?: boolean;
 }
 
 export default function NewMemberPage() {
@@ -59,11 +77,23 @@ export default function NewMemberPage() {
 		emergencyContactPhone: "",
 		medicalConditions: "",
 		fitnessGoals: "",
-		membershipType: "",
 		startDate: new Date().toISOString().split("T")[0],
-		paymentMethod: "",
 		notes: "",
+		height: "",
+		weight: "",
+		waiverSigned: false,
 	});
+	const [packages, setPackages] = useState<Package[]>([]);
+	const [selectedPackageId, setSelectedPackageId] = useState<string>("");
+
+	useEffect(() => {
+		// Fetch all active packages
+		createClient()
+			.from("packages")
+			.select("id, name, price, duration_days, session_count, is_active")
+			.eq("is_active", true)
+			.then(({ data }) => setPackages(data || []));
+	}, []);
 
 	const membershipTypes = [
 		"Basic Membership",
@@ -87,13 +117,7 @@ export default function NewMemberPage() {
 	};
 
 	const validateForm = (): boolean => {
-		const requiredFields = [
-			"name",
-			"email",
-			"phone",
-			"membershipType",
-			"startDate",
-		];
+		const requiredFields = ["name", "email", "phone", "startDate"];
 		const missingFields = requiredFields.filter(
 			(field) => !member[field as keyof NewMember]
 		);
@@ -180,10 +204,10 @@ export default function NewMemberPage() {
 			try {
 				console.log("Creating auth user via API...");
 				// Use API route for user creation
-				const response = await fetch('/api/admin/create-user', {
-					method: 'POST',
+				const response = await fetch("/api/admin/create-user", {
+					method: "POST",
 					headers: {
-						'Content-Type': 'application/json',
+						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({
 						email: member.email,
@@ -200,7 +224,7 @@ export default function NewMemberPage() {
 
 				if (!response.ok) {
 					console.error("Auth user creation failed:", result);
-					throw new Error(result.error || 'Failed to create user');
+					throw new Error(result.error || "Failed to create user");
 				}
 
 				authData = result;
@@ -229,10 +253,10 @@ export default function NewMemberPage() {
 
 			// Create user profile in profiles table using admin API (bypasses RLS)
 			console.log("Creating profile via API for user ID:", userId);
-			const profileResponse = await fetch('/api/admin/create-profile', {
-				method: 'POST',
+			const profileResponse = await fetch("/api/admin/create-profile", {
+				method: "POST",
 				headers: {
-					'Content-Type': 'application/json',
+					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
 					id: userId, // Use the auth.users ID
@@ -249,17 +273,17 @@ export default function NewMemberPage() {
 			if (!profileResponse.ok) {
 				// If profile creation fails, clean up the auth user
 				try {
-					await fetch('/api/admin/delete-user', {
-						method: 'POST',
+					await fetch("/api/admin/delete-user", {
+						method: "POST",
 						headers: {
-							'Content-Type': 'application/json',
+							"Content-Type": "application/json",
 						},
 						body: JSON.stringify({ userId }),
 					});
 				} catch (cleanupError) {
 					console.error("Failed to cleanup auth user:", cleanupError);
 				}
-				throw new Error(profileResult.error || 'Failed to create profile');
+				throw new Error(profileResult.error || "Failed to create profile");
 			}
 
 			const profileData = profileResult.profile;
@@ -277,7 +301,10 @@ export default function NewMemberPage() {
 				throw memberCheckError;
 			}
 
-			const existingMember = existingMembers && existingMembers.length > 0 ? existingMembers[0] : null;
+			const existingMember =
+				existingMembers && existingMembers.length > 0
+					? existingMembers[0]
+					: null;
 			console.log("Existing member check result:", existingMember);
 
 			let memberData;
@@ -307,7 +334,9 @@ export default function NewMemberPage() {
 						membership_status: "active",
 						member_number: memberNumber,
 						fitness_goals: member.fitnessGoals || null,
-						waiver_signed: false,
+						waiver_signed: member.waiverSigned,
+						height: member.height || null,
+						weight: member.weight || null,
 					})
 					.select()
 					.single();
@@ -331,7 +360,6 @@ export default function NewMemberPage() {
 					type: "system",
 					is_read: false,
 					metadata: {
-						membership_type: member.membershipType,
 						member_number: memberNumber,
 						start_date: member.startDate,
 					},
@@ -346,8 +374,36 @@ export default function NewMemberPage() {
 				console.log("Welcome notification created successfully");
 			}
 
-			console.log("All operations completed successfully, showing toast and redirecting");
-			
+			// In handleSubmit, after member creation, if selectedPackageId, create member_packages
+			if (selectedPackageId) {
+				const pkg = packages.find((p) => p.id === selectedPackageId);
+				if (pkg) {
+					const startDate = member.startDate;
+					const endDate = pkg.duration_days
+						? new Date(
+								new Date(startDate).getTime() +
+									pkg.duration_days * 24 * 60 * 60 * 1000
+						  )
+								.toISOString()
+								.split("T")[0]
+						: null;
+					await supabase.from("member_packages").insert({
+						member_id: memberData.id,
+						package_id: pkg.id,
+						start_date: startDate,
+						end_date: endDate,
+						status: "active",
+						sessions_remaining: pkg.session_count || 0,
+						sessions_total: pkg.session_count || 0,
+						purchased_at: new Date().toISOString(),
+					});
+				}
+			}
+
+			console.log(
+				"All operations completed successfully, showing toast and redirecting"
+			);
+
 			toast({
 				title: "Member Created Successfully",
 				description: `${member.name} has been added to the system with member number ${memberNumber}. Temporary password: ${tempPassword}`,
@@ -370,25 +426,33 @@ export default function NewMemberPage() {
 	return (
 		<div className="container mx-auto max-w-7xl py-6 space-y-6">
 			{/* Header */}
-			<div className="flex items-center gap-4">
-				<Button variant="ghost" size="icon" asChild>
-					<Link href="/admin/members">
-						<ArrowLeft className="h-5 w-5" />
-						<span className="sr-only">Back to Members</span>
-					</Link>
-				</Button>
-				<div>
-					<h1 className="text-3xl font-bold">Add New Member</h1>
-					<p className="text-muted-foreground">
-						Create a new member profile with all necessary information
-					</p>
+			<div className="relative mb-8">
+				<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
+				<div className="flex items-center gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
+					<Button variant="ghost" size="icon" asChild className="mr-2">
+						<Link href="/admin/members">
+							<ArrowLeft className="h-5 w-5" />
+							<span className="sr-only">Back to Members</span>
+						</Link>
+					</Button>
+					<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
+						<User className="w-10 h-10 text-primary" />
+					</div>
+					<div>
+						<div className="font-bold text-2xl flex items-center gap-2">
+							Add New Member
+						</div>
+						<div className="text-muted-foreground text-sm">
+							Create a new member profile with all necessary information
+						</div>
+					</div>
 				</div>
 			</div>
 
 			<form onSubmit={handleSubmit} className="space-y-8">
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 					{/* Personal Information */}
-					<Card className="lg:col-span-2">
+					<Card className="lg:col-span-2 rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<User className="h-5 w-5" />
@@ -408,6 +472,7 @@ export default function NewMemberPage() {
 										onChange={(e) => handleInputChange("name", e.target.value)}
 										placeholder="Enter full name"
 										required
+										className="px-4 py-3 text-left"
 									/>
 								</div>
 								<div className="space-y-2">
@@ -419,6 +484,7 @@ export default function NewMemberPage() {
 										onChange={(e) => handleInputChange("email", e.target.value)}
 										placeholder="Enter email address"
 										required
+										className="px-4 py-3 text-left"
 									/>
 								</div>
 							</div>
@@ -433,6 +499,7 @@ export default function NewMemberPage() {
 										onChange={(e) => handleInputChange("phone", e.target.value)}
 										placeholder="Enter phone number"
 										required
+										className="px-4 py-3 text-left"
 									/>
 								</div>
 								<div className="space-y-2">
@@ -444,6 +511,7 @@ export default function NewMemberPage() {
 										onChange={(e) =>
 											handleInputChange("dateOfBirth", e.target.value)
 										}
+										className="px-4 py-3 text-left"
 									/>
 								</div>
 							</div>
@@ -478,6 +546,35 @@ export default function NewMemberPage() {
 											handleInputChange("address", e.target.value)
 										}
 										placeholder="Enter address"
+										className="px-4 py-3 text-left"
+									/>
+								</div>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="space-y-2">
+									<Label htmlFor="height">Height (cm)</Label>
+									<Input
+										id="height"
+										type="number"
+										value={member.height}
+										onChange={(e) =>
+											handleInputChange("height", e.target.value)
+										}
+										placeholder="e.g. 175"
+										className="px-4 py-3 text-left"
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="weight">Weight (kg)</Label>
+									<Input
+										id="weight"
+										type="number"
+										value={member.weight}
+										onChange={(e) =>
+											handleInputChange("weight", e.target.value)
+										}
+										placeholder="e.g. 70"
+										className="px-4 py-3 text-left"
 									/>
 								</div>
 							</div>
@@ -485,7 +582,7 @@ export default function NewMemberPage() {
 					</Card>
 
 					{/* Membership Details */}
-					<Card>
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<Package className="h-5 w-5" />
@@ -497,26 +594,6 @@ export default function NewMemberPage() {
 						</CardHeader>
 						<CardContent className="space-y-4">
 							<div className="space-y-2">
-								<Label htmlFor="membershipType">Membership Type *</Label>
-								<Select
-									value={member.membershipType}
-									onValueChange={(value) =>
-										handleInputChange("membershipType", value)
-									}>
-									<SelectTrigger>
-										<SelectValue placeholder="Select membership type" />
-									</SelectTrigger>
-									<SelectContent>
-										{membershipTypes.map((type) => (
-											<SelectItem key={type} value={type}>
-												{type}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-2">
 								<Label htmlFor="startDate">Start Date *</Label>
 								<Input
 									id="startDate"
@@ -526,34 +603,58 @@ export default function NewMemberPage() {
 										handleInputChange("startDate", e.target.value)
 									}
 									required
+									className="px-4 py-3 text-left"
 								/>
 							</div>
-
 							<div className="space-y-2">
-								<Label htmlFor="paymentMethod">Payment Method</Label>
+								<Label htmlFor="package">Select Package</Label>
 								<Select
-									value={member.paymentMethod}
-									onValueChange={(value) =>
-										handleInputChange("paymentMethod", value)
-									}>
+									value={selectedPackageId}
+									onValueChange={setSelectedPackageId}>
 									<SelectTrigger>
-										<SelectValue placeholder="Select payment method" />
+										<SelectValue placeholder="Select a package (optional)" />
 									</SelectTrigger>
 									<SelectContent>
-										{paymentMethods.map((method) => (
-											<SelectItem key={method} value={method}>
-												{method}
+										{packages.map((pkg) => (
+											<SelectItem key={pkg.id} value={pkg.id}>
+												{pkg.name}
 											</SelectItem>
 										))}
 									</SelectContent>
 								</Select>
+								{selectedPackageId && (
+									<div className="mt-2 text-sm text-muted-foreground">
+										{(() => {
+											const pkg = packages.find(
+												(p) => p.id === selectedPackageId
+											);
+											if (!pkg) return null;
+											return (
+												<div className="space-y-1">
+													<div>
+														<b>Sessions:</b> {pkg.session_count || "-"}
+													</div>
+													<div>
+														<b>Duration:</b>{" "}
+														{pkg.duration_days
+															? `${pkg.duration_days} days`
+															: "-"}
+													</div>
+													<div>
+														<b>Price:</b> ${pkg.price.toFixed(2)}
+													</div>
+												</div>
+											);
+										})()}
+									</div>
+								)}
 							</div>
 						</CardContent>
 					</Card>
 				</div>
 
 				{/* Emergency Contact */}
-				<Card>
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
 							<Phone className="h-5 w-5" />
@@ -576,6 +677,7 @@ export default function NewMemberPage() {
 										handleInputChange("emergencyContactName", e.target.value)
 									}
 									placeholder="Enter emergency contact name"
+									className="px-4 py-3 text-left"
 								/>
 							</div>
 							<div className="space-y-2">
@@ -590,6 +692,7 @@ export default function NewMemberPage() {
 										handleInputChange("emergencyContactPhone", e.target.value)
 									}
 									placeholder="Enter emergency contact phone"
+									className="px-4 py-3 text-left"
 								/>
 							</div>
 						</div>
@@ -597,7 +700,7 @@ export default function NewMemberPage() {
 				</Card>
 
 				{/* Health & Fitness Information */}
-				<Card>
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
 							<FileText className="h-5 w-5" />
@@ -618,6 +721,7 @@ export default function NewMemberPage() {
 								}
 								placeholder="List any medical conditions, allergies, or health concerns"
 								rows={3}
+								className="px-4 py-3 text-left"
 							/>
 						</div>
 
@@ -631,6 +735,7 @@ export default function NewMemberPage() {
 								}
 								placeholder="Describe fitness goals and objectives"
 								rows={3}
+								className="px-4 py-3 text-left"
 							/>
 						</div>
 
@@ -642,7 +747,33 @@ export default function NewMemberPage() {
 								onChange={(e) => handleInputChange("notes", e.target.value)}
 								placeholder="Any additional notes or comments"
 								rows={3}
+								className="px-4 py-3 text-left"
 							/>
+						</div>
+						<div className="flex items-center gap-2 mt-4">
+							<input
+								type="checkbox"
+								id="waiverSigned"
+								checked={member.waiverSigned}
+								onChange={(e) =>
+									setMember((prev) => ({
+										...prev,
+										waiverSigned: e.target.checked,
+									}))
+								}
+								className="w-5 h-5"
+							/>
+							<Label htmlFor="waiverSigned">Waiver Signed</Label>
+							<TooltipProvider>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span className="ml-1 cursor-pointer">?</span>
+									</TooltipTrigger>
+									<TooltipContent>
+										Check if the member has signed the liability waiver.
+									</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
 						</div>
 					</CardContent>
 				</Card>
@@ -652,7 +783,11 @@ export default function NewMemberPage() {
 					<Button type="button" variant="outline" asChild>
 						<Link href="/admin/members">Cancel</Link>
 					</Button>
-					<Button type="submit" disabled={isLoading}>
+					<Button
+						type="submit"
+						disabled={isLoading}
+						className="flex items-center gap-2">
+						{isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : null}
 						{isLoading ? "Creating Member..." : "Create Member"}
 					</Button>
 				</div>

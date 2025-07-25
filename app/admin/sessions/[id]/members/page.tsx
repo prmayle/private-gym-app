@@ -1,159 +1,206 @@
-"use client"
-import { useRouter, useParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Mail, Phone, Calendar } from "lucide-react"
+"use client";
+import { useRouter, useParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
 
-// Mock session data with members
-const mockSessionMembers = {
-  "1": {
-    sessionType: "Personal Training",
-    trainer: "Mike Johnson",
-    date: "2023-06-20",
-    time: "10:00 AM - 11:00 AM",
-    members: [
-      {
-        id: "1",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        phone: "+1 234 567 890",
-        joinDate: "2023-01-15",
-        membershipType: "Premium",
-        status: "Active",
-      },
-    ],
-  },
-  "2": {
-    sessionType: "Group Class",
-    trainer: "Sarah Williams",
-    date: "2023-06-19",
-    time: "11:00 AM - 12:00 PM",
-    members: [
-      {
-        id: "2",
-        name: "Jane Smith",
-        email: "jane.smith@example.com",
-        phone: "+1 234 567 891",
-        joinDate: "2023-02-20",
-        membershipType: "Standard",
-        status: "Active",
-      },
-      {
-        id: "3",
-        name: "Michael Brown",
-        email: "michael.brown@example.com",
-        phone: "+1 234 567 892",
-        joinDate: "2023-03-10",
-        membershipType: "Basic",
-        status: "Active",
-      },
-      {
-        id: "4",
-        name: "Emily Davis",
-        email: "emily.davis@example.com",
-        phone: "+1 234 567 893",
-        joinDate: "2023-04-05",
-        membershipType: "Premium",
-        status: "Active",
-      },
-    ],
-  },
+// Member and Profile interfaces based on DB schema
+interface Member {
+	id: string;
+	user_id: string;
+	emergency_contact?: string | null;
+	medical_conditions?: string | null;
+	date_of_birth?: string | null;
+	gender?: string | null;
+	address?: string | null;
+	height?: number | null;
+	weight?: number | null;
+	profile_photo_url?: string | null;
+	joined_at?: string | null;
+	membership_status?: string | null;
+	created_at?: string | null;
+	updated_at?: string | null;
+	member_number?: string | null;
+	fitness_goals?: string | null;
+	waiver_signed?: boolean | null;
+	waiver_signed_date?: string | null;
+	profile?: Profile;
 }
 
+interface Profile {
+	id: string;
+	email: string;
+	full_name?: string | null;
+	phone?: string | null;
+	role?: string | null;
+	avatar_url?: string | null;
+	created_at?: string | null;
+	updated_at?: string | null;
+	is_active?: boolean | null;
+	last_login_at?: string | null;
+	timezone?: string | null;
+}
+
+// Config for table columns
+const memberTableConfig: Array<{
+	key: keyof Member | `profile.${keyof Profile}`;
+	label: string;
+	render?: (value: any, row: Member) => React.ReactNode;
+}> = [
+	{ key: "profile.full_name", label: "Name" },
+	{ key: "profile.email", label: "Email" },
+	{ key: "profile.phone", label: "Phone" },
+	{
+		key: "membership_status",
+		label: "Membership Status",
+		render: (v) => (
+			<Badge variant={v === "active" ? "default" : "secondary"}>{v}</Badge>
+		),
+	},
+	{
+		key: "joined_at",
+		label: "Joined At",
+		render: (v) => (v ? new Date(v).toLocaleDateString() : "-"),
+	},
+	{
+		key: "waiver_signed",
+		label: "Waiver Signed",
+		render: (v) => (v ? "Yes" : "No"),
+	},
+];
+
 export default function SessionMembersPage() {
-  const router = useRouter()
-  const params = useParams()
-  const sessionId = params.id as string
+	const router = useRouter();
+	const params = useParams();
+	const sessionId = params.id as string;
+	const [members, setMembers] = useState<Member[]>([]);
+	const [loading, setLoading] = useState(true);
 
-  const sessionData = mockSessionMembers[sessionId]
+	// Simulate fetching members for the session
+	useEffect(() => {
+		setLoading(true);
+		setTimeout(() => {
+			setMembers([
+				{
+					id: "1",
+					user_id: "u1",
+					membership_status: "active",
+					joined_at: new Date(Date.now() - 86400000 * 100).toISOString(),
+					waiver_signed: true,
+					profile: {
+						id: "u1",
+						email: "john.doe@example.com",
+						full_name: "John Doe",
+						phone: "+1 234 567 890",
+					},
+				},
+				{
+					id: "2",
+					user_id: "u2",
+					membership_status: "inactive",
+					joined_at: new Date(Date.now() - 86400000 * 200).toISOString(),
+					waiver_signed: false,
+					profile: {
+						id: "u2",
+						email: "jane.smith@example.com",
+						full_name: "Jane Smith",
+						phone: "+1 234 567 891",
+					},
+				},
+			]);
+			setLoading(false);
+		}, 500);
+	}, [sessionId]);
 
-  if (!sessionData) {
-    return (
-      <div className="container mx-auto py-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Session Not Found</h1>
-          <Button onClick={() => router.back()}>Go Back</Button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="mr-2" aria-label="Go back">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-2xl font-bold">Session Members</h1>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{sessionData.sessionType} - Members List</CardTitle>
-          <CardDescription>
-            {sessionData.trainer} • {sessionData.date} • {sessionData.time}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <p className="text-sm text-muted-foreground">Total Members: {sessionData.members.length}</p>
-          </div>
-
-          {sessionData.members.length > 0 ? (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead className="hidden md:table-cell">Email</TableHead>
-                    <TableHead className="hidden md:table-cell">Phone</TableHead>
-                    <TableHead className="hidden md:table-cell">Membership</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Join Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sessionData.members.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell className="font-medium">{member.name}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="flex items-center">
-                          <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
-                          {member.email}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="flex items-center">
-                          <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
-                          {member.phone}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant="outline">{member.membershipType}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={member.status === "Active" ? "default" : "secondary"}>{member.status}</Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="flex items-center">
-                          <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                          {member.joinDate}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No members registered for this session yet.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
+	return (
+		<div className="container mx-auto py-6 space-y-6">
+			<div className="flex items-center">
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={() => router.back()}
+					className="mr-2"
+					aria-label="Go back">
+					<ArrowLeft className="h-5 w-5" />
+				</Button>
+				<h1 className="text-2xl font-bold">Session Members</h1>
+			</div>
+			<Card>
+				<CardHeader>
+					<CardTitle>Members List</CardTitle>
+					<CardDescription>
+						All members registered for this session (schema-driven)
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{loading ? (
+						<div className="text-center py-8">Loading members...</div>
+					) : members.length > 0 ? (
+						<div className="rounded-md border">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										{memberTableConfig.map((col) => (
+											<TableHead key={col.key}>{col.label}</TableHead>
+										))}
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{members.map((member, idx) => (
+										<TableRow key={member.id}>
+											{memberTableConfig.map((col) => {
+												let value;
+												if (col.key.startsWith("profile.")) {
+													const profileKey = col.key.replace(
+														"profile.",
+														""
+													) as keyof Profile;
+													value = member.profile
+														? member.profile[profileKey]
+														: undefined;
+												} else {
+													value = member[col.key as keyof Member];
+												}
+												return (
+													<TableCell key={col.key}>
+														{col.render
+															? col.render(value, member)
+															: value != null
+															? String(value)
+															: "-"}
+													</TableCell>
+												);
+											})}
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					) : (
+						<div className="text-center py-8">
+							<p className="text-muted-foreground">
+								No members registered for this session yet.
+							</p>
+						</div>
+					)}
+				</CardContent>
+			</Card>
+		</div>
+	);
 }
