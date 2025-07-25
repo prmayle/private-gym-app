@@ -135,8 +135,12 @@ export default function BookSessionPage() {
           status,
           packages (
             name,
-            package_type,
-            session_count
+            session_count,
+            package_type_id,
+            package_types (
+              id,
+              name
+            )
           )
         `
 				)
@@ -152,38 +156,9 @@ export default function BookSessionPage() {
 			const transformedPackages: { [key: string]: PackageInfo } = {};
 			if (packagesData) {
 				packagesData.forEach((pkg: any) => {
-					const packageType = pkg.packages?.package_type || "Unknown";
+					const packageType = pkg.packages?.package_types?.name || "Unknown";
 					const packageName = pkg.packages?.name || packageType;
-					let sessionTypes: string[] = [];
-					switch (packageType.toLowerCase()) {
-						case "personal_training":
-							sessionTypes = ["Personal Training", "personal_training"];
-							break;
-						case "group_class":
-							sessionTypes = ["Group Class", "group_class", "Group Training"];
-							break;
-						case "fitness_assessment":
-							sessionTypes = ["Fitness Assessment", "fitness_assessment"];
-							break;
-						case "nutrition_consultation":
-							sessionTypes = [
-								"Nutrition Consultation",
-								"nutrition_consultation",
-							];
-							break;
-						case "monthly":
-						case "general":
-							sessionTypes = [
-								"Personal Training",
-								"Group Class",
-								"Group Training",
-								"personal_training",
-								"group_class",
-							];
-							break;
-						default:
-							sessionTypes = [packageType, packageName];
-					}
+					let sessionTypes: string[] = [packageType];
 					sessionTypes.forEach((sessionType) => {
 						transformedPackages[sessionType] = {
 							remaining: pkg.sessions_remaining || 0,
@@ -204,20 +179,31 @@ export default function BookSessionPage() {
 				.from("sessions")
 				.select(
 					`
-          id,
-          title,
-          session_type,
-          start_time,
-          end_time,
-          max_capacity,
-          current_bookings,
-          status,
-          trainers (
-            profiles (
-              full_name
-            )
-          )
-        `
+		id,
+		title,
+		start_time,
+		end_time,
+		status,
+		current_bookings,
+		max_capacity,
+		description,
+		trainer_id,
+		package_id,
+		packages (
+			id,
+			name,
+			package_type_id,
+			package_types (
+				id,
+				name
+			)
+		)
+		trainers (
+			profiles (
+				full_name
+			)
+		)
+	`
 				)
 				.gte("start_time", new Date().toISOString())
 				.eq("status", "scheduled")
@@ -230,7 +216,7 @@ export default function BookSessionPage() {
 			// Transform sessions data
 			const transformedSessions = (sessionsData || []).map((session) => ({
 				id: session.id,
-				type: session.session_type,
+				type: session.packages?.package_types?.name || "Unknown",
 				trainer: (session.trainers as any)?.profiles?.full_name || "Unassigned",
 				date: new Date(session.start_time).toISOString().split("T")[0],
 				time: `${new Date(session.start_time).toLocaleTimeString([], {
@@ -268,7 +254,64 @@ export default function BookSessionPage() {
 			});
 			setWeeklyAvailableSessions(weeks);
 
-			// TODO: Load member's booked sessions and setMemberSessions([...])
+			// Load member's booked sessions
+			const { data: bookingsData, error: bookingsError } = await supabase
+				.from("bookings")
+				.select(
+					`
+					id,
+					session_id,
+					status,
+					sessions (
+						id,
+						title,
+						start_time,
+						end_time,
+						status,
+						trainers (
+							profiles (
+								full_name
+							)
+						),
+						packages (
+							package_types (
+								name
+							)
+						)
+					)
+				`
+				)
+				.eq("member_id", memberData.id)
+				.in("status", ["confirmed", "attended", "completed"]);
+
+			if (bookingsError) {
+				console.error("Error loading bookings:", bookingsError);
+			}
+
+			const bookedSessions: MemberSession[] = (bookingsData || [])
+				.filter((b: any) => b.sessions)
+				.map((b: any) => {
+					const s = b.sessions;
+					return {
+						id: s.id,
+						type: s.packages?.package_types?.name || "Unknown",
+						trainer: (s.trainers as any)?.profiles?.full_name || "Unassigned",
+						date: new Date(s.start_time).toISOString().split("T")[0],
+						time: `${new Date(s.start_time).toLocaleTimeString([], {
+							hour: "2-digit",
+							minute: "2-digit",
+						})} - ${new Date(s.end_time).toLocaleTimeString([], {
+							hour: "2-digit",
+							minute: "2-digit",
+						})}`,
+						status:
+							b.status === "attended" || b.status === "completed"
+								? "Completed"
+								: "Upcoming",
+					};
+				});
+			setMemberSessions(bookedSessions);
+			setBookedSessionIds(new Set(bookedSessions.map((s) => s.id)));
 		} catch (error) {
 			console.error("Error loading member data:", error);
 			toast({
@@ -360,7 +403,6 @@ export default function BookSessionPage() {
           id, 
           sessions_remaining,
           packages (
-            package_type,
             name
           )
         `
@@ -380,7 +422,7 @@ export default function BookSessionPage() {
 			// Find the best matching package for this session type
 			let selectedPackage = null;
 			for (const pkg of memberPackageData) {
-				const pkgType = (pkg.packages as any)?.package_type || "Unknown";
+				const pkgType = (pkg.packages as any)?.package_types?.name || "Unknown";
 				const pkgName = (pkg.packages as any)?.name || pkgType;
 
 				// Check if this package can book the session type
@@ -396,7 +438,8 @@ export default function BookSessionPage() {
 			// If no exact match, use the first available package for general/monthly packages
 			if (!selectedPackage) {
 				for (const pkg of memberPackageData) {
-					const pkgType = (pkg.packages as any)?.package_type || "Unknown";
+					const pkgType =
+						(pkg.packages as any)?.package_types?.name || "Unknown";
 					if (
 						pkgType.toLowerCase() === "monthly" ||
 						pkgType.toLowerCase() === "general"

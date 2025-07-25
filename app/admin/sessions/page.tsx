@@ -85,6 +85,8 @@ export interface Session {
 	allowDropIn?: boolean;
 	dropInPrice?: string;
 	type?: string;
+	start_time?: string; // Added for time display
+	end_time?: string; // Added for time display
 }
 
 // Session status logic
@@ -189,6 +191,45 @@ const logActivity = (activity: {
 	// Activity logging will be handled by dashboard data refresh
 	console.log("Activity logged:", activity);
 };
+
+// Helper to generate slot options for the next 14 days
+function generateSlotOptions(
+	existingSessions: Session[]
+): Array<{ label: string; date: string; time: string }> {
+	const slots: Array<{ label: string; date: string; time: string }> = [];
+	const slotTimes = [
+		{ start: "08:00", end: "09:00" },
+		{ start: "10:00", end: "11:00" },
+		{ start: "12:00", end: "13:00" },
+		{ start: "14:00", end: "15:00" },
+		{ start: "16:00", end: "17:00" },
+	];
+	const today = new Date();
+	for (let d = 0; d < 14; d++) {
+		const dateObj = new Date(today);
+		dateObj.setDate(today.getDate() + d);
+		const dateStr = dateObj.toISOString().split("T")[0];
+		for (const slot of slotTimes) {
+			const label = `${dateStr} ${slot.start} - ${slot.end}`;
+			slots.push({ label, date: dateStr, time: `${slot.start} - ${slot.end}` });
+		}
+	}
+	return slots;
+}
+
+// Helper to format time as 12-hour (AM/PM) from UTC DB string
+function formatTime12Hour(dateString?: string): string {
+	if (!dateString) return "-";
+	const date = new Date(dateString);
+	if (isNaN(date.getTime())) return "-";
+	let hours = date.getUTCHours();
+	const minutes = date.getUTCMinutes();
+	const ampm = hours >= 12 ? "pm" : "am";
+	hours = hours % 12;
+	hours = hours ? hours : 12; // the hour '0' should be '12'
+	const pad = (n: number) => n.toString().padStart(2, "0");
+	return `${pad(hours)}:${pad(minutes)} ${ampm}`;
+}
 
 export default function SessionsPage() {
 	const router = useRouter();
@@ -408,6 +449,8 @@ export default function SessionsPage() {
 						allowDropIn: session.allow_drop_in,
 						dropInPrice: session.drop_in_price,
 						type: undefined,
+						start_time: session.start_time,
+						end_time: session.end_time,
 					};
 
 					// Determine correct status based on business rules
@@ -1105,7 +1148,7 @@ export default function SessionsPage() {
 
 	const handleReactivateSession = async (
 		session: Session,
-		data: { date: string; time: string; notes?: string }
+		data: { start_time: string; end_time: string; notes?: string }
 	) => {
 		if (!canReactivateSession(session.status)) return;
 
@@ -1113,18 +1156,13 @@ export default function SessionsPage() {
 			setLoading(true);
 			const supabase = createClient();
 
-			// Parse new time format
-			const [startTimeStr, endTimeStr] = data.time.split(" - ");
-			const startDateTime = new Date(`${data.date} ${startTimeStr}`);
-			const endDateTime = new Date(`${data.date} ${endTimeStr}`);
-
-			// Update session to reactivate
+			// Update session to reactivate with provided UTC times
 			const { error: updateError } = await supabase
 				.from("sessions")
 				.update({
 					status: "scheduled",
-					start_time: startDateTime.toISOString(),
-					end_time: endDateTime.toISOString(),
+					start_time: data.start_time,
+					end_time: data.end_time,
 					updated_at: new Date().toISOString(),
 				})
 				.eq("id", session.id);
@@ -1138,7 +1176,7 @@ export default function SessionsPage() {
 
 			toast({
 				title: "Session Reactivated",
-				description: `The session has been reactivated for ${data.date} at ${data.time}.`,
+				description: `The session has been reactivated for ${data.start_time} - ${data.end_time} (UTC).`,
 			});
 
 			setReactivationDialog({ isOpen: false, session: null });
@@ -1192,6 +1230,8 @@ export default function SessionsPage() {
 	const uniqueTrainers = trainers.filter((trainer) =>
 		sessions.some((session) => session.trainer === trainer.name)
 	);
+
+	// Remove slotOptions
 
 	return (
 		<main className="p-6 space-y-6">
@@ -1652,18 +1692,21 @@ export default function SessionsPage() {
 											<TableCell>
 												<div className="text-sm">
 													<div>
-														{new Date(session.date).toLocaleDateString(
-															"en-US",
-															{
-																weekday: "short",
-																month: "short",
-																day: "numeric",
-																year: "numeric",
-															}
-														)}
+														{session.start_time
+															? new Date(session.start_time).toLocaleDateString(
+																	"en-US",
+																	{
+																		weekday: "short",
+																		month: "short",
+																		day: "numeric",
+																		year: "numeric",
+																	}
+															  )
+															: "-"}
 													</div>
 													<div className="text-muted-foreground">
-														{session.time}
+														{formatTime12Hour(session.start_time)} -{" "}
+														{formatTime12Hour(session.end_time)}
 													</div>
 												</div>
 											</TableCell>
@@ -1847,10 +1890,16 @@ export default function SessionsPage() {
 									</div>
 									<div>
 										<strong>Date:</strong>{" "}
-										{new Date(selectedSession.date).toLocaleDateString()}
+										{selectedSession?.start_time
+											? new Date(selectedSession.start_time)
+													.toISOString()
+													.split("T")[0]
+											: "-"}
 									</div>
 									<div>
-										<strong>Time:</strong> {selectedSession.time}
+										<strong>Time:</strong>{" "}
+										{formatTime12Hour(selectedSession?.start_time)} -{" "}
+										{formatTime12Hour(selectedSession?.end_time)}
 									</div>
 									<div>
 										<strong>Type:</strong> {selectedSession.packageTypeName}

@@ -44,10 +44,20 @@ import {
 	Users,
 	UserCheck,
 	UserX,
+	Loader2,
+	Trash2,
+	Ban,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { logActivity } from "@/utils/activity-logger";
 import { Badge } from "@/components/ui/badge";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
+} from "@/components/ui/dialog";
 
 // Member and Profile interfaces based on DB schema
 interface Profile {
@@ -137,6 +147,17 @@ export default function MembersPage() {
 	const [itemsPerPage] = useState(10);
 	const [packageRequests, setPackageRequests] = useState<PackageRequest[]>([]);
 	const [activeTab, setActiveTab] = useState("members");
+	const [disableDialogOpen, setDisableDialogOpen] = useState<string | null>(
+		null
+	);
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
+	const [actionLoading, setActionLoading] = useState(false);
+	const [selectedMember, setSelectedMember] = useState<MemberDisplay | null>(
+		null
+	);
+	const [activateDialogOpen, setActivateDialogOpen] = useState<string | null>(
+		null
+	);
 
 	useEffect(() => {
 		loadMembers();
@@ -280,7 +301,7 @@ export default function MembersPage() {
 						joinDate: member.joined_at
 							? new Date(member.joined_at).toLocaleDateString()
 							: "Unknown",
-						status: member.membership_status || "unknown",
+						status: normalizeStatus(member.membership_status),
 						packages: packageNames,
 						lastActivity: profile?.last_login_at
 							? new Date(profile.last_login_at).toLocaleDateString()
@@ -595,6 +616,150 @@ export default function MembersPage() {
 		startIndex + itemsPerPage
 	);
 
+	// Disable member handler
+	const handleDisableMember = async (member: MemberDisplay) => {
+		setActionLoading(true);
+		try {
+			const supabase = createClient();
+			// 1. Set profile is_active to false
+			const { error: profileError } = await supabase
+				.from("profiles")
+				.update({ is_active: false, updated_at: new Date().toISOString() })
+				.eq("id", member.userId);
+			// 2. Set membership_status to 'inactive'
+			const { error: memberError } = await supabase
+				.from("members")
+				.update({
+					membership_status: "inactive",
+					updated_at: new Date().toISOString(),
+				})
+				.eq("id", member.id);
+			if (profileError || memberError) {
+				throw profileError || memberError;
+			}
+			// 3. Log activity
+			await logActivity({
+				action_type: "update",
+				entity_type: "member",
+				entity_id: member.id,
+				entity_name: member.name,
+				description: `Member disabled`,
+				performed_by: auth.user?.id || "admin",
+				metadata: { previous_status: member.status, new_status: "Inactive" },
+			});
+			// 4. Update local state
+			setMembers((prev) =>
+				prev.map((m) => (m.id === member.id ? { ...m, status: "Inactive" } : m))
+			);
+			toast({
+				title: "Member Disabled",
+				description: `${member.name} has been disabled.`,
+			});
+		} catch (error) {
+			console.error("Error disabling member:", error);
+			toast({
+				title: "Disable Failed",
+				description: "Failed to disable member.",
+				variant: "destructive",
+			});
+		} finally {
+			setActionLoading(false);
+			setDisableDialogOpen(null);
+		}
+	};
+	// Delete member handler
+	const handleDeleteMember = async (member: MemberDisplay) => {
+		setActionLoading(true);
+		try {
+			// Call API route to delete user
+			const res = await fetch("/api/admin/delete-user", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ userId: member.userId }),
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error || "Failed to delete user");
+			// Log activity
+			await logActivity({
+				action_type: "delete",
+				entity_type: "member",
+				entity_id: member.id,
+				entity_name: member.name,
+				description: `Member deleted`,
+				performed_by: auth.user?.id || "admin",
+				metadata: { email: member.email },
+			});
+			// Remove from local state
+			setMembers((prev) => prev.filter((m) => m.id !== member.id));
+			toast({
+				title: "Member Deleted",
+				description: `${member.name} has been deleted.`,
+			});
+		} catch (error) {
+			console.error("Error deleting member:", error);
+			toast({
+				title: "Delete Failed",
+				description: "Failed to delete member.",
+				variant: "destructive",
+			});
+		} finally {
+			setActionLoading(false);
+			setDeleteDialogOpen(null);
+		}
+	};
+
+	// Activate member handler
+	const handleActivateMember = async (member: MemberDisplay) => {
+		setActionLoading(true);
+		try {
+			const supabase = createClient();
+			// 1. Set profile is_active to true
+			const { error: profileError } = await supabase
+				.from("profiles")
+				.update({ is_active: true, updated_at: new Date().toISOString() })
+				.eq("id", member.userId);
+			// 2. Set membership_status to 'active'
+			const { error: memberError } = await supabase
+				.from("members")
+				.update({
+					membership_status: "active",
+					updated_at: new Date().toISOString(),
+				})
+				.eq("id", member.id);
+			if (profileError || memberError) {
+				throw profileError || memberError;
+			}
+			// 3. Log activity
+			await logActivity({
+				action_type: "update",
+				entity_type: "member",
+				entity_id: member.id,
+				entity_name: member.name,
+				description: `Member activated`,
+				performed_by: auth.user?.id || "admin",
+				metadata: { previous_status: member.status, new_status: "Active" },
+			});
+			// 4. Update local state
+			setMembers((prev) =>
+				prev.map((m) => (m.id === member.id ? { ...m, status: "Active" } : m))
+			);
+			toast({
+				title: "Member Activated",
+				description: `${member.name} has been activated.`,
+			});
+		} catch (error) {
+			console.error("Error activating member:", error);
+			toast({
+				title: "Activate Failed",
+				description: "Failed to activate member.",
+				variant: "destructive",
+			});
+		} finally {
+			setActionLoading(false);
+			setActivateDialogOpen(null);
+		}
+	};
+
 	return (
 		<div className="container mx-auto py-6 space-y-6">
 			{/* Header */}
@@ -603,7 +768,7 @@ export default function MembersPage() {
 					<Button
 						variant="ghost"
 						size="icon"
-						onClick={() => router.back()}
+						onClick={() => router.push("/admin")}
 						className="mr-2"
 						aria-label="Go back">
 						<ArrowLeft className="h-5 w-5" />
@@ -788,6 +953,38 @@ export default function MembersPage() {
 																			Edit Member
 																		</Link>
 																	</DropdownMenuItem>
+																	{member.status === "inactive" ? (
+																		<DropdownMenuItem
+																			onClick={() => {
+																				setSelectedMember(member);
+																				setActivateDialogOpen(member.id);
+																			}}
+																			disabled={loading}>
+																			<UserCheck className="mr-2 h-4 w-4 text-green-600" />
+																			Activate Member
+																		</DropdownMenuItem>
+																	) : (
+																		<DropdownMenuItem
+																			onClick={() => {
+																				setSelectedMember(member);
+																				setDisableDialogOpen(member.id);
+																			}}
+																			disabled={
+																				loading || member.status === "Inactive"
+																			}>
+																			<Ban className="mr-2 h-4 w-4 text-yellow-600" />
+																			Disable Member
+																		</DropdownMenuItem>
+																	)}
+																	<DropdownMenuItem
+																		onClick={() => {
+																			setSelectedMember(member);
+																			setDeleteDialogOpen(member.id);
+																		}}
+																		disabled={loading}>
+																		<Trash2 className="mr-2 h-4 w-4 text-red-600" />
+																		Delete Member
+																	</DropdownMenuItem>
 																</DropdownMenuContent>
 															</DropdownMenu>
 														</TableCell>
@@ -920,6 +1117,113 @@ export default function MembersPage() {
 					</CardContent>
 				</Card>
 			)}
+			{/* Disable Member Dialog */}
+			<Dialog
+				open={!!disableDialogOpen}
+				onOpenChange={(open) =>
+					setDisableDialogOpen(open ? disableDialogOpen : null)
+				}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Disable Member</DialogTitle>
+					</DialogHeader>
+					<p>
+						Are you sure you want to disable <b>{selectedMember?.name}</b>? This
+						will prevent them from logging in or booking sessions, but their
+						data will be retained.
+					</p>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setDisableDialogOpen(null)}
+							disabled={actionLoading}>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() =>
+								selectedMember && handleDisableMember(selectedMember)
+							}
+							disabled={actionLoading}>
+							{actionLoading ? (
+								<Loader2 className="animate-spin w-4 h-4 mr-2" />
+							) : null}
+							Disable
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+			{/* Delete Member Dialog */}
+			<Dialog
+				open={!!deleteDialogOpen}
+				onOpenChange={(open) =>
+					setDeleteDialogOpen(open ? deleteDialogOpen : null)
+				}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Delete Member</DialogTitle>
+					</DialogHeader>
+					<p>
+						Are you sure you want to <b>permanently delete</b>{" "}
+						<b>{selectedMember?.name}</b>? This action cannot be undone and will
+						remove all their data.
+					</p>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setDeleteDialogOpen(null)}
+							disabled={actionLoading}>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() =>
+								selectedMember && handleDeleteMember(selectedMember)
+							}
+							disabled={actionLoading}>
+							{actionLoading ? (
+								<Loader2 className="animate-spin w-4 h-4 mr-2" />
+							) : null}
+							Delete
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+			{/* Activate Member Dialog */}
+			<Dialog
+				open={!!activateDialogOpen}
+				onOpenChange={(open) =>
+					setActivateDialogOpen(open ? activateDialogOpen : null)
+				}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Activate Member</DialogTitle>
+					</DialogHeader>
+					<p>
+						Are you sure you want to activate <b>{selectedMember?.name}</b>?
+						This will allow them to log in and book sessions again.
+					</p>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setActivateDialogOpen(null)}
+							disabled={actionLoading}>
+							Cancel
+						</Button>
+						<Button
+							variant="default"
+							onClick={() =>
+								selectedMember && handleActivateMember(selectedMember)
+							}
+							disabled={actionLoading}>
+							{actionLoading ? (
+								<Loader2 className="animate-spin w-4 h-4 mr-2" />
+							) : null}
+							Activate
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

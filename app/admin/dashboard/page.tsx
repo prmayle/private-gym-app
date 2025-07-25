@@ -88,7 +88,7 @@ interface UpcomingSession {
 	date: string;
 	time: string;
 	trainer: string;
-	type: string;
+	type?: string; // Now optional, or you can remove this line if not used elsewhere
 	capacity: { booked: number; total: number };
 	status: string;
 }
@@ -217,7 +217,6 @@ export default function AdminDashboard() {
 					totalCapacity > 0
 						? Math.round((totalAttended / totalCapacity) * 100)
 						: 0;
-				console.log("attendanceRate:", attendanceRate);
 				setAttendanceRate(attendanceRate);
 			}
 
@@ -243,7 +242,7 @@ export default function AdminDashboard() {
 				supabase
 					.from("sessions")
 					.select(
-						"id, title, start_time, end_time, session_type, status, current_bookings, max_capacity"
+						"id, title, start_time, end_time, status, current_bookings, max_capacity"
 					)
 					.order("start_time", { ascending: true }),
 
@@ -252,7 +251,7 @@ export default function AdminDashboard() {
 					.from("sessions")
 					.select(
 						`
-            id, title, start_time, end_time, session_type, status, current_bookings, max_capacity,
+            id, title, start_time, end_time, status, current_bookings, max_capacity,
             trainer_id
           `
 					)
@@ -445,8 +444,6 @@ export default function AdminDashboard() {
 					? attendanceResult.value.data
 					: []) || [];
 
-			console.log("attendanceData:", attendanceResult);
-
 			// Calculate stats
 			const activeMembers = members.filter(
 				(m) => m.membership_status === "active"
@@ -459,7 +456,7 @@ export default function AdminDashboard() {
 				);
 			});
 			const completedSessions = sessions.filter((s) => {
-				return new Date(s.start_time) < now && s.status === "completed";
+				return new Date(s.start_time) < now && s.status !== "cancelled";
 			});
 
 			const totalRevenue = payments.reduce(
@@ -630,28 +627,32 @@ export default function AdminDashboard() {
 
 			// Format upcoming sessions
 			const formattedUpcomingSessions: UpcomingSession[] =
-				upcomingSessionsData.map((session) => ({
-					id: session.id,
-					title: session.title,
-					date: new Date(session.start_time).toISOString().split("T")[0],
-					time: `${new Date(session.start_time).toLocaleTimeString([], {
-						hour: "2-digit",
-						minute: "2-digit",
-					})} - ${new Date(session.end_time).toLocaleTimeString([], {
-						hour: "2-digit",
-						minute: "2-digit",
-					})}`,
-					type: session.session_type,
-					trainer: "Assigned Trainer", // Fallback since trainer details might not be available
-					status:
-						session.current_bookings >= session.max_capacity
-							? "Full"
-							: "Available",
-					capacity: {
-						booked: session.current_bookings || 0,
-						total: session.max_capacity || 1,
-					},
-				}));
+				upcomingSessionsData.map(
+					(session) => (
+						console.log("when formating"),
+						console.log(session),
+						{
+							id: session.id,
+							title: session.title,
+							date: new Date(session.start_time).toISOString().split("T")[0],
+							time: `${formatTime12Hour(
+								session.start_time
+							)} - ${formatTime12Hour(session.end_time)}`,
+							// Remove type: session.session_type, since session_type no longer exists
+							// Optionally, you can add a placeholder or remove the type field from UpcomingSession
+							type: "-",
+							trainer: "Assigned Trainer", // Fallback since trainer details might not be available
+							status:
+								session.current_bookings >= session.max_capacity
+									? "Full"
+									: "Available",
+							capacity: {
+								booked: session.current_bookings || 0,
+								total: session.max_capacity || 1,
+							},
+						}
+					)
+				);
 
 			// Calculate dashboard stats
 			const dashboardStats: DashboardStats = {
@@ -690,7 +691,6 @@ export default function AdminDashboard() {
 					})
 				);
 
-				console.log("Loaded activities:", transformedActivities);
 				setRecentActivities(transformedActivities);
 			} catch (activityError) {
 				console.error("Error loading activities:", activityError);
@@ -1155,6 +1155,18 @@ export default function AdminDashboard() {
 		}
 	};
 
+	// Helper to format time as 12-hour (AM/PM) from UTC DB string
+	function formatTime12Hour(dateString: string): string {
+		const date = new Date(dateString);
+		let hours = date.getUTCHours();
+		const minutes = date.getUTCMinutes();
+		const ampm = hours >= 12 ? "pm" : "am";
+		hours = hours % 12;
+		hours = hours ? hours : 12; // the hour '0' should be '12'
+		const pad = (n: number) => n.toString().padStart(2, "0");
+		return `${pad(hours)}:${pad(minutes)} ${ampm}`;
+	}
+
 	return (
 		<AdminRoute>
 			<div className="space-y-6">
@@ -1475,51 +1487,57 @@ export default function AdminDashboard() {
 
 							{!loading && upcomingSessions.length > 0 && (
 								<div className="space-y-4">
-									{upcomingSessions.map((session) => (
-										<div
-											key={session.id}
-											className="p-3 rounded-lg border hover:bg-muted/50">
-											<div className="flex items-start justify-between">
-												<div className="flex-1">
-													<h4 className="font-medium text-sm">
-														{session.title}
-													</h4>
-													<div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-														<span className="flex items-center gap-1">
-															<Calendar className="h-3 w-3" />
-															{new Date(session.date).toLocaleDateString()}
-														</span>
-														<span className="flex items-center gap-1">
-															<Clock className="h-3 w-3" />
-															{session.time}
-														</span>
-													</div>
-													<div className="flex items-center gap-2 mt-2">
-														<Badge variant="outline" className="text-xs">
-															{session.type}
-														</Badge>
-														<span className="text-xs text-muted-foreground">
-															with {session.trainer}
-														</span>
+									{upcomingSessions.map(
+										(session) => (
+											console.log(session),
+											(
+												<div
+													key={session.id}
+													className="p-3 rounded-lg border hover:bg-muted/50">
+													<div className="flex items-start justify-between">
+														<div className="flex-1">
+															<h4 className="font-medium text-sm">
+																{session.title}
+															</h4>
+															<div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+																<span className="flex items-center gap-1">
+																	<Calendar className="h-3 w-3" />
+																	{new Date(session.date).toLocaleDateString()}
+																</span>
+																<span className="flex items-center gap-1">
+																	<Clock className="h-3 w-3" />
+																	{session.time}
+																</span>
+															</div>
+															<div className="flex items-center gap-2 mt-2">
+																<Badge variant="outline" className="text-xs">
+																	{session.type}
+																</Badge>
+																<span className="text-xs text-muted-foreground">
+																	with {session.trainer}
+																</span>
+															</div>
+														</div>
+														<div className="text-right">
+															<div className="text-xs text-muted-foreground">
+																{session.capacity.booked}/
+																{session.capacity.total}
+															</div>
+															<Badge
+																variant={
+																	session.status === "Available"
+																		? "secondary"
+																		: "default"
+																}
+																className="text-xs mt-1">
+																{session.status}
+															</Badge>
+														</div>
 													</div>
 												</div>
-												<div className="text-right">
-													<div className="text-xs text-muted-foreground">
-														{session.capacity.booked}/{session.capacity.total}
-													</div>
-													<Badge
-														variant={
-															session.status === "Available"
-																? "secondary"
-																: "default"
-														}
-														className="text-xs mt-1">
-														{session.status}
-													</Badge>
-												</div>
-											</div>
-										</div>
-									))}
+											)
+										)
+									)}
 								</div>
 							)}
 						</ScrollArea>

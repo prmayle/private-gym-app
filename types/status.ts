@@ -191,14 +191,14 @@ export function normalizeStatus(
 
 	// Map old status values to new system
 	const statusMap: Record<string, SessionStatus> = {
-		// Legacy “active” ⇢ **Active** (not Available)
+		// Legacy "active" ⇢ **Active** (not Available)
 		active: "Active",
 		enabled: "Active",
 		on: "Active",
 		true: "Active",
 		yes: "Active",
 
-		// Legacy “inactive” ⇢ Inactive
+		// Legacy "inactive" ⇢ Inactive
 		inactive: "Inactive",
 		disabled: "Inactive",
 		off: "Inactive",
@@ -214,6 +214,11 @@ export function normalizeStatus(
 		finished: "Completed",
 		done: "Completed",
 		upcoming: "Upcoming",
+		
+		// Expired status handling
+		expired: "Inactive",
+		past: "Inactive",
+		overdue: "Inactive",
 	};
 
 	return statusMap[normalized] || "Available";
