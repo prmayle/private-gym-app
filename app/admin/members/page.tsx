@@ -761,31 +761,39 @@ export default function MembersPage() {
 	};
 
 	return (
-		<div className="container mx-auto py-6 space-y-6">
+		<div className="container mx-auto max-w-7xl py-6 space-y-6">
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center">
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => router.push("/admin")}
-						className="mr-2"
-						aria-label="Go back">
-						<ArrowLeft className="h-5 w-5" />
-					</Button>
-					<div>
-						<h1 className="text-3xl font-bold">Members Management</h1>
-						<p className="text-muted-foreground">
-							Manage gym members, view profiles, and handle package requests
-						</p>
+			<div className="relative mb-8">
+				<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
+				<div className="flex items-center justify-between gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
+					<div className="flex items-center gap-6">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => router.push("/admin")}
+							className="mr-2"
+							aria-label="Go back">
+							<ArrowLeft className="h-5 w-5" />
+						</Button>
+						<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
+							<Users className="w-10 h-10 text-primary" />
+						</div>
+						<div>
+							<div className="font-bold text-2xl flex items-center gap-2">
+								Members Management
+							</div>
+							<div className="text-muted-foreground text-sm">
+								Manage gym members, view profiles, and handle package requests
+							</div>
+						</div>
 					</div>
+					<Button asChild>
+						<Link href="/admin/members/new">
+							<UserPlus className="mr-2 h-4 w-4" />
+							Add Member
+						</Link>
+					</Button>
 				</div>
-				<Button asChild>
-					<Link href="/admin/members/new">
-						<UserPlus className="mr-2 h-4 w-4" />
-						Add Member
-					</Link>
-				</Button>
 			</div>
 
 			{/* Tabs */}
@@ -836,9 +844,12 @@ export default function MembersPage() {
 					</div>
 
 					{/* Members Table */}
-					<Card>
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 						<CardHeader>
-							<CardTitle>Members</CardTitle>
+							<CardTitle className="flex items-center gap-2">
+								<Users className="h-5 w-5" />
+								Members
+							</CardTitle>
 							<CardDescription>
 								{filteredMembers.length} member
 								{filteredMembers.length !== 1 ? "s" : ""} found

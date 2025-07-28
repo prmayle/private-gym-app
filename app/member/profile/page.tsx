@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInputField } from "@/components/ui/phone-input";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Edit, Save, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -372,13 +373,13 @@ export default function MemberProfile() {
 						</div>
 						<div className="space-y-2">
 							<Label htmlFor="emergencyPhone">Emergency Contact Phone</Label>
-							<Input
+							<PhoneInputField
 								id="emergencyPhone"
 								value={editedData.emergencyPhone}
-								onChange={(e) =>
+								onChange={(value) =>
 									setEditedData({
 										...editedData,
-										emergencyPhone: e.target.value,
+										emergencyPhone: value || "",
 									})
 								}
 								disabled={!isEditing}
@@ -419,10 +420,10 @@ export default function MemberProfile() {
 							<>
 								<div className="space-y-2">
 									<Label htmlFor="newPhone">New Phone Number</Label>
-									<Input
+									<PhoneInputField
 										id="newPhone"
 										value={newPhone}
-										onChange={(e) => setNewPhone(e.target.value)}
+										onChange={(value) => setNewPhone(value || "")}
 										placeholder="Enter new phone number"
 									/>
 								</div>

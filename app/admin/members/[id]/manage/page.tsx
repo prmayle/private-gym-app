@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInputField } from "@/components/ui/phone-input";
 import {
 	Dialog,
 	DialogContent,
@@ -749,12 +750,12 @@ export default function ManageMemberPage() {
 								</div>
 								<div>
 									<Label>Phone</Label>
-									<Input
+									<PhoneInputField
 										value={editForm.phone}
-										onChange={(e) =>
+										onChange={(value) =>
 											setEditForm((f: typeof editForm) => ({
 												...f,
-												phone: e.target.value,
+												phone: value || "",
 											}))
 										}
 									/>

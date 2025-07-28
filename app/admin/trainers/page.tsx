@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneInputField } from "@/components/ui/phone-input";
 import {
 	Select,
 	SelectContent,
@@ -615,13 +616,13 @@ export default function TrainersPage() {
 							<div className="grid grid-cols-2 gap-4">
 								<div className="space-y-2">
 									<Label htmlFor="phone">Phone</Label>
-									<Input
+									<PhoneInputField
 										id="phone"
 										value={newTrainer.phone}
-										onChange={(e) =>
+										onChange={(value) =>
 											setNewTrainer((prev) => ({
 												...prev,
-												phone: e.target.value,
+												phone: value || "",
 											}))
 										}
 										placeholder="Enter phone number"
@@ -1011,12 +1012,12 @@ export default function TrainersPage() {
 								</div>
 								<div className="space-y-2">
 									<Label htmlFor="edit_phone">Phone</Label>
-									<Input
+									<PhoneInputField
 										id="edit_phone"
 										value={editingTrainer.phone || ""}
-										onChange={(e) =>
+										onChange={(value) =>
 											setEditingTrainer((prev) =>
-												prev ? { ...prev, phone: e.target.value } : prev
+												prev ? { ...prev, phone: value || "" } : prev
 											)
 										}
 									/>

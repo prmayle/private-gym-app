@@ -23,6 +23,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneInputField } from "@/components/ui/phone-input";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
 import { ArrowLeft, User, Phone, FileText, Package } from "lucide-react";
@@ -145,8 +146,7 @@ export default function NewMemberPage() {
 		}
 
 		// Phone validation (basic)
-		const phoneRegex = /^[+]?[1-9][\d]{0,15}$/;
-		if (!phoneRegex.test(member.phone.replace(/[\s\-$$$$]/g, ""))) {
+		if (!member.phone || member.phone.length < 8) {
 			toast({
 				title: "Invalid Phone Number",
 				description: "Please enter a valid phone number",
@@ -492,11 +492,12 @@ export default function NewMemberPage() {
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="space-y-2">
 									<Label htmlFor="phone">Phone Number *</Label>
-									<Input
+									<PhoneInputField
 										id="phone"
-										type="tel"
 										value={member.phone}
-										onChange={(e) => handleInputChange("phone", e.target.value)}
+										onChange={(value) =>
+											handleInputChange("phone", value || "")
+										}
 										placeholder="Enter phone number"
 										required
 										className="px-4 py-3 text-left"
@@ -684,12 +685,11 @@ export default function NewMemberPage() {
 								<Label htmlFor="emergencyContactPhone">
 									Emergency Contact Phone
 								</Label>
-								<Input
+								<PhoneInputField
 									id="emergencyContactPhone"
-									type="tel"
 									value={member.emergencyContactPhone}
-									onChange={(e) =>
-										handleInputChange("emergencyContactPhone", e.target.value)
+									onChange={(value) =>
+										handleInputChange("emergencyContactPhone", value || "")
 									}
 									placeholder="Enter emergency contact phone"
 									className="px-4 py-3 text-left"

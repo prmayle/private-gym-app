@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneInputField } from "@/components/ui/phone-input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -2102,11 +2103,11 @@ export default function HomeConfigPage() {
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="space-y-2">
 									<Label htmlFor="contactPhone">Phone</Label>
-									<Input
+									<PhoneInputField
 										id="contactPhone"
 										value={config.contact.phone}
-										onChange={(e) =>
-											updateConfig("contact", { phone: e.target.value })
+										onChange={(value) =>
+											updateConfig("contact", { phone: value || "" })
 										}
 									/>
 								</div>

@@ -90,17 +90,33 @@ export default function NotificationsPage() {
 	);
 
 	return (
-		<div className="space-y-6">
-			<div className="flex items-center">
-				<Button
-					variant="ghost"
-					size="icon"
-					onClick={() => router.back()}
-					className="mr-2"
-					aria-label="Go back">
-					<ArrowLeft className="h-5 w-5" />
-				</Button>
-				<h1 className="text-2xl font-bold">Notifications</h1>
+		<div className="container mx-auto max-w-7xl py-6 space-y-6">
+			{/* Header */}
+			<div className="relative mb-8">
+				<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
+				<div className="flex items-center justify-between gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
+					<div className="flex items-center gap-6">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => router.back()}
+							className="mr-2"
+							aria-label="Go back">
+							<ArrowLeft className="h-5 w-5" />
+						</Button>
+						<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
+							<Bell className="w-10 h-10 text-primary" />
+						</div>
+						<div>
+							<div className="font-bold text-2xl flex items-center gap-2">
+								Notifications
+							</div>
+							<div className="text-muted-foreground text-sm">
+								Manage and send notifications to members
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
 
 			<Card>

@@ -346,7 +346,7 @@ export default function MemberDashboard() {
 	};
 
 	return (
-		<div className="container mx-auto py-6 space-y-6">
+		<div className="container mx-auto max-w-7xl py-6 space-y-6">
 			{/* Glassy, gradient-backed header */}
 			<div className="relative mb-8">
 				<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />

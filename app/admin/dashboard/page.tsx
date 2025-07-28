@@ -47,6 +47,7 @@ import {
 	AlertTriangle,
 	Mail,
 	Edit,
+	ArrowLeft,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { activityLogger } from "@/lib/activity-logger";
@@ -1169,20 +1170,30 @@ export default function AdminDashboard() {
 
 	return (
 		<AdminRoute>
-			<div className="space-y-6">
+			<div className="container mx-auto max-w-7xl py-6 space-y-6">
 				{/* Header */}
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-3xl font-bold">Admin Dashboard</h1>
-						<p className="text-muted-foreground">
-							Welcome back! Here's what's happening at your gym.
-						</p>
+				<div className="relative mb-8">
+					<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
+					<div className="flex items-center justify-between gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
+						<div className="flex items-center gap-6">
+							<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
+								<Activity className="w-10 h-10 text-primary" />
+							</div>
+							<div>
+								<div className="font-bold text-2xl flex items-center gap-2">
+									Admin Dashboard
+								</div>
+								<div className="text-muted-foreground text-sm">
+									Welcome back! Here's what's happening at your gym.
+								</div>
+							</div>
+						</div>
+						<UserDropdown />
 					</div>
-					<UserDropdown />
 				</div>
 
 				{/* Quick Actions */}
-				<Card>
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
 							<Settings className="h-5 w-5" />
@@ -1190,7 +1201,7 @@ export default function AdminDashboard() {
 						</CardTitle>
 						<CardDescription>Common administrative tasks</CardDescription>
 					</CardHeader>
-					<CardContent>
+					<CardContent className="space-y-6">
 						<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
 							<Button asChild className="h-auto p-4 flex-col gap-2">
 								<Link href="/admin/book-session">
@@ -1240,7 +1251,7 @@ export default function AdminDashboard() {
 
 				{/* Stats Cards */}
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-					<Card>
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
 								Total Members
@@ -1257,7 +1268,7 @@ export default function AdminDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card>
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
 								Upcoming Sessions
@@ -1274,7 +1285,7 @@ export default function AdminDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card>
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
 								Monthly Revenue
@@ -1293,7 +1304,7 @@ export default function AdminDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card>
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
 								Pending Tasks
@@ -1313,7 +1324,7 @@ export default function AdminDashboard() {
 				</div>
 
 				{/* Activity Groups */}
-				<div className="space-y-6">
+				<div className="space-y-6 w-full">
 					<div className="flex items-center justify-between">
 						<h2 className="text-2xl font-bold">Recent Activity</h2>
 						<Button variant="outline" asChild>
@@ -1325,9 +1336,11 @@ export default function AdminDashboard() {
 					</div>
 
 					{loading && (
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
 							{Array.from({ length: 4 }).map((_, i) => (
-								<Card key={i}>
+								<Card
+									key={i}
+									className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
 									<CardHeader>
 										<div className="h-6 bg-gray-200 rounded w-1/3 animate-pulse"></div>
 										<div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse"></div>
@@ -1347,7 +1360,7 @@ export default function AdminDashboard() {
 					)}
 
 					{!loading && activityGroups.length === 0 && (
-						<Card>
+						<Card className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
 							<CardContent className="text-center py-8">
 								<Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
 								<p className="text-muted-foreground">
@@ -1358,63 +1371,69 @@ export default function AdminDashboard() {
 					)}
 
 					{!loading && activityGroups.length > 0 && (
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
 							{activityGroups.map((group) => (
-								<Card key={group.type}>
+								<Card
+									key={group.type}
+									className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
 									<CardHeader>
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<div className={group.color}>{group.icon}</div>
-												<div>
-													<CardTitle className="text-lg">
+										<div className="flex items-center justify-between w-full">
+											<div className="flex items-center gap-2 min-w-0 flex-1">
+												<div className={`${group.color} flex-shrink-0`}>
+													{group.icon}
+												</div>
+												<div className="min-w-0 flex-1">
+													<CardTitle className="text-lg truncate">
 														{group.title}
 													</CardTitle>
-													<CardDescription>{group.description}</CardDescription>
+													<CardDescription className="truncate">
+														{group.description}
+													</CardDescription>
 												</div>
 											</div>
 											<Button
 												variant="outline"
 												size="sm"
 												onClick={() => handleViewAll(group.viewAllPath)}
-												className="flex items-center gap-1">
+												className="flex items-center gap-1 flex-shrink-0">
 												View All
 												<ArrowRight className="h-3 w-3" />
 											</Button>
 										</div>
 									</CardHeader>
-									<CardContent>
-										<ScrollArea className="h-[300px]">
-											<div className="space-y-3">
+									<CardContent className="w-full overflow-hidden">
+										<ScrollArea className="h-[300px] w-full">
+											<div className="space-y-3 w-full max-w-full">
 												{group.activities.slice(0, 8).map((activity) => (
 													<div
 														key={activity.id}
-														className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors border"
+														className="flex items-start gap-3 p-4 rounded-xl hover:bg-muted/50 cursor-pointer transition-colors border w-full max-w-full overflow-hidden"
 														onClick={() => handleActivityClick(activity)}>
 														<div
-															className={`mt-0.5 ${getActivityColor(
+															className={`mt-0.5 flex-shrink-0 ${getActivityColor(
 																activity.status
 															)}`}>
 															{getActivityIcon(activity.type)}
 														</div>
-														<div className="flex-1 min-w-0">
-															<div className="flex items-start justify-between gap-2">
-																<p className="text-sm font-medium line-clamp-1">
+														<div className="flex-1 min-w-0 w-full max-w-full overflow-hidden">
+															<div className="flex items-start justify-between gap-2 w-full max-w-full">
+																<p className="text-sm font-medium line-clamp-1 flex-1 min-w-0 max-w-0">
 																	{activity.message}
 																</p>
-																<div className="flex items-center gap-1 flex-shrink-0">
+																<div className="flex items-center gap-1 flex-shrink-0 ml-2">
 																	{getPriorityBadge(activity.priority)}
 																	{getStatusBadge(activity.status)}
 																</div>
 															</div>
 															{activity.details && (
-																<p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+																<p className="text-xs text-muted-foreground mt-1 line-clamp-2 max-w-full">
 																	{typeof activity.details === "string"
 																		? activity.details
 																		: "Click to view details"}
 																</p>
 															)}
-															<div className="flex items-center justify-between mt-2">
-																<p className="text-xs text-muted-foreground">
+															<div className="flex items-center justify-between mt-2 w-full max-w-full">
+																<p className="text-xs text-muted-foreground truncate flex-1 min-w-0">
 																	{new Date(
 																		activity.timestamp
 																	).toLocaleString()}
@@ -1422,7 +1441,7 @@ export default function AdminDashboard() {
 																<Button
 																	variant="ghost"
 																	size="sm"
-																	className="h-6 px-2 text-xs">
+																	className="h-6 px-2 text-xs flex-shrink-0">
 																	<Eye className="h-3 w-3 mr-1" />
 																	Details
 																</Button>
@@ -1452,7 +1471,7 @@ export default function AdminDashboard() {
 				</div>
 
 				{/* Upcoming Sessions */}
-				<Card>
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 					<CardHeader>
 						<div className="flex items-center justify-between">
 							<div>
@@ -1470,8 +1489,8 @@ export default function AdminDashboard() {
 							</Button>
 						</div>
 					</CardHeader>
-					<CardContent>
-						<ScrollArea className="h-[300px]">
+					<CardContent className="overflow-hidden">
+						<ScrollArea className="h-[300px] w-full">
 							{loading && (
 								<div className="flex items-center justify-center h-32">
 									<p className="text-muted-foreground">Loading sessions...</p>
@@ -1486,17 +1505,17 @@ export default function AdminDashboard() {
 							)}
 
 							{!loading && upcomingSessions.length > 0 && (
-								<div className="space-y-4">
+								<div className="space-y-4 w-full max-w-full">
 									{upcomingSessions.map(
 										(session) => (
 											console.log(session),
 											(
 												<div
 													key={session.id}
-													className="p-3 rounded-lg border hover:bg-muted/50">
-													<div className="flex items-start justify-between">
-														<div className="flex-1">
-															<h4 className="font-medium text-sm">
+													className="p-4 rounded-xl border hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
+													<div className="flex items-start justify-between w-full max-w-full">
+														<div className="flex-1 min-w-0">
+															<h4 className="font-medium text-sm truncate">
 																{session.title}
 															</h4>
 															<div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -1513,12 +1532,12 @@ export default function AdminDashboard() {
 																<Badge variant="outline" className="text-xs">
 																	{session.type}
 																</Badge>
-																<span className="text-xs text-muted-foreground">
+																<span className="text-xs text-muted-foreground truncate">
 																	with {session.trainer}
 																</span>
 															</div>
 														</div>
-														<div className="text-right">
+														<div className="text-right flex-shrink-0">
 															<div className="text-xs text-muted-foreground">
 																{session.capacity.booked}/
 																{session.capacity.total}
@@ -1545,7 +1564,7 @@ export default function AdminDashboard() {
 				</Card>
 
 				{/* Pending Package Requests */}
-				<Card>
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 					<CardHeader>
 						<div className="flex items-center justify-between">
 							<div>
@@ -1565,8 +1584,8 @@ export default function AdminDashboard() {
 							</Button>
 						</div>
 					</CardHeader>
-					<CardContent>
-						<ScrollArea className="h-[300px]">
+					<CardContent className="overflow-hidden">
+						<ScrollArea className="h-[300px] w-full">
 							{loading && (
 								<div className="flex items-center justify-center h-32">
 									<p className="text-muted-foreground">
@@ -1585,17 +1604,17 @@ export default function AdminDashboard() {
 							)}
 
 							{!loading && packageRequests.length > 0 && (
-								<div className="space-y-4">
+								<div className="space-y-4 w-full max-w-full">
 									{packageRequests.map((request) => (
 										<div
 											key={request.id}
-											className="p-3 rounded-lg border hover:bg-muted/50">
-											<div className="flex items-start justify-between">
-												<div className="flex-1">
-													<h4 className="font-medium text-sm">
+											className="p-4 rounded-xl border hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
+											<div className="flex items-start justify-between w-full max-w-full">
+												<div className="flex-1 min-w-0">
+													<h4 className="font-medium text-sm truncate">
 														{request.packages?.name} Package Request
 													</h4>
-													<p className="text-xs text-muted-foreground">
+													<p className="text-xs text-muted-foreground truncate">
 														Requested by:{" "}
 														{request.members?.profiles?.full_name || "N/A"}
 													</p>
@@ -1609,12 +1628,12 @@ export default function AdminDashboard() {
 														Status: {request.status}
 													</p>
 													{request.notes && (
-														<p className="text-xs text-muted-foreground mt-1">
+														<p className="text-xs text-muted-foreground mt-1 line-clamp-2">
 															Notes: {request.notes}
 														</p>
 													)}
 												</div>
-												<div className="flex flex-col items-end gap-2">
+												<div className="flex flex-col items-end gap-2 flex-shrink-0">
 													{request.status === "pending" && (
 														<>
 															<Button
@@ -1655,7 +1674,7 @@ export default function AdminDashboard() {
 
 				{/* Navigation Links */}
 				<div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-					<Card className="hover:shadow-md transition-shadow">
+					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
 						<CardContent className="p-4">
 							<Link href="/admin/members" className="flex items-center gap-3">
 								<Users className="h-8 w-8 text-blue-600" />
@@ -1669,7 +1688,7 @@ export default function AdminDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card className="hover:shadow-md transition-shadow">
+					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
 						<CardContent className="p-4">
 							<Link href="/admin/sessions" className="flex items-center gap-3">
 								<Calendar className="h-8 w-8 text-green-600" />
@@ -1683,7 +1702,7 @@ export default function AdminDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card className="hover:shadow-md transition-shadow">
+					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
 						<CardContent className="p-4">
 							<Link href="/admin/packages" className="flex items-center gap-3">
 								<Package className="h-8 w-8 text-purple-600" />
@@ -1697,7 +1716,7 @@ export default function AdminDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card className="hover:shadow-md transition-shadow">
+					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
 						<CardContent className="p-4">
 							<Link
 								href="/admin/notifications"
@@ -1713,7 +1732,7 @@ export default function AdminDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card className="hover:shadow-md transition-shadow">
+					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
 						<CardContent className="p-4">
 							<Link href="/admin/reports" className="flex items-center gap-3">
 								<BarChart3 className="h-8 w-8 text-red-600" />
@@ -1727,7 +1746,7 @@ export default function AdminDashboard() {
 						</CardContent>
 					</Card>
 
-					<Card className="hover:shadow-md transition-shadow">
+					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
 						<CardContent className="p-4">
 							<Link href="/admin/trainers" className="flex items-center gap-3">
 								<Users className="h-8 w-8 text-indigo-600" />
@@ -1746,7 +1765,7 @@ export default function AdminDashboard() {
 				<Dialog
 					open={isActivityDialogOpen}
 					onOpenChange={setIsActivityDialogOpen}>
-					<DialogContent className="max-w-2xl">
+					<DialogContent className="max-w-2xl rounded-2xl">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
 								{selectedActivity && getActivityIcon(selectedActivity.type)}

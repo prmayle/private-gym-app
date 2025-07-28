@@ -1,0 +1,73 @@
+/* Custom styles for react-phone-number-input */
+.PhoneInput {
+	display: flex;
+	align-items: center;
+	width: 100%;
+}
+
+.PhoneInputCountry {
+	display: flex;
+	align-items: center;
+	margin-right: 0.5rem;
+	min-width: 60px;
+}
+
+.PhoneInputCountrySelect {
+	background: transparent;
+	border: none;
+	font-size: 14px;
+	font-weight: 500;
+	color: hsl(var(--foreground));
+	cursor: pointer;
+	padding: 0.25rem;
+	border-radius: 0.25rem;
+	transition: background-color 0.2s;
+}
+
+.PhoneInputCountrySelect:hover {
+	background-color: hsl(var(--muted));
+}
+
+.PhoneInputCountrySelect:focus {
+	outline: 2px solid hsl(var(--ring));
+	outline-offset: 2px;
+}
+
+.PhoneInputCountryIcon {
+	width: 1.5rem;
+	height: 1rem;
+	margin-right: 0.5rem;
+	border-radius: 2px;
+}
+
+.PhoneInputInput {
+	flex: 1;
+	background: transparent;
+	border: none;
+	font-size: 14px;
+	color: hsl(var(--foreground));
+	outline: none;
+	padding: 0.5rem 0;
+}
+
+.PhoneInputInput::placeholder {
+	color: hsl(var(--muted-foreground));
+}
+
+.PhoneInputInput:disabled {
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+
+/* Dark mode adjustments */
+.dark .PhoneInputCountrySelect {
+	color: hsl(var(--foreground));
+}
+
+.dark .PhoneInputInput {
+	color: hsl(var(--foreground));
+}
+
+.dark .PhoneInputInput::placeholder {
+	color: hsl(var(--muted-foreground));
+}

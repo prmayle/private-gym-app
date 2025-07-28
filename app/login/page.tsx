@@ -294,7 +294,7 @@ export default function LoginPage() {
 					</AlertDescription>
 				</Alert>
 
-				<Card>
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 					<CardHeader className="text-center">
 						<CardTitle className="text-2xl">Core Factory</CardTitle>
 						<CardDescription>Sign in to access your account</CardDescription>

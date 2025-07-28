@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { getHomePageConfig, getSliderImages, type TypedSupabaseClient } from "@/lib/supabase";
+import {
+	getHomePageConfig,
+	getSliderImages,
+	type TypedSupabaseClient,
+} from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserDropdown } from "@/components/ui/user-dropdown";
 import { ImageSlider } from "@/components/ui/image-slider";
@@ -170,38 +174,39 @@ export default function Home() {
 
 			const supabase = createClient();
 			// Add timeout to prevent hanging
-			const timeoutPromise = new Promise((_, reject) => 
-				setTimeout(() => reject(new Error('Database timeout')), 5000)
+			const timeoutPromise = new Promise((_, reject) =>
+				setTimeout(() => reject(new Error("Database timeout")), 5000)
 			);
-			
+
 			const [data, heroSliderData, aboutSliderData] = await Promise.all([
-				Promise.race([
-					getHomePageConfig(supabase),
-					timeoutPromise
-				]),
-				getSliderImages(supabase, 'hero').catch(() => []),
-				getSliderImages(supabase, 'about').catch(() => [])
+				Promise.race([getHomePageConfig(supabase), timeoutPromise]),
+				getSliderImages(supabase, "hero").catch(() => []),
+				getSliderImages(supabase, "about").catch(() => []),
 			]);
 
 			// Set slider images
 			if (heroSliderData.length > 0) {
-				setHeroSliderImages(heroSliderData.map(img => ({
-					id: img.id,
-					imageUrl: img.image_url,
-					title: img.title,
-					subtitle: img.subtitle,
-					sortOrder: img.sort_order
-				})));
+				setHeroSliderImages(
+					heroSliderData.map((img) => ({
+						id: img.id,
+						imageUrl: img.image_url,
+						title: img.title,
+						subtitle: img.subtitle,
+						sortOrder: img.sort_order,
+					}))
+				);
 			}
 
 			if (aboutSliderData.length > 0) {
-				setAboutSliderImages(aboutSliderData.map(img => ({
-					id: img.id,
-					imageUrl: img.image_url,
-					title: img.title,
-					subtitle: img.subtitle,
-					sortOrder: img.sort_order
-				})));
+				setAboutSliderImages(
+					aboutSliderData.map((img) => ({
+						id: img.id,
+						imageUrl: img.image_url,
+						title: img.title,
+						subtitle: img.subtitle,
+						sortOrder: img.sort_order,
+					}))
+				);
 			}
 
 			if (data) {
@@ -274,7 +279,7 @@ export default function Home() {
 		<div className="min-h-screen bg-background">
 			{/* Navigation */}
 			<nav className="bg-card/50 backdrop-blur-sm fixed w-full z-10">
-				<div className="container mx-auto px-4 py-3 flex justify-between items-center">
+				<div className="container mx-auto max-w-7xl px-4 py-3 flex justify-between items-center">
 					<div className="text-xl font-bold text-primary">
 						{homeConfig.footer.companyName}
 					</div>
@@ -325,30 +330,32 @@ export default function Home() {
 				</div>
 
 				{/* Content */}
-				<div className="container mx-auto max-w-3xl px-4 relative z-20">
-					<h1 className="text-3xl md:text-5xl font-bold mb-4 text-white drop-shadow-lg">
-						{homeConfig.hero.title}
-					</h1>
-					<p className="text-xl md:text-2xl mb-8 text-white/90 drop-shadow-md">
-						{homeConfig.hero.subtitle}
-					</p>
-					{homeConfig.hero.showButton && (
-						<Button size="lg" asChild className="shadow-lg">
-							<a
-								href={homeConfig.hero.buttonLink}
-								target="_blank"
-								rel="noopener noreferrer">
-								<WhatsAppIcon />
-								<span className="ml-2">{homeConfig.hero.buttonText}</span>
-							</a>
-						</Button>
-					)}
+				<div className="container mx-auto max-w-7xl px-4 relative z-20">
+					<div className="max-w-3xl mx-auto text-center">
+						<h1 className="text-3xl md:text-5xl font-bold mb-4 text-white drop-shadow-lg">
+							{homeConfig.hero.title}
+						</h1>
+						<p className="text-xl md:text-2xl mb-8 text-white/90 drop-shadow-md">
+							{homeConfig.hero.subtitle}
+						</p>
+						{homeConfig.hero.showButton && (
+							<Button size="lg" asChild className="shadow-lg">
+								<a
+									href={homeConfig.hero.buttonLink}
+									target="_blank"
+									rel="noopener noreferrer">
+									<WhatsAppIcon />
+									<span className="ml-2">{homeConfig.hero.buttonText}</span>
+								</a>
+							</Button>
+						)}
+					</div>
 				</div>
 			</section>
 
 			{/* About Section */}
-			<section className="py-16 px-4 bg-background">
-				<div className="container mx-auto">
+			<section className="py-16 bg-background">
+				<div className="container mx-auto max-w-7xl px-4">
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
 						{homeConfig.about.showImage && (
 							<div className="order-2 md:order-1">
@@ -364,7 +371,9 @@ export default function Home() {
 								) : (
 									<div className="rounded-lg shadow-lg w-full h-64 md:h-80 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
 										<div className="text-center text-muted-foreground">
-											<p className="text-lg font-medium mb-2">No images available</p>
+											<p className="text-lg font-medium mb-2">
+												No images available
+											</p>
 											<p className="text-sm">Add images in the admin panel</p>
 										</div>
 									</div>
@@ -397,8 +406,8 @@ export default function Home() {
 			</section>
 
 			{/* Services Section */}
-			<section className="py-16 px-4 bg-card/30">
-				<div className="container mx-auto text-center">
+			<section className="py-16 bg-card/30">
+				<div className="container mx-auto max-w-7xl px-4 text-center">
 					<h2 className="text-2xl md:text-3xl font-bold mb-2 text-primary">
 						{homeConfig.features.title}
 					</h2>
@@ -422,8 +431,8 @@ export default function Home() {
 			</section>
 
 			{/* Trainers Section */}
-			<section className="py-16 px-4 bg-background">
-				<div className="container mx-auto text-center">
+			<section className="py-16 bg-background">
+				<div className="container mx-auto max-w-7xl px-4 text-center">
 					<h2 className="text-2xl md:text-3xl font-bold mb-2 text-primary">
 						{homeConfig.trainers.title}
 					</h2>
@@ -460,8 +469,8 @@ export default function Home() {
 			</section>
 
 			{/* Testimonials Section */}
-			<section className="py-16 px-4 bg-card/30">
-				<div className="container mx-auto text-center">
+			<section className="py-16 bg-card/30">
+				<div className="container mx-auto max-w-7xl px-4 text-center">
 					<h2 className="text-2xl md:text-3xl font-bold mb-2 text-primary">
 						{homeConfig.testimonials.title}
 					</h2>
@@ -500,8 +509,8 @@ export default function Home() {
 			</section>
 
 			{/* Contact Section */}
-			<section className="py-16 px-4 bg-background">
-				<div className="container mx-auto">
+			<section className="py-16 bg-background">
+				<div className="container mx-auto max-w-7xl px-4">
 					<div className="text-center mb-12">
 						<h2 className="text-2xl md:text-3xl font-bold mb-2 text-primary">
 							{homeConfig.contact.title}
@@ -554,13 +563,14 @@ export default function Home() {
 										loading="lazy"
 										allowFullScreen
 										referrerPolicy="no-referrer-when-downgrade"
-										src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY'}&q=${encodeURIComponent(homeConfig.contact.mapLocation)}`}
+										src={`https://www.google.com/maps/embed/v1/place?key=${
+											process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
+											"YOUR_API_KEY"
+										}&q=${encodeURIComponent(homeConfig.contact.mapLocation)}`}
 									/>
 								) : (
 									<div className="h-64 flex items-center justify-center">
-										<p className="text-foreground/50">
-											No location configured
-										</p>
+										<p className="text-foreground/50">No location configured</p>
 									</div>
 								)}
 							</div>
@@ -570,8 +580,8 @@ export default function Home() {
 			</section>
 
 			{/* Footer */}
-			<footer className="bg-card py-12 px-4">
-				<div className="container mx-auto">
+			<footer className="bg-card py-12">
+				<div className="container mx-auto max-w-7xl px-4">
 					<div className="flex flex-col md:flex-row justify-between items-center mb-8">
 						<div className="mb-6 md:mb-0">
 							<h3 className="text-xl font-bold text-primary">
