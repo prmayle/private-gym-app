@@ -1192,6 +1192,49 @@ export default function AdminDashboard() {
 					</div>
 				</div>
 
+				{/* Calendar View Section */}
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6 border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-blue-500/5">
+					<CardContent className="p-8">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-6">
+								<div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+									<Calendar className="w-8 h-8 text-primary" />
+								</div>
+								<div>
+									<h2 className="text-2xl font-bold text-foreground mb-2">
+										Session Calendar View
+									</h2>
+									<p className="text-muted-foreground text-lg">
+										View and manage all sessions in a modern calendar interface
+									</p>
+									<div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+										<span className="flex items-center gap-1">
+											<Users className="h-4 w-4" />
+											{stats.upcomingSessions} upcoming sessions
+										</span>
+										<span className="flex items-center gap-1">
+											<Clock className="h-4 w-4" />
+											{stats.completedSessions} completed this month
+										</span>
+									</div>
+								</div>
+							</div>
+							<Button
+								asChild
+								size="lg"
+								className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200">
+								<Link
+									href="/admin/calendar"
+									className="flex items-center gap-2">
+									<Calendar className="w-5 h-5" />
+									Open Calendar View
+									<ArrowRight className="w-5 h-5" />
+								</Link>
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+
 				{/* Quick Actions */}
 				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 					<CardHeader>

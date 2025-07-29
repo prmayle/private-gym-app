@@ -279,8 +279,8 @@ export default function SessionsPage() {
 		trainer: "",
 		capacity: 1,
 		description: "",
-		package: "", // package id
-		packageType: "", // package type id
+		package: "none", // package id
+		packageType: "none", // package type id
 		requiresPackage: false,
 		sessionCreditCost: 1,
 		allowDropIn: true,
@@ -331,6 +331,11 @@ export default function SessionsPage() {
 				console.error("Error loading sessions:", sessionsError);
 				// Don't throw, just continue with fallback
 			}
+
+			// Process sessions to update status based on date logic
+			const processedSessionsData = await processSessionStatuses(
+				sessionsData || []
+			);
 
 			// Load trainers separately (with error handling)
 			let trainersData: Array<{ id: string; name: string; user_id: string }> =
@@ -402,7 +407,7 @@ export default function SessionsPage() {
 				setPackageTypes(packageTypesData);
 
 			// Transform sessions data to match expected format
-			const transformedSessions: Session[] = (sessionsData || []).map(
+			const transformedSessions: Session[] = processedSessionsData.map(
 				(session) => {
 					const sessionBookings = (bookingsData || []).filter(
 						(b) => b.session_id === session.id
@@ -454,13 +459,8 @@ export default function SessionsPage() {
 						end_time: session.end_time,
 					};
 
-					// Determine correct status based on business rules
-					transformedSession.status = determineSessionStatus({
-						date: transformedSession.date,
-						capacity: transformedSession.capacity,
-						isManuallyDeactivated: session.status === "cancelled",
-						bookedMembers: transformedSession.bookedMembers,
-					});
+					// Use the processed status from the database (already updated by processSessionStatuses)
+					transformedSession.status = session.status as Session["status"];
 
 					return transformedSession;
 				}
@@ -574,6 +574,54 @@ export default function SessionsPage() {
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const processSessionStatuses = async (sessions: any[]) => {
+		const supabase = createClient();
+		const now = new Date();
+		const updatedSessions = [...sessions];
+		const sessionsToUpdate: { id: string; status: string }[] = [];
+
+		// Check each session and update status if needed
+		updatedSessions.forEach((session) => {
+			const sessionEndTime = new Date(session.end_time);
+
+			// If session is scheduled and has passed its end time, mark as completed
+			if (session.status === "scheduled" && sessionEndTime < now) {
+				session.status = "completed";
+				sessionsToUpdate.push({ id: session.id, status: "completed" });
+			}
+			// For other statuses (cancelled, completed, etc.), keep as is
+		});
+
+		// Update sessions in database if any need updating
+		if (sessionsToUpdate.length > 0) {
+			try {
+				// Update all sessions that need status changes
+				for (const sessionUpdate of sessionsToUpdate) {
+					const { error } = await supabase
+						.from("sessions")
+						.update({ status: sessionUpdate.status })
+						.eq("id", sessionUpdate.id);
+
+					if (error) {
+						console.error(`Error updating session ${sessionUpdate.id}:`, error);
+					}
+				}
+
+				// Show toast notification if sessions were updated
+				if (sessionsToUpdate.length > 0) {
+					toast({
+						title: "Sessions Updated",
+						description: `${sessionsToUpdate.length} session(s) automatically marked as completed.`,
+					});
+				}
+			} catch (error) {
+				console.error("Error updating session statuses:", error);
+			}
+		}
+
+		return updatedSessions;
 	};
 
 	// Filter and sort sessions
@@ -705,8 +753,9 @@ export default function SessionsPage() {
 					price: 0, // Default price, could be made configurable
 					location: null,
 					equipment_needed: [],
-					package_id: newSession.package || null,
-					package_type_id: newSession.packageType || null,
+					package_id: newSession.package === "none" ? null : newSession.package,
+					package_type_id:
+						newSession.packageType === "none" ? null : newSession.packageType,
 					requires_package: newSession.requiresPackage,
 					package_session_credit_cost: newSession.sessionCreditCost,
 					allow_drop_in: newSession.allowDropIn,
@@ -745,8 +794,8 @@ export default function SessionsPage() {
 				trainer: "",
 				capacity: 1,
 				description: "",
-				package: "",
-				packageType: "",
+				package: "none",
+				packageType: "none",
 				requiresPackage: false,
 				sessionCreditCost: 1,
 				allowDropIn: true,
@@ -1262,217 +1311,224 @@ export default function SessionsPage() {
 						</div>
 					</div>
 
-				<Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-					<DialogTrigger asChild>
-						<Button className="flex items-center gap-2">
-							<Plus className="h-4 w-4" />
-							Create Session
-						</Button>
-					</DialogTrigger>
-					<DialogContent className="sm:max-w-[500px]">
-						<DialogHeader>
-							<DialogTitle>Create New Session</DialogTitle>
-							<DialogDescription>
-								Add a new session. Fill in all required information.
-							</DialogDescription>
-						</DialogHeader>
-						<div className="grid gap-4 py-4">
-							<div className="grid gap-2">
-								<Label htmlFor="title">Session Title *</Label>
-								<Input
-									id="title"
-									value={newSession.title}
-									onChange={(e) =>
-										setNewSession((prev) => ({
-											...prev,
-											title: e.target.value,
-										}))
-									}
-									placeholder="e.g., Personal Training - John Doe"
-								/>
-							</div>
-
-							<SessionTimeRangePicker
-								startDate={newSession.startDate}
-								endDate={newSession.endDate}
-								onStartDateChange={(date) =>
-									setNewSession((prev) => ({ ...prev, startDate: date }))
-								}
-								onEndDateChange={(date) =>
-									setNewSession((prev) => ({ ...prev, endDate: date }))
-								}
-							/>
-
-							<div className="grid gap-2">
-								<Label htmlFor="trainer">Trainer *</Label>
-								<Select
-									value={newSession.trainer}
-									onValueChange={(value) =>
-										setNewSession((prev) => ({ ...prev, trainer: value }))
-									}>
-									<SelectTrigger>
-										<SelectValue placeholder="Select trainer" />
-									</SelectTrigger>
-									<SelectContent>
-										{trainers.map((trainer) => (
-											<SelectItem key={trainer.id} value={trainer.id}>
-												{trainer.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="grid gap-2">
-								<Label htmlFor="capacity">Capacity</Label>
-								<Input
-									id="capacity"
-									type="number"
-									min="1"
-									max="50"
-									value={newSession.capacity}
-									onChange={(e) =>
-										setNewSession((prev) => ({
-											...prev,
-											capacity: Number.parseInt(e.target.value) || 1,
-										}))
-									}
-								/>
-							</div>
-
-							<div className="grid gap-2">
-								<Label htmlFor="description">Description (Optional)</Label>
-								<Textarea
-									id="description"
-									value={newSession.description}
-									onChange={(e) =>
-										setNewSession((prev) => ({
-											...prev,
-											description: e.target.value,
-										}))
-									}
-									placeholder="Additional notes about the session..."
-									rows={3}
-								/>
-							</div>
-
-							<div className="grid grid-cols-2 gap-4">
+					<Dialog
+						open={isCreateDialogOpen}
+						onOpenChange={setIsCreateDialogOpen}>
+						<DialogTrigger asChild>
+							<Button className="flex items-center gap-2">
+								<Plus className="h-4 w-4" />
+								Create Session
+							</Button>
+						</DialogTrigger>
+						<DialogContent className="sm:max-w-[500px]">
+							<DialogHeader>
+								<DialogTitle>Create New Session</DialogTitle>
+								<DialogDescription>
+									Add a new session. Fill in all required information.
+								</DialogDescription>
+							</DialogHeader>
+							<div className="grid gap-4 py-4">
 								<div className="grid gap-2">
-									<Label htmlFor="package">Package</Label>
-									<Select
-										value={newSession.package}
-										onValueChange={(value) =>
-											setNewSession((prev) => ({ ...prev, package: value }))
-										}>
-										<SelectTrigger>
-											<SelectValue placeholder="Select package (optional)" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="">None</SelectItem>
-											{packages.map((pkg) => (
-												<SelectItem key={pkg.id} value={pkg.id}>
-													{pkg.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-								<div className="grid gap-2">
-									<Label htmlFor="packageType">Package Type</Label>
-									<Select
-										value={newSession.packageType}
-										onValueChange={(value) =>
-											setNewSession((prev) => ({ ...prev, packageType: value }))
-										}>
-										<SelectTrigger>
-											<SelectValue placeholder="Select package type (optional)" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="">None</SelectItem>
-											{packages.map((p) => (
-												<SelectItem key={p.id} value={p.id}>
-													{p.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							</div>
-							<div className="grid grid-cols-2 gap-4">
-								<div className="flex items-center gap-2 mt-2">
-									<input
-										type="checkbox"
-										id="requiresPackage"
-										checked={newSession.requiresPackage}
+									<Label htmlFor="title">Session Title *</Label>
+									<Input
+										id="title"
+										value={newSession.title}
 										onChange={(e) =>
 											setNewSession((prev) => ({
 												...prev,
-												requiresPackage: e.target.checked,
+												title: e.target.value,
 											}))
 										}
+										placeholder="e.g., Personal Training - John Doe"
 									/>
-									<Label htmlFor="requiresPackage">Requires Package</Label>
 								</div>
+
+								<SessionTimeRangePicker
+									startDate={newSession.startDate}
+									endDate={newSession.endDate}
+									onStartDateChange={(date) =>
+										setNewSession((prev) => ({ ...prev, startDate: date }))
+									}
+									onEndDateChange={(date) =>
+										setNewSession((prev) => ({ ...prev, endDate: date }))
+									}
+								/>
+
 								<div className="grid gap-2">
-									<Label htmlFor="sessionCreditCost">Session Credit Cost</Label>
+									<Label htmlFor="trainer">Trainer *</Label>
+									<Select
+										value={newSession.trainer}
+										onValueChange={(value) =>
+											setNewSession((prev) => ({ ...prev, trainer: value }))
+										}>
+										<SelectTrigger>
+											<SelectValue placeholder="Select trainer" />
+										</SelectTrigger>
+										<SelectContent>
+											{trainers.map((trainer) => (
+												<SelectItem key={trainer.id} value={trainer.id}>
+													{trainer.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+
+								<div className="grid gap-2">
+									<Label htmlFor="capacity">Capacity</Label>
 									<Input
-										id="sessionCreditCost"
+										id="capacity"
 										type="number"
 										min="1"
-										value={newSession.sessionCreditCost}
+										max="50"
+										value={newSession.capacity}
 										onChange={(e) =>
 											setNewSession((prev) => ({
 												...prev,
-												sessionCreditCost: Number(e.target.value) || 1,
+												capacity: Number.parseInt(e.target.value) || 1,
 											}))
 										}
 									/>
 								</div>
-							</div>
-							<div className="grid grid-cols-2 gap-4">
-								<div className="flex items-center gap-2 mt-2">
-									<input
-										type="checkbox"
-										id="allowDropIn"
-										checked={newSession.allowDropIn}
+
+								<div className="grid gap-2">
+									<Label htmlFor="description">Description (Optional)</Label>
+									<Textarea
+										id="description"
+										value={newSession.description}
 										onChange={(e) =>
 											setNewSession((prev) => ({
 												...prev,
-												allowDropIn: e.target.checked,
+												description: e.target.value,
 											}))
 										}
+										placeholder="Additional notes about the session..."
+										rows={3}
 									/>
-									<Label htmlFor="allowDropIn">Allow Drop-In</Label>
 								</div>
-								{newSession.allowDropIn && (
+
+								<div className="grid grid-cols-2 gap-4">
 									<div className="grid gap-2">
-										<Label htmlFor="dropInPrice">Drop-In Price</Label>
-										<Input
-											id="dropInPrice"
-											type="number"
-											min="0"
-											value={newSession.dropInPrice}
+										<Label htmlFor="package">Package</Label>
+										<Select
+											value={newSession.package}
+											onValueChange={(value) =>
+												setNewSession((prev) => ({ ...prev, package: value }))
+											}>
+											<SelectTrigger>
+												<SelectValue placeholder="Select package (optional)" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="none">None</SelectItem>
+												{packages.map((pkg) => (
+													<SelectItem key={pkg.id} value={pkg.id}>
+														{pkg.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+									<div className="grid gap-2">
+										<Label htmlFor="packageType">Package Type</Label>
+										<Select
+											value={newSession.packageType}
+											onValueChange={(value) =>
+												setNewSession((prev) => ({
+													...prev,
+													packageType: value,
+												}))
+											}>
+											<SelectTrigger>
+												<SelectValue placeholder="Select package type (optional)" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="none">None</SelectItem>
+												{packages.map((p) => (
+													<SelectItem key={p.id} value={p.id}>
+														{p.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+								</div>
+								<div className="grid grid-cols-2 gap-4">
+									<div className="flex items-center gap-2 mt-2">
+										<input
+											type="checkbox"
+											id="requiresPackage"
+											checked={newSession.requiresPackage}
 											onChange={(e) =>
 												setNewSession((prev) => ({
 													...prev,
-													dropInPrice: e.target.value,
+													requiresPackage: e.target.checked,
+												}))
+											}
+										/>
+										<Label htmlFor="requiresPackage">Requires Package</Label>
+									</div>
+									<div className="grid gap-2">
+										<Label htmlFor="sessionCreditCost">
+											Session Credit Cost
+										</Label>
+										<Input
+											id="sessionCreditCost"
+											type="number"
+											min="1"
+											value={newSession.sessionCreditCost}
+											onChange={(e) =>
+												setNewSession((prev) => ({
+													...prev,
+													sessionCreditCost: Number(e.target.value) || 1,
 												}))
 											}
 										/>
 									</div>
-								)}
+								</div>
+								<div className="grid grid-cols-2 gap-4">
+									<div className="flex items-center gap-2 mt-2">
+										<input
+											type="checkbox"
+											id="allowDropIn"
+											checked={newSession.allowDropIn}
+											onChange={(e) =>
+												setNewSession((prev) => ({
+													...prev,
+													allowDropIn: e.target.checked,
+												}))
+											}
+										/>
+										<Label htmlFor="allowDropIn">Allow Drop-In</Label>
+									</div>
+									{newSession.allowDropIn && (
+										<div className="grid gap-2">
+											<Label htmlFor="dropInPrice">Drop-In Price</Label>
+											<Input
+												id="dropInPrice"
+												type="number"
+												min="0"
+												value={newSession.dropInPrice}
+												onChange={(e) =>
+													setNewSession((prev) => ({
+														...prev,
+														dropInPrice: e.target.value,
+													}))
+												}
+											/>
+										</div>
+									)}
+								</div>
 							</div>
-						</div>
-						<DialogFooter>
-							<Button
-								variant="outline"
-								onClick={() => setIsCreateDialogOpen(false)}>
-								Cancel
-							</Button>
-							<Button onClick={handleCreateSession}>Create Session</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => setIsCreateDialogOpen(false)}>
+									Cancel
+								</Button>
+								<Button onClick={handleCreateSession}>Create Session</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
 				</div>
 			</header>
 
