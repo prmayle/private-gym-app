@@ -1246,15 +1246,51 @@ export default function PackagesPage() {
 				)
 			);
 
-			// Update payment status in payments table for this specific package
-			const { error: paymentError } = await supabase
+			// First, check if a payment record exists
+			const { data: existingPayment, error: checkError } = await supabase
 				.from("payments")
-				.update({
-					status: newStatus === "paid" ? "completed" : "pending",
-					updated_at: new Date().toISOString(),
-				})
+				.select("id")
 				.eq("member_id", packageInfo.memberId)
-				.eq("package_id", packageInfo.packageTypeId);
+				.eq("package_id", packageInfo.packageTypeId)
+				.single();
+
+			if (checkError && checkError.code !== 'PGRST116') {
+				// PGRST116 is "not found" which is expected, other errors are real problems
+				throw checkError;
+			}
+
+			let paymentError;
+
+			if (existingPayment) {
+				// Payment record exists, update it
+				const { error } = await supabase
+					.from("payments")
+					.update({
+						status: newStatus === "paid" ? "completed" : "pending",
+						updated_at: new Date().toISOString(),
+					})
+					.eq("id", existingPayment.id);
+				paymentError = error;
+			} else {
+				// No payment record exists, create one
+				const { error } = await supabase
+					.from("payments")
+					.insert({
+						member_id: packageInfo.memberId,
+						package_id: packageInfo.packageTypeId,
+						amount: packageInfo.price,
+						payment_method: "admin_assigned",
+						transaction_id: `pkg_${Date.now()}_${memberPackageId}`,
+						payment_date: new Date().toISOString(),
+						status: newStatus === "paid" ? "completed" : "pending",
+						currency: "USD",
+						invoice_number: `INV_${Date.now()}_${memberPackageId}`,
+						processed_by: null,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString(),
+					});
+				paymentError = error;
+			}
 
 			if (paymentError) {
 				// Revert optimistic update on error
@@ -1265,7 +1301,7 @@ export default function PackagesPage() {
 							: pkg
 					)
 				);
-				console.error("Error updating payment:", paymentError);
+				console.error("Error updating/creating payment:", paymentError);
 				throw paymentError;
 			}
 
@@ -1282,6 +1318,7 @@ export default function PackagesPage() {
 						member_name: packageInfo.memberName,
 						old_status: oldStatus,
 						new_status: newStatus,
+						action: existingPayment ? "updated_existing" : "created_new",
 					},
 				});
 			}

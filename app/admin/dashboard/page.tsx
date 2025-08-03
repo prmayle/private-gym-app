@@ -69,7 +69,6 @@ interface DashboardStats {
 	completedSessions: number;
 	totalRevenue: number;
 	monthlyRevenue: number;
-	pendingTasks: number;
 }
 
 interface RecentActivity {
@@ -142,7 +141,6 @@ export default function AdminDashboard() {
 		completedSessions: 0,
 		totalRevenue: 0,
 		monthlyRevenue: 0,
-		pendingTasks: 0,
 	});
 
 	const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
@@ -674,11 +672,6 @@ export default function AdminDashboard() {
 				completedSessions: completedSessions.length,
 				totalRevenue: totalRevenue,
 				monthlyRevenue: monthlyRevenue,
-				pendingTasks:
-					notifications.length +
-					pendingPackageRequestsCount +
-					equipmentNeedingMaintenanceCount +
-					expiringPackages,
 			};
 
 			setStats(dashboardStats);
@@ -1099,7 +1092,6 @@ export default function AdminDashboard() {
 
 			// Update local state
 			setPackageRequests((prev) => prev.filter((r) => r.id !== requestId));
-			setStats((prev) => ({ ...prev, pendingTasks: prev.pendingTasks - 1 }));
 
 			toast({
 				title: "Request Approved",
@@ -1157,7 +1149,6 @@ export default function AdminDashboard() {
 
 			// Update local state
 			setPackageRequests((prev) => prev.filter((r) => r.id !== requestId));
-			setStats((prev) => ({ ...prev, pendingTasks: prev.pendingTasks - 1 }));
 
 			toast({
 				title: "Request Rejected",
@@ -1366,16 +1357,17 @@ export default function AdminDashboard() {
 					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 							<CardTitle className="text-sm font-medium">
-								Pending Tasks
+								Total Revenue
 							</CardTitle>
-							<AlertCircle className="h-4 w-4 text-muted-foreground" />
+							<TrendingUp className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">{stats.pendingTasks}</div>
+							<div className="text-2xl font-bold">
+								${stats.totalRevenue.toLocaleString()}
+							</div>
 							<p className="text-xs text-muted-foreground">
-								<span className="text-orange-600">
-									{pendingPackageRequests} pkg requests,{" "}
-									{equipmentNeedingMaintenance} equipment
+								<span className="text-green-600">
+									${stats.monthlyRevenue.toLocaleString()} this month
 								</span>
 							</p>
 						</CardContent>
