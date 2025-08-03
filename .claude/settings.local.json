@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(find:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npx playwright:*)"
     ],
     "deny": []
   }

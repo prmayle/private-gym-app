@@ -10,7 +10,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ArrowLeft, Save, X, Pencil } from "lucide-react";
+import { ArrowLeft, Save, X, Pencil, Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import type { Session as DbSession } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
@@ -340,6 +340,16 @@ export default function SessionDetailsPage() {
 						</CardDescription>
 					</div>
 					<div className="flex gap-2 mt-4 md:mt-0">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() =>
+								router.push(`/admin/sessions/${sessionId}/members`)
+							}
+							className="flex items-center gap-2">
+							<Users className="h-4 w-4" />
+							View Members
+						</Button>
 						{editMode ? (
 							<>
 								<Button

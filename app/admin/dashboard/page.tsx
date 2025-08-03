@@ -18,6 +18,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { UserDropdown } from "@/components/ui/user-dropdown";
 import { AdminRoute } from "@/components/ProtectedRoute";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
 	Dialog,
 	DialogContent,
@@ -48,6 +54,7 @@ import {
 	Mail,
 	Edit,
 	ArrowLeft,
+	ChevronDown,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { activityLogger } from "@/lib/activity-logger";
@@ -153,6 +160,9 @@ export default function AdminDashboard() {
 	const [pendingPackageRequests, setPendingPackageRequests] = useState(0);
 	const [equipmentNeedingMaintenance, setEquipmentNeedingMaintenance] =
 		useState(0);
+	const [isPackageRequestsOpen, setIsPackageRequestsOpen] = useState(false);
+	const [isRecentActivityOpen, setIsRecentActivityOpen] = useState(true);
+	const [activityGroupStates, setActivityGroupStates] = useState<{[key: string]: boolean}>({});
 
 	useEffect(() => {
 		loadDashboardData();
@@ -996,6 +1006,13 @@ export default function AdminDashboard() {
 		router.push(path);
 	};
 
+	const toggleActivityGroup = (groupType: string) => {
+		setActivityGroupStates(prev => ({
+			...prev,
+			[groupType]: !prev[groupType]
+		}));
+	};
+
 	const formatActivityDetails = (activity: RecentActivity) => {
 		if (typeof activity.details === "string") {
 			return activity.details;
@@ -1188,53 +1205,25 @@ export default function AdminDashboard() {
 								</div>
 							</div>
 						</div>
-						<UserDropdown />
+						<div className="flex items-center gap-4">
+							<Button variant="outline" size="icon" asChild>
+								<Link href="/admin/notifications">
+									<Bell className="h-5 w-5" />
+									<span className="sr-only">Notifications</span>
+								</Link>
+							</Button>
+							<Button variant="outline" size="icon" asChild>
+								<Link href="/admin/calendar">
+									<Calendar className="h-5 w-5" />
+									<span className="sr-only">Calendar View</span>
+								</Link>
+							</Button>
+							<UserDropdown />
+						</div>
 					</div>
 				</div>
 
-				{/* Calendar View Section */}
-				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6 border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-blue-500/5">
-					<CardContent className="p-8">
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-6">
-								<div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-									<Calendar className="w-8 h-8 text-primary" />
-								</div>
-								<div>
-									<h2 className="text-2xl font-bold text-foreground mb-2">
-										Session Calendar View
-									</h2>
-									<p className="text-muted-foreground text-lg">
-										View and manage all sessions in a modern calendar interface
-									</p>
-									<div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-										<span className="flex items-center gap-1">
-											<Users className="h-4 w-4" />
-											{stats.upcomingSessions} upcoming sessions
-										</span>
-										<span className="flex items-center gap-1">
-											<Clock className="h-4 w-4" />
-											{stats.completedSessions} completed this month
-										</span>
-									</div>
-								</div>
-							</div>
-							<Button
-								asChild
-								size="lg"
-								className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200">
-								<Link
-									href="/admin/calendar"
-									className="flex items-center gap-2">
-									<Calendar className="w-5 h-5" />
-									Open Calendar View
-									<ArrowRight className="w-5 h-5" />
-								</Link>
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
-
+		
 				{/* Quick Actions */}
 				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
 					<CardHeader>
@@ -1245,7 +1234,7 @@ export default function AdminDashboard() {
 						<CardDescription>Common administrative tasks</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-6">
-						<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+						<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 							<Button asChild className="h-auto p-4 flex-col gap-2">
 								<Link href="/admin/book-session">
 									<BookOpen className="h-6 w-6" />
@@ -1256,9 +1245,9 @@ export default function AdminDashboard() {
 								asChild
 								variant="outline"
 								className="h-auto p-4 flex-col gap-2 bg-transparent">
-								<Link href="/admin/members/new">
-									<UserPlus className="h-6 w-6" />
-									<span className="text-sm">Add Member</span>
+								<Link href="/admin/members">
+									<Users className="h-6 w-6" />
+									<span className="text-sm">Manage Members</span>
 								</Link>
 							</Button>
 							<Button
@@ -1268,6 +1257,24 @@ export default function AdminDashboard() {
 								<Link href="/admin/sessions">
 									<CalendarPlus className="h-6 w-6" />
 									<span className="text-sm">Manage Sessions</span>
+								</Link>
+							</Button>
+							<Button
+								asChild
+								variant="outline"
+								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								<Link href="/admin/packages">
+									<Package className="h-6 w-6" />
+									<span className="text-sm">Manage Packages</span>
+								</Link>
+							</Button>
+							<Button
+								asChild
+								variant="outline"
+								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								<Link href="/admin/trainers">
+									<Users className="h-6 w-6" />
+									<span className="text-sm">Manage Trainers</span>
 								</Link>
 							</Button>
 							<Button
@@ -1286,6 +1293,15 @@ export default function AdminDashboard() {
 								<Link href="/admin/reports">
 									<BarChart3 className="h-6 w-6" />
 									<span className="text-sm">View Reports</span>
+								</Link>
+							</Button>
+							<Button
+								asChild
+								variant="outline"
+								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								<Link href="/admin/activity">
+									<Activity className="h-6 w-6" />
+									<span className="text-sm">Activity Logs</span>
 								</Link>
 							</Button>
 						</div>
@@ -1366,269 +1382,29 @@ export default function AdminDashboard() {
 					</Card>
 				</div>
 
-				{/* Activity Groups */}
-				<div className="space-y-6 w-full">
-					<div className="flex items-center justify-between">
-						<h2 className="text-2xl font-bold">Recent Activity</h2>
-						<Button variant="outline" asChild>
-							<Link href="/admin/activity">
-								<Activity className="h-4 w-4 mr-2" />
-								View All Activities
-							</Link>
-						</Button>
-					</div>
-
-					{loading && (
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-							{Array.from({ length: 4 }).map((_, i) => (
-								<Card
-									key={i}
-									className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
-									<CardHeader>
-										<div className="h-6 bg-gray-200 rounded w-1/3 animate-pulse"></div>
-										<div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse"></div>
-									</CardHeader>
-									<CardContent>
-										<div className="space-y-3">
-											{Array.from({ length: 3 }).map((_, j) => (
-												<div
-													key={j}
-													className="h-16 bg-gray-200 rounded animate-pulse"></div>
-											))}
-										</div>
-									</CardContent>
-								</Card>
-							))}
-						</div>
-					)}
-
-					{!loading && activityGroups.length === 0 && (
-						<Card className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
-							<CardContent className="text-center py-8">
-								<Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-								<p className="text-muted-foreground">
-									No recent activities to display
-								</p>
-							</CardContent>
-						</Card>
-					)}
-
-					{!loading && activityGroups.length > 0 && (
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-							{activityGroups.map((group) => (
-								<Card
-									key={group.type}
-									className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
-									<CardHeader>
-										<div className="flex items-center justify-between w-full">
-											<div className="flex items-center gap-2 min-w-0 flex-1">
-												<div className={`${group.color} flex-shrink-0`}>
-													{group.icon}
-												</div>
-												<div className="min-w-0 flex-1">
-													<CardTitle className="text-lg truncate">
-														{group.title}
-													</CardTitle>
-													<CardDescription className="truncate">
-														{group.description}
-													</CardDescription>
-												</div>
-											</div>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => handleViewAll(group.viewAllPath)}
-												className="flex items-center gap-1 flex-shrink-0">
-												View All
-												<ArrowRight className="h-3 w-3" />
-											</Button>
-										</div>
-									</CardHeader>
-									<CardContent className="w-full overflow-hidden">
-										<ScrollArea className="h-[300px] w-full">
-											<div className="space-y-3 w-full max-w-full">
-												{group.activities.slice(0, 8).map((activity) => (
-													<div
-														key={activity.id}
-														className="flex items-start gap-3 p-4 rounded-xl hover:bg-muted/50 cursor-pointer transition-colors border w-full max-w-full overflow-hidden"
-														onClick={() => handleActivityClick(activity)}>
-														<div
-															className={`mt-0.5 flex-shrink-0 ${getActivityColor(
-																activity.status
-															)}`}>
-															{getActivityIcon(activity.type)}
-														</div>
-														<div className="flex-1 min-w-0 w-full max-w-full overflow-hidden">
-															<div className="flex items-start justify-between gap-2 w-full max-w-full">
-																<p className="text-sm font-medium line-clamp-1 flex-1 min-w-0 max-w-0">
-																	{activity.message}
-																</p>
-																<div className="flex items-center gap-1 flex-shrink-0 ml-2">
-																	{getPriorityBadge(activity.priority)}
-																	{getStatusBadge(activity.status)}
-																</div>
-															</div>
-															{activity.details && (
-																<p className="text-xs text-muted-foreground mt-1 line-clamp-2 max-w-full">
-																	{typeof activity.details === "string"
-																		? activity.details
-																		: "Click to view details"}
-																</p>
-															)}
-															<div className="flex items-center justify-between mt-2 w-full max-w-full">
-																<p className="text-xs text-muted-foreground truncate flex-1 min-w-0">
-																	{new Date(
-																		activity.timestamp
-																	).toLocaleString()}
-																</p>
-																<Button
-																	variant="ghost"
-																	size="sm"
-																	className="h-6 px-2 text-xs flex-shrink-0">
-																	<Eye className="h-3 w-3 mr-1" />
-																	Details
-																</Button>
-															</div>
-														</div>
-													</div>
-												))}
-												{group.activities.length > 5 && (
-													<div className="text-center pt-2">
-														<Button
-															variant="ghost"
-															size="sm"
-															onClick={() => handleViewAll(group.viewAllPath)}
-															className="text-xs">
-															View {group.activities.length - 5} more activities
-															<ExternalLink className="h-3 w-3 ml-1" />
-														</Button>
-													</div>
-												)}
-											</div>
-										</ScrollArea>
-									</CardContent>
-								</Card>
-							))}
-						</div>
-					)}
-				</div>
-
-				{/* Upcoming Sessions */}
-				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
-					<CardHeader>
-						<div className="flex items-center justify-between">
-							<div>
-								<CardTitle className="flex items-center gap-2">
-									<Clock className="h-5 w-5" />
-									Upcoming Sessions
-								</CardTitle>
-								<CardDescription>Next scheduled sessions</CardDescription>
-							</div>
-							<Button variant="outline" size="sm" asChild>
-								<Link href="/admin/sessions">
-									View All Sessions
-									<ArrowRight className="h-3 w-3 ml-1" />
-								</Link>
-							</Button>
-						</div>
-					</CardHeader>
-					<CardContent className="overflow-hidden">
-						<ScrollArea className="h-[300px] w-full">
-							{loading && (
-								<div className="flex items-center justify-center h-32">
-									<p className="text-muted-foreground">Loading sessions...</p>
-								</div>
-							)}
-
-							{!loading && upcomingSessions.length === 0 && (
-								<div className="text-center py-8">
-									<Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-									<p className="text-muted-foreground">No upcoming sessions</p>
-								</div>
-							)}
-
-							{!loading && upcomingSessions.length > 0 && (
-								<div className="space-y-4 w-full max-w-full">
-									{upcomingSessions.map(
-										(session) => (
-											console.log(session),
-											(
-												<div
-													key={session.id}
-													className="p-4 rounded-xl border hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
-													<div className="flex items-start justify-between w-full max-w-full">
-														<div className="flex-1 min-w-0">
-															<h4 className="font-medium text-sm truncate">
-																{session.title}
-															</h4>
-															<div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-																<span className="flex items-center gap-1">
-																	<Calendar className="h-3 w-3" />
-																	{new Date(session.date).toLocaleDateString()}
-																</span>
-																<span className="flex items-center gap-1">
-																	<Clock className="h-3 w-3" />
-																	{session.time}
-																</span>
-															</div>
-															<div className="flex items-center gap-2 mt-2">
-																<Badge variant="outline" className="text-xs">
-																	{session.type}
-																</Badge>
-																<span className="text-xs text-muted-foreground truncate">
-																	with {session.trainer}
-																</span>
-															</div>
-														</div>
-														<div className="text-right flex-shrink-0">
-															<div className="text-xs text-muted-foreground">
-																{session.capacity.booked}/
-																{session.capacity.total}
-															</div>
-															<Badge
-																variant={
-																	session.status === "Available"
-																		? "secondary"
-																		: "default"
-																}
-																className="text-xs mt-1">
-																{session.status}
-															</Badge>
-														</div>
-													</div>
-												</div>
-											)
-										)
-									)}
-								</div>
-							)}
-						</ScrollArea>
-					</CardContent>
-				</Card>
-
-				{/* Pending Package Requests */}
-				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
+				{/* Package Requests - Moved to Top */}
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 					<CardHeader>
 						<div className="flex items-center justify-between">
 							<div>
 								<CardTitle className="flex items-center gap-2">
 									<Package className="h-5 w-5" />
-									Pending Package Requests
+									Package Requests
 								</CardTitle>
 								<CardDescription>
-									Member requests for new packages
+									{packageRequests.length} pending member requests for new packages
 								</CardDescription>
 							</div>
 							<Button variant="outline" size="sm" asChild>
-								<Link href="/admin/package-requests">
-									View All Requests
+								<Link href="/admin/packages">
+									View All Packages
 									<ArrowRight className="h-3 w-3 ml-1" />
 								</Link>
 							</Button>
 						</div>
 					</CardHeader>
 					<CardContent className="overflow-hidden">
-						<ScrollArea className="h-[300px] w-full">
+						<ScrollArea className="h-[200px] w-full">
 							{loading && (
 								<div className="flex items-center justify-center h-32">
 									<p className="text-muted-foreground">
@@ -1715,94 +1491,246 @@ export default function AdminDashboard() {
 					</CardContent>
 				</Card>
 
-				{/* Navigation Links */}
-				<div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
-						<CardContent className="p-4">
-							<Link href="/admin/members" className="flex items-center gap-3">
-								<Users className="h-8 w-8 text-blue-600" />
-								<div>
-									<h3 className="font-semibold">Members</h3>
-									<p className="text-sm text-muted-foreground">
-										Manage member profiles
-									</p>
-								</div>
-							</Link>
-						</CardContent>
-					</Card>
 
-					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
-						<CardContent className="p-4">
-							<Link href="/admin/sessions" className="flex items-center gap-3">
-								<Calendar className="h-8 w-8 text-green-600" />
-								<div>
-									<h3 className="font-semibold">Sessions</h3>
-									<p className="text-sm text-muted-foreground">
-										Schedule sessions
-									</p>
-								</div>
-							</Link>
-						</CardContent>
-					</Card>
+				{/* Recent Activity and Upcoming Sessions - Side by Side */}
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+					{/* Recent Activity - 50% with Individual Subsection Collapsibles */}
+					<div className="space-y-6 w-full">
+						<div className="flex items-center justify-between">
+							<h2 className="text-2xl font-bold">Recent Activity</h2>
+							<Button variant="outline" asChild>
+								<Link href="/admin/activity">
+									<Activity className="h-4 w-4 mr-2" />
+									View All Activities
+								</Link>
+							</Button>
+						</div>
 
-					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
-						<CardContent className="p-4">
-							<Link href="/admin/packages" className="flex items-center gap-3">
-								<Package className="h-8 w-8 text-purple-600" />
-								<div>
-									<h3 className="font-semibold">Packages</h3>
-									<p className="text-sm text-muted-foreground">
-										Manage packages
-									</p>
-								</div>
-							</Link>
-						</CardContent>
-					</Card>
+						{loading && (
+							<div className="space-y-6 w-full">
+								{Array.from({ length: 2 }).map((_, i) => (
+									<Card
+										key={i}
+										className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
+										<CardHeader>
+											<div className="h-6 bg-gray-200 rounded w-1/3 animate-pulse"></div>
+											<div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse"></div>
+										</CardHeader>
+										<CardContent>
+											<div className="space-y-3">
+												{Array.from({ length: 3 }).map((_, j) => (
+													<div
+														key={j}
+														className="h-16 bg-gray-200 rounded animate-pulse"></div>
+												))}
+											</div>
+										</CardContent>
+									</Card>
+								))}
+							</div>
+						)}
 
-					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
-						<CardContent className="p-4">
-							<Link
-								href="/admin/notifications"
-								className="flex items-center gap-3">
-								<Bell className="h-8 w-8 text-orange-600" />
-								<div>
-									<h3 className="font-semibold">Notifications</h3>
-									<p className="text-sm text-muted-foreground">
-										Member communications
+						{!loading && activityGroups.length === 0 && (
+							<Card className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
+								<CardContent className="text-center py-8">
+									<Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+									<p className="text-muted-foreground">
+										No recent activities to display
 									</p>
-								</div>
-							</Link>
-						</CardContent>
-					</Card>
+								</CardContent>
+							</Card>
+						)}
 
-					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
-						<CardContent className="p-4">
-							<Link href="/admin/reports" className="flex items-center gap-3">
-								<BarChart3 className="h-8 w-8 text-red-600" />
-								<div>
-									<h3 className="font-semibold">Reports</h3>
-									<p className="text-sm text-muted-foreground">
-										Analytics & insights
-									</p>
-								</div>
-							</Link>
-						</CardContent>
-					</Card>
+						{!loading && activityGroups.length > 0 && (
+							<div className="space-y-6 w-full">
+								{activityGroups.slice(0, 2).map((group) => {
+									const isGroupOpen = activityGroupStates[group.type] !== false; // Default to open
+									return (
+										<Collapsible 
+											key={group.type}
+											open={isGroupOpen} 
+											onOpenChange={() => toggleActivityGroup(group.type)}
+										>
+											<Card className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
+												<CollapsibleTrigger asChild>
+													<CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+														<div className="flex items-center justify-between w-full">
+															<div className="flex items-center gap-2 min-w-0 flex-1">
+																<div className={`${group.color} flex-shrink-0`}>
+																	{group.icon}
+																</div>
+																<div className="min-w-0 flex-1">
+																	<CardTitle className="text-lg truncate">
+																		{group.title}
+																	</CardTitle>
+																	<CardDescription className="truncate">
+																		{group.description}
+																	</CardDescription>
+																</div>
+															</div>
+															<div className="flex items-center gap-2 flex-shrink-0">
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		handleViewAll(group.viewAllPath);
+																	}}
+																	className="flex items-center gap-1 flex-shrink-0">
+																	View All
+																	<ArrowRight className="h-3 w-3" />
+																</Button>
+																<ChevronDown className={`h-4 w-4 transition-transform ${isGroupOpen ? 'rotate-180' : ''}`} />
+															</div>
+														</div>
+													</CardHeader>
+												</CollapsibleTrigger>
+												<CollapsibleContent>
+													<CardContent className="w-full overflow-hidden pt-0">
+														<ScrollArea className="h-[250px] w-full">
+															<div className="space-y-3 w-full max-w-full">
+																{group.activities.slice(0, 5).map((activity) => (
+																	<div
+																		key={activity.id}
+																		className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted/50 cursor-pointer transition-colors border w-full max-w-full overflow-hidden"
+																		onClick={() => handleActivityClick(activity)}>
+																		<div
+																			className={`mt-0.5 flex-shrink-0 ${getActivityColor(
+																				activity.status
+																			)}`}>
+																			{getActivityIcon(activity.type)}
+																		</div>
+																		<div className="flex-1 min-w-0 w-full max-w-full overflow-hidden">
+																			<div className="flex items-start justify-between gap-2 w-full max-w-full">
+																				<p className="text-sm font-medium line-clamp-1 flex-1 min-w-0">
+																					{activity.message}
+																				</p>
+																				<div className="flex items-center gap-1 flex-shrink-0 ml-2">
+																					{getPriorityBadge(activity.priority)}
+																					{getStatusBadge(activity.status)}
+																				</div>
+																			</div>
+																			{activity.details && (
+																				<p className="text-xs text-muted-foreground mt-1 line-clamp-1 max-w-full">
+																					{typeof activity.details === "string"
+																						? activity.details
+																						: "Click to view details"}
+																				</p>
+																			)}
+																			<div className="flex items-center justify-between mt-2 w-full max-w-full">
+																				<p className="text-xs text-muted-foreground truncate flex-1 min-w-0">
+																					{new Date(
+																						activity.timestamp
+																					).toLocaleString()}
+																				</p>
+																				<Button
+																					variant="ghost"
+																					size="sm"
+																					className="h-6 px-2 text-xs flex-shrink-0">
+																					<Eye className="h-3 w-3 mr-1" />
+																					Details
+																				</Button>
+																			</div>
+																		</div>
+																	</div>
+																))}
+															</div>
+														</ScrollArea>
+													</CardContent>
+												</CollapsibleContent>
+											</Card>
+										</Collapsible>
+									);
+								})}
+							</div>
+						)}
+					</div>
 
-					<Card className="hover:shadow-md transition-shadow rounded-2xl shadow-xl dark:bg-background/80">
-						<CardContent className="p-4">
-							<Link href="/admin/trainers" className="flex items-center gap-3">
-								<Users className="h-8 w-8 text-indigo-600" />
-								<div>
-									<h3 className="font-semibold">Trainers</h3>
-									<p className="text-sm text-muted-foreground">
-										Manage trainer profiles
-									</p>
-								</div>
-							</Link>
-						</CardContent>
-					</Card>
+					{/* Upcoming Sessions - 50% */}
+					<div className="space-y-6 w-full">
+						<div className="flex items-center justify-between">
+							<h2 className="text-2xl font-bold">Upcoming Sessions</h2>
+							<Button variant="outline" asChild>
+								<Link href="/admin/sessions">
+									<Calendar className="h-4 w-4 mr-2" />
+									View All Sessions
+								</Link>
+							</Button>
+						</div>
+
+						<Card className="rounded-2xl shadow-xl dark:bg-background/80">
+							<CardContent className="p-6">
+								<ScrollArea className="h-[400px] w-full">
+									{loading && (
+										<div className="flex items-center justify-center h-32">
+											<p className="text-muted-foreground">Loading sessions...</p>
+										</div>
+									)}
+
+									{!loading && upcomingSessions.length === 0 && (
+										<div className="text-center py-8">
+											<Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+											<p className="text-muted-foreground">No upcoming sessions</p>
+										</div>
+									)}
+
+									{!loading && upcomingSessions.length > 0 && (
+										<div className="space-y-4 w-full max-w-full">
+											{upcomingSessions.map((session) => (
+												<div
+													key={session.id}
+													className="p-4 rounded-xl border hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
+													<div className="flex items-start justify-between w-full max-w-full">
+														<div className="flex-1 min-w-0">
+															<h4 className="font-medium text-sm truncate">
+																{session.title}
+															</h4>
+															<div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+																<span className="flex items-center gap-1">
+																	<Calendar className="h-3 w-3" />
+																	{new Date(session.date).toLocaleDateString()}
+																</span>
+																<span className="flex items-center gap-1">
+																	<Clock className="h-3 w-3" />
+																	{session.time}
+																</span>
+															</div>
+															<div className="flex items-center gap-2 mt-2">
+																<Badge variant="outline" className="text-xs">
+																	{session.type}
+																</Badge>
+																<span className="text-xs text-muted-foreground truncate">
+																	with {session.trainer}
+																</span>
+															</div>
+														</div>
+														<div className="text-right flex-shrink-0">
+															<div className="text-xs text-muted-foreground">
+																{session.capacity.booked}/
+																{session.capacity.total}
+															</div>
+															<Badge
+																variant={
+																	session.status === "Available"
+																		? "secondary"
+																		: "default"
+																}
+																className="text-xs mt-1">
+																{session.status}
+															</Badge>
+														</div>
+													</div>
+												</div>
+											))}
+										</div>
+									)}
+								</ScrollArea>
+							</CardContent>
+						</Card>
+					</div>
 				</div>
+
+
 
 				{/* Activity Detail Dialog */}
 				<Dialog

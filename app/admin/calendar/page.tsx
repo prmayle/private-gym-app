@@ -293,10 +293,7 @@ export default function CalendarPage() {
 									Today
 								</Button>
 								<Button asChild>
-									<Link href="/admin/sessions">
-										<Plus className="h-4 w-4 mr-2" />
-										Manage Sessions
-									</Link>
+									<Link href="/admin/sessions">Manage Sessions</Link>
 								</Button>
 							</div>
 						</div>

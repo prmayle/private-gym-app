@@ -26,6 +26,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 #documentation
 /documentation
 /sql

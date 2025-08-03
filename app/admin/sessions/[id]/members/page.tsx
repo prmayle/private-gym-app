@@ -19,6 +19,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 // Member and Profile interfaces based on DB schema
 interface Member {
@@ -41,6 +43,20 @@ interface Member {
 	waiver_signed?: boolean | null;
 	waiver_signed_date?: string | null;
 	profile?: Profile;
+	booking?: Booking;
+}
+
+interface Booking {
+	id: string;
+	status: "confirmed" | "pending" | "cancelled" | "attended";
+	booking_time: string;
+	attended: boolean;
+	attendance_time?: string | null;
+	check_in_time?: string | null;
+	check_out_time?: string | null;
+	rating?: number | null;
+	feedback?: string | null;
+	notes?: string | null;
 }
 
 interface Profile {
@@ -59,7 +75,7 @@ interface Profile {
 
 // Config for table columns
 const memberTableConfig: Array<{
-	key: keyof Member | `profile.${keyof Profile}`;
+	key: keyof Member | `profile.${keyof Profile}` | `booking.${keyof Booking}`;
 	label: string;
 	render?: (value: any, row: Member) => React.ReactNode;
 }> = [
@@ -67,66 +83,140 @@ const memberTableConfig: Array<{
 	{ key: "profile.email", label: "Email" },
 	{ key: "profile.phone", label: "Phone" },
 	{
+		key: "booking.status",
+		label: "Booking Status",
+		render: (v) => (
+			<Badge
+				variant={
+					v === "confirmed"
+						? "default"
+						: v === "attended"
+						? "default"
+						: v === "pending"
+						? "secondary"
+						: "destructive"
+				}>
+				{v}
+			</Badge>
+		),
+	},
+	{
+		key: "booking.booking_time",
+		label: "Booked At",
+		render: (v) => (v ? new Date(v).toLocaleString() : "-"),
+	},
+	{
+		key: "booking.attended",
+		label: "Attended",
+		render: (v) => (v ? "Yes" : "No"),
+	},
+	{
 		key: "membership_status",
 		label: "Membership Status",
 		render: (v) => (
 			<Badge variant={v === "active" ? "default" : "secondary"}>{v}</Badge>
 		),
 	},
-	{
-		key: "joined_at",
-		label: "Joined At",
-		render: (v) => (v ? new Date(v).toLocaleDateString() : "-"),
-	},
-	{
-		key: "waiver_signed",
-		label: "Waiver Signed",
-		render: (v) => (v ? "Yes" : "No"),
-	},
 ];
 
 export default function SessionMembersPage() {
 	const router = useRouter();
 	const params = useParams();
+	const { toast } = useToast();
 	const sessionId = params.id as string;
 	const [members, setMembers] = useState<Member[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
-	// Simulate fetching members for the session
+	// Fetch real members data for the session
 	useEffect(() => {
-		setLoading(true);
-		setTimeout(() => {
-			setMembers([
-				{
-					id: "1",
-					user_id: "u1",
-					membership_status: "active",
-					joined_at: new Date(Date.now() - 86400000 * 100).toISOString(),
-					waiver_signed: true,
-					profile: {
-						id: "u1",
-						email: "john.doe@example.com",
-						full_name: "John Doe",
-						phone: "+1 234 567 890",
-					},
-				},
-				{
-					id: "2",
-					user_id: "u2",
-					membership_status: "inactive",
-					joined_at: new Date(Date.now() - 86400000 * 200).toISOString(),
-					waiver_signed: false,
-					profile: {
-						id: "u2",
-						email: "jane.smith@example.com",
-						full_name: "Jane Smith",
-						phone: "+1 234 567 891",
-					},
-				},
-			]);
-			setLoading(false);
-		}, 500);
-	}, [sessionId]);
+		const fetchSessionMembers = async () => {
+			setLoading(true);
+			setError(null);
+
+			try {
+				const supabase = createClient();
+
+				// Fetch bookings for this session with member and profile data
+				const { data: bookingsData, error: bookingsError } = await supabase
+					.from("bookings")
+					.select(
+						`
+						id,
+						status,
+						booking_time,
+						attended,
+						attendance_time,
+						check_in_time,
+						check_out_time,
+						rating,
+						feedback,
+						notes,
+						member:member_id (
+							id,
+							user_id,
+							membership_status,
+							joined_at,
+							waiver_signed,
+							profile:user_id (
+								id,
+								email,
+								full_name,
+								phone
+							)
+						)
+					`
+					)
+					.eq("session_id", sessionId)
+					.order("booking_time", { ascending: false });
+
+				if (bookingsError) {
+					console.error("Error fetching bookings:", bookingsError);
+					setError("Failed to load session members");
+					toast({
+						title: "Error",
+						description: "Failed to load session members",
+						variant: "destructive",
+					});
+				} else {
+					// Transform the data to match our interface
+					const transformedMembers: Member[] = (bookingsData || []).map(
+						(booking: any) => ({
+							...booking.member,
+							booking: {
+								id: booking.id,
+								status: booking.status,
+								booking_time: booking.booking_time,
+								attended: booking.attended,
+								attendance_time: booking.attendance_time,
+								check_in_time: booking.check_in_time,
+								check_out_time: booking.check_out_time,
+								rating: booking.rating,
+								feedback: booking.feedback,
+								notes: booking.notes,
+							},
+						})
+					);
+
+					setMembers(transformedMembers);
+				}
+			} catch (error) {
+				console.error("Error fetching session members:", error);
+				setError("Failed to load session members");
+				toast({
+					title: "Error",
+					description: "Failed to load session members",
+					variant: "destructive",
+				});
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		if (sessionId) {
+			fetchSessionMembers();
+		}
+	}, [sessionId, toast]);
 
 	return (
 		<div className="container mx-auto py-6 space-y-6">
@@ -143,14 +233,24 @@ export default function SessionMembersPage() {
 			</div>
 			<Card>
 				<CardHeader>
-					<CardTitle>Members List</CardTitle>
+					<CardTitle>Session Members</CardTitle>
 					<CardDescription>
-						All members registered for this session (schema-driven)
+						All members who have booked this session
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{loading ? (
 						<div className="text-center py-8">Loading members...</div>
+					) : error ? (
+						<div className="text-center py-8">
+							<p className="text-destructive">{error}</p>
+							<Button
+								variant="outline"
+								onClick={() => window.location.reload()}
+								className="mt-2">
+								Retry
+							</Button>
+						</div>
 					) : members.length > 0 ? (
 						<div className="rounded-md border">
 							<Table>
@@ -174,6 +274,14 @@ export default function SessionMembersPage() {
 													value = member.profile
 														? member.profile[profileKey]
 														: undefined;
+												} else if (col.key.startsWith("booking.")) {
+													const bookingKey = col.key.replace(
+														"booking.",
+														""
+													) as keyof Booking;
+													value = member.booking
+														? member.booking[bookingKey]
+														: undefined;
 												} else {
 													value = member[col.key as keyof Member];
 												}
@@ -195,7 +303,7 @@ export default function SessionMembersPage() {
 					) : (
 						<div className="text-center py-8">
 							<p className="text-muted-foreground">
-								No members registered for this session yet.
+								No members have booked this session yet.
 							</p>
 						</div>
 					)}
