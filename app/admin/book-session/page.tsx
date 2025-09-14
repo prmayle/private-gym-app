@@ -24,12 +24,14 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
 import {
-	ArrowLeft,
 	Search,
 	Users,
 	UserCheck,
 	ChevronRight,
+	Calendar,
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { useTheme } from "@/components/theme-provider";
 
 interface Member {
 	id: string;
@@ -45,6 +47,7 @@ interface Member {
 export default function AdminBookSessionPage() {
 	const router = useRouter();
 	const { toast } = useToast();
+	const { theme } = useTheme();
 	const [members, setMembers] = useState<Member[]>([]);
 	const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -233,21 +236,13 @@ export default function AdminBookSessionPage() {
 	};
 
 	return (
-		<div className="space-y-6">
-			<div className="flex items-center">
-				<Button variant="ghost" size="icon" asChild className="mr-2">
-					<Link href="/admin">
-						<ArrowLeft className="h-5 w-5" />
-						<span className="sr-only">Back to Dashboard</span>
-					</Link>
-				</Button>
-				<div>
-					<h1 className="text-2xl font-bold">Book Session for Member</h1>
-					<p className="text-muted-foreground">
-						Step 1: Select a member to book a session for
-					</p>
-				</div>
-			</div>
+		<div className="container mx-auto max-w-7xl py-6 space-y-6 px-4">
+			<PageHeader
+				title="Book Session for Member"
+				subtitle="Step 1: Select a member to book a session for"
+				icon={Calendar}
+				hasAddButton={false}
+			/>
 
 			{/* Search */}
 			<Card>

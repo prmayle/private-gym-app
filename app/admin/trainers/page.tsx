@@ -44,6 +44,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ActivityLogger } from "@/utils/activity-logger";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/components/theme-provider";
+import { PageHeader } from "@/components/page-header";
 import {
 	ArrowLeft,
 	Search,
@@ -124,6 +126,7 @@ const defaultCertifications = [
 export default function TrainersPage() {
 	const { toast } = useToast();
 	const auth = useAuth();
+	const { theme } = useTheme();
 	const [trainers, setTrainers] = useState<Trainer[]>([]);
 	const [filteredTrainers, setFilteredTrainers] = useState<Trainer[]>([]);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -513,337 +516,326 @@ export default function TrainersPage() {
 	};
 
 	return (
-		<div className="container mx-auto py-6 space-y-6">
-			{/* Header */}
-			<div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-				<div className="flex items-center gap-4">
-					<Button variant="outline" size="icon" asChild>
-						<Link href="/admin/dashboard">
-							<ArrowLeft className="h-4 w-4" />
-						</Link>
-					</Button>
-					<div>
-						<h1 className="text-2xl font-bold">Trainer Management</h1>
-						<p className="text-muted-foreground">
-							Manage trainer profiles and information
-						</p>
-					</div>
+		<div className="space-y-6">
+			<PageHeader
+				title="Trainer Management"
+				subtitle="Manage trainer profiles and information"
+				icon={User}
+				hasAddButton={true}
+				addLink="/admin/trainers/new"
+			/>
+
+			<div className="container mx-auto max-w-7xl space-y-6 pt-4">
+				{/* Statistics Cards */}
+				<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="text-sm font-medium">
+								Total Trainers
+							</CardTitle>
+							<User className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold">{trainers.length}</div>
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="text-sm font-medium">
+								Available Trainers
+							</CardTitle>
+							<UserCheck className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold text-green-600">
+								{trainers.filter((t) => t.is_available).length}
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="text-sm font-medium">
+								Average Rate
+							</CardTitle>
+							<DollarSign className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold">
+								${trainers.length > 0 
+									? (trainers.reduce((sum, t) => sum + t.hourly_rate, 0) / trainers.length).toFixed(0)
+									: 0
+								}/hr
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="text-sm font-medium">
+								Total Experience
+							</CardTitle>
+							<Award className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold">
+								{trainers.reduce((sum, t) => sum + t.experience_years, 0)} years
+							</div>
+						</CardContent>
+					</Card>
 				</div>
-				<Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-					<DialogTrigger asChild>
-						<Button className="bg-orange-500 hover:bg-orange-600 text-white">
-							<Plus className="mr-2 h-4 w-4" />
-							Add Trainer
-						</Button>
-					</DialogTrigger>
-					<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-						<DialogHeader>
-							<DialogTitle>Add New Trainer</DialogTitle>
-							<DialogDescription>
-								Create a new trainer profile with their information and
-								credentials.
-							</DialogDescription>
-						</DialogHeader>
-						<div className="grid gap-4 py-4">
-							{/* Profile Photo Upload */}
-							<div className="space-y-2">
-								<Label>Profile Photo</Label>
-								<div className="flex items-center gap-4">
-									<Avatar className="h-16 w-16">
-										<AvatarImage src={newTrainer.profile_photo_url || ""} />
-										<AvatarFallback>
-											<Camera className="h-6 w-6 text-muted-foreground" />
-										</AvatarFallback>
-									</Avatar>
-									<div className="flex-1">
-										<input
-											type="file"
-											accept="image/*"
-											onChange={(e) => {
-												const file = e.target.files?.[0];
-												if (file) {
-													handleImageUpload(file, true);
+
+				{/* Main Content */}
+				<Card>
+					<CardHeader>
+						<div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+							<div>
+								<CardTitle>Trainers</CardTitle>
+								<CardDescription>
+									View and manage all trainer profiles
+								</CardDescription>
+							</div>
+							<Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+								<DialogTrigger asChild>
+									<Button className="bg-orange-500 hover:bg-orange-600 text-white">
+										<Plus className="mr-2 h-4 w-4" />
+										Add Trainer
+									</Button>
+								</DialogTrigger>
+								<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+									<DialogHeader>
+										<DialogTitle>Add New Trainer</DialogTitle>
+										<DialogDescription>
+											Create a new trainer profile with their information and
+											credentials.
+										</DialogDescription>
+									</DialogHeader>
+									<div className="grid gap-4 py-4">
+										{/* Profile Photo Upload */}
+										<div className="space-y-2">
+											<Label>Profile Photo</Label>
+											<div className="flex items-center gap-4">
+												<Avatar className="h-16 w-16">
+													<AvatarImage src={newTrainer.profile_photo_url || ""} />
+													<AvatarFallback>
+														<Camera className="h-6 w-6 text-muted-foreground" />
+													</AvatarFallback>
+												</Avatar>
+												<div className="flex-1">
+													<input
+														type="file"
+														accept="image/*"
+														onChange={(e) => {
+															const file = e.target.files?.[0];
+															if (file) {
+																handleImageUpload(file, true);
+															}
+														}}
+														className="hidden"
+														id="photo-upload-new"
+														disabled={isUploadingPhoto}
+													/>
+													<Label
+														htmlFor="photo-upload-new"
+														className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm">
+														<Upload className="h-4 w-4" />
+														{isUploadingPhoto ? "Uploading..." : "Upload Photo"}
+													</Label>
+													<p className="text-xs text-muted-foreground mt-1">
+														JPG, PNG or WebP. Max 5MB.
+													</p>
+												</div>
+											</div>
+										</div>
+
+										<div className="grid grid-cols-2 gap-4">
+											<div className="space-y-2">
+												<Label htmlFor="full_name">Full Name</Label>
+												<Input
+													id="full_name"
+													value={newTrainer.full_name}
+													onChange={(e) =>
+														setNewTrainer((prev) => ({
+															...prev,
+															full_name: e.target.value,
+														}))
+													}
+													placeholder="Enter full name"
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label htmlFor="email">Email</Label>
+												<Input
+													id="email"
+													type="email"
+													value={newTrainer.email}
+													onChange={(e) =>
+														setNewTrainer((prev) => ({
+															...prev,
+															email: e.target.value,
+														}))
+													}
+													placeholder="Enter email"
+												/>
+											</div>
+										</div>
+										<div className="grid grid-cols-2 gap-4">
+											<div className="space-y-2">
+												<Label htmlFor="phone">Phone</Label>
+												<PhoneInputField
+													id="phone"
+													value={newTrainer.phone}
+													onChange={(value) =>
+														setNewTrainer((prev) => ({
+															...prev,
+															phone: value || "",
+														}))
+													}
+													placeholder="Enter phone number"
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
+												<Input
+													id="hourly_rate"
+													type="number"
+													value={newTrainer.hourly_rate}
+													onChange={(e) =>
+														setNewTrainer((prev) => ({
+															...prev,
+															hourly_rate: parseFloat(e.target.value),
+														}))
+													}
+													placeholder="50"
+												/>
+											</div>
+										</div>
+										<div className="grid grid-cols-2 gap-4">
+											<div className="space-y-2">
+												<Label htmlFor="experience_years">Experience (Years)</Label>
+												<Input
+													id="experience_years"
+													type="number"
+													value={newTrainer.experience_years}
+													onChange={(e) =>
+														setNewTrainer((prev) => ({
+															...prev,
+															experience_years: parseInt(e.target.value),
+														}))
+													}
+													placeholder="0"
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label htmlFor="max_sessions">Max Sessions/Day</Label>
+												<Input
+													id="max_sessions"
+													type="number"
+													value={newTrainer.max_sessions_per_day}
+													onChange={(e) =>
+														setNewTrainer((prev) => ({
+															...prev,
+															max_sessions_per_day: parseInt(e.target.value),
+														}))
+													}
+													placeholder="8"
+												/>
+											</div>
+										</div>
+										<div className="space-y-2">
+											<Label>Specializations</Label>
+											<div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+												{defaultSpecializations.map((spec) => (
+													<label
+														key={spec}
+														className="flex items-center space-x-2 text-sm">
+														<input
+															type="checkbox"
+															checked={newTrainer.specializations.includes(spec)}
+															onChange={() => handleSpecializationToggle(spec, true)}
+															className="rounded border-gray-300"
+														/>
+														<span>{spec}</span>
+													</label>
+												))}
+											</div>
+										</div>
+										<div className="space-y-2">
+											<Label>Certifications</Label>
+											<div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+												{defaultCertifications.map((cert) => (
+													<label
+														key={cert}
+														className="flex items-center space-x-2 text-sm">
+														<input
+															type="checkbox"
+															checked={newTrainer.certifications.includes(cert)}
+															onChange={() => handleCertificationToggle(cert, true)}
+															className="rounded border-gray-300"
+														/>
+														<span>{cert}</span>
+													</label>
+												))}
+											</div>
+										</div>
+										<div className="space-y-2">
+											<Label htmlFor="bio">Bio</Label>
+											<Textarea
+												id="bio"
+												value={newTrainer.bio}
+												onChange={(e) =>
+													setNewTrainer((prev) => ({ ...prev, bio: e.target.value }))
 												}
-											}}
-											className="hidden"
-											id="photo-upload-new"
-											disabled={isUploadingPhoto}
-										/>
-										<Label
-											htmlFor="photo-upload-new"
-											className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm">
-											<Upload className="h-4 w-4" />
-											{isUploadingPhoto ? "Uploading..." : "Upload Photo"}
-										</Label>
-										<p className="text-xs text-muted-foreground mt-1">
-											JPG, PNG or WebP. Max 5MB.
-										</p>
+												placeholder="Enter trainer bio..."
+												rows={3}
+											/>
+										</div>
 									</div>
-								</div>
-							</div>
-
-							<div className="grid grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="full_name">Full Name</Label>
-									<Input
-										id="full_name"
-										value={newTrainer.full_name}
-										onChange={(e) =>
-											setNewTrainer((prev) => ({
-												...prev,
-												full_name: e.target.value,
-											}))
-										}
-										placeholder="Enter full name"
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="email">Email</Label>
-									<Input
-										id="email"
-										type="email"
-										value={newTrainer.email}
-										onChange={(e) =>
-											setNewTrainer((prev) => ({
-												...prev,
-												email: e.target.value,
-											}))
-										}
-										placeholder="Enter email"
-									/>
-								</div>
-							</div>
-							<div className="grid grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="phone">Phone</Label>
-									<PhoneInputField
-										id="phone"
-										value={newTrainer.phone}
-										onChange={(value) =>
-											setNewTrainer((prev) => ({
-												...prev,
-												phone: value || "",
-											}))
-										}
-										placeholder="Enter phone number"
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
-									<Input
-										id="hourly_rate"
-										type="number"
-										value={newTrainer.hourly_rate}
-										onChange={(e) =>
-											setNewTrainer((prev) => ({
-												...prev,
-												hourly_rate: parseFloat(e.target.value),
-											}))
-										}
-										placeholder="50"
-									/>
-								</div>
-							</div>
-							<div className="grid grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="experience_years">Experience (Years)</Label>
-									<Input
-										id="experience_years"
-										type="number"
-										value={newTrainer.experience_years}
-										onChange={(e) =>
-											setNewTrainer((prev) => ({
-												...prev,
-												experience_years: parseInt(e.target.value),
-											}))
-										}
-										placeholder="0"
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="max_sessions">Max Sessions/Day</Label>
-									<Input
-										id="max_sessions"
-										type="number"
-										value={newTrainer.max_sessions_per_day}
-										onChange={(e) =>
-											setNewTrainer((prev) => ({
-												...prev,
-												max_sessions_per_day: parseInt(e.target.value),
-											}))
-										}
-										placeholder="8"
-									/>
-								</div>
-							</div>
-							<div className="space-y-2">
-								<Label>Specializations</Label>
-								<div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-									{defaultSpecializations.map((spec) => (
-										<label
-											key={spec}
-											className="flex items-center space-x-2 text-sm">
-											<input
-												type="checkbox"
-												checked={newTrainer.specializations.includes(spec)}
-												onChange={() => handleSpecializationToggle(spec, true)}
-												className="rounded border-gray-300"
-											/>
-											<span>{spec}</span>
-										</label>
-									))}
-								</div>
-							</div>
-							<div className="space-y-2">
-								<Label>Certifications</Label>
-								<div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
-									{defaultCertifications.map((cert) => (
-										<label
-											key={cert}
-											className="flex items-center space-x-2 text-sm">
-											<input
-												type="checkbox"
-												checked={newTrainer.certifications.includes(cert)}
-												onChange={() => handleCertificationToggle(cert, true)}
-												className="rounded border-gray-300"
-											/>
-											<span>{cert}</span>
-										</label>
-									))}
-								</div>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="bio">Bio</Label>
-								<Textarea
-									id="bio"
-									value={newTrainer.bio}
-									onChange={(e) =>
-										setNewTrainer((prev) => ({ ...prev, bio: e.target.value }))
-									}
-									placeholder="Enter trainer bio..."
-									rows={3}
-								/>
-							</div>
+									<DialogFooter>
+										<Button
+											variant="outline"
+											onClick={() => setIsCreateDialogOpen(false)}>
+											Cancel
+										</Button>
+										<Button
+											onClick={handleCreateTrainer}
+											disabled={!newTrainer.full_name || !newTrainer.email}
+											className="bg-orange-500 hover:bg-orange-600 text-white">
+											Create Trainer
+										</Button>
+									</DialogFooter>
+								</DialogContent>
+							</Dialog>
 						</div>
-						<DialogFooter>
-							<Button
-								variant="outline"
-								onClick={() => setIsCreateDialogOpen(false)}>
-								Cancel
-							</Button>
-							<Button
-								onClick={handleCreateTrainer}
-								disabled={!newTrainer.full_name || !newTrainer.email}
-								className="bg-orange-500 hover:bg-orange-600 text-white">
-								Create Trainer
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-			</div>
-
-			{/* Filters */}
-			<Card>
-				<CardContent className="pt-6">
-					<div className="flex flex-col md:flex-row gap-4">
-						<div className="flex-1">
-							<div className="relative">
-								<Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-								<Input
-									placeholder="Search trainers..."
-									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
-									className="pl-9"
-								/>
-							</div>
-						</div>
-						<Select value={statusFilter} onValueChange={setStatusFilter}>
-							<SelectTrigger className="w-full md:w-48">
-								<SelectValue placeholder="Filter by status" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Trainers</SelectItem>
-								<SelectItem value="available">Available</SelectItem>
-								<SelectItem value="unavailable">Unavailable</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Trainers Stats */}
-			<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">
-							Total Trainers
-						</CardTitle>
-						<User className="h-4 w-4 text-muted-foreground" />
 					</CardHeader>
 					<CardContent>
-						<div className="text-2xl font-bold">{trainers.length}</div>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Available</CardTitle>
-						<UserCheck className="h-4 w-4 text-green-600" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold text-green-600">
-							{trainers.filter((t) => t.is_available).length}
+						{/* Filters */}
+						<div className="flex flex-col md:flex-row gap-4">
+							<div className="flex-1">
+								<div className="relative">
+									<Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+									<Input
+										placeholder="Search trainers..."
+										value={searchQuery}
+										onChange={(e) => setSearchQuery(e.target.value)}
+										className="pl-9"
+									/>
+								</div>
+							</div>
+							<Select value={statusFilter} onValueChange={setStatusFilter}>
+								<SelectTrigger className="w-full md:w-48">
+									<SelectValue placeholder="Filter by status" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Trainers</SelectItem>
+									<SelectItem value="available">Available</SelectItem>
+									<SelectItem value="unavailable">Unavailable</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Unavailable</CardTitle>
-						<UserX className="h-4 w-4 text-red-600" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold text-red-600">
-							{trainers.filter((t) => !t.is_available).length}
-						</div>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">Avg Rate</CardTitle>
-						<DollarSign className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold">
-							$
-							{trainers.length > 0
-								? Math.round(
-										trainers.reduce((sum, t) => sum + t.hourly_rate, 0) /
-											trainers.length
-								  )
-								: 0}
-						</div>
-					</CardContent>
-				</Card>
-			</div>
 
-			{/* Trainers Table */}
-			<Card>
-				<CardHeader>
-					<CardTitle>All Trainers</CardTitle>
-					<CardDescription>
-						Manage trainer profiles, specializations, and availability
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{loading ? (
-						<div className="space-y-4">
-							{[...Array(5)].map((_, i) => (
-								<div
-									key={i}
-									className="h-16 bg-gray-100 rounded animate-pulse"
-								/>
-							))}
-						</div>
-					) : (
+						{/* Trainers Table */}
 						<Table>
 							<TableHeader>
 								<TableRow>
@@ -945,211 +937,211 @@ export default function TrainersPage() {
 								))}
 							</TableBody>
 						</Table>
-					)}
-				</CardContent>
-			</Card>
+					</CardContent>
+				</Card>
 
-			{/* Edit Dialog */}
-			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-				<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Edit Trainer</DialogTitle>
-						<DialogDescription>
-							Update trainer information and credentials.
-						</DialogDescription>
-					</DialogHeader>
-					{editingTrainer && (
-						<div className="grid gap-4 py-4">
-							{/* Profile Photo Upload */}
-							<div className="space-y-2">
-								<Label>Profile Photo</Label>
-								<div className="flex items-center gap-4">
-									<Avatar className="h-16 w-16">
-										<AvatarImage src={editingTrainer.profile_photo_url || ""} />
-										<AvatarFallback>
-											<Camera className="h-6 w-6 text-muted-foreground" />
-										</AvatarFallback>
-									</Avatar>
-									<div className="flex-1">
-										<input
-											type="file"
-											accept="image/*"
-											onChange={(e) => {
-												const file = e.target.files?.[0];
-												if (file) {
-													handleImageUpload(file, false);
-												}
-											}}
-											className="hidden"
-											id="photo-upload-edit"
-											disabled={isUploadingPhoto}
-										/>
-										<Label
-											htmlFor="photo-upload-edit"
-											className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm">
-											<Upload className="h-4 w-4" />
-											{isUploadingPhoto ? "Uploading..." : "Change Photo"}
-										</Label>
-										<p className="text-xs text-muted-foreground mt-1">
-											JPG, PNG or WebP. Max 5MB.
-										</p>
+				{/* Edit Dialog */}
+				<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+					<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+						<DialogHeader>
+							<DialogTitle>Edit Trainer</DialogTitle>
+							<DialogDescription>
+								Update trainer information and credentials.
+							</DialogDescription>
+						</DialogHeader>
+						{editingTrainer && (
+							<div className="grid gap-4 py-4">
+								{/* Profile Photo Upload */}
+								<div className="space-y-2">
+									<Label>Profile Photo</Label>
+									<div className="flex items-center gap-4">
+										<Avatar className="h-16 w-16">
+											<AvatarImage src={editingTrainer.profile_photo_url || ""} />
+											<AvatarFallback>
+												<Camera className="h-6 w-6 text-muted-foreground" />
+											</AvatarFallback>
+										</Avatar>
+										<div className="flex-1">
+											<input
+												type="file"
+												accept="image/*"
+												onChange={(e) => {
+													const file = e.target.files?.[0];
+													if (file) {
+														handleImageUpload(file, false);
+													}
+												}}
+												className="hidden"
+												id="photo-upload-edit"
+												disabled={isUploadingPhoto}
+											/>
+											<Label
+												htmlFor="photo-upload-edit"
+												className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm">
+												<Upload className="h-4 w-4" />
+												{isUploadingPhoto ? "Uploading..." : "Change Photo"}
+											</Label>
+											<p className="text-xs text-muted-foreground mt-1">
+												JPG, PNG or WebP. Max 5MB.
+											</p>
+										</div>
 									</div>
 								</div>
-							</div>
 
-							<div className="grid grid-cols-2 gap-4">
+								<div className="grid grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="edit_full_name">Full Name</Label>
+										<Input
+											id="edit_full_name"
+											value={editingTrainer.full_name}
+											onChange={(e) =>
+												setEditingTrainer((prev) =>
+													prev ? { ...prev, full_name: e.target.value } : prev
+												)
+											}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="edit_phone">Phone</Label>
+										<PhoneInputField
+											id="edit_phone"
+											value={editingTrainer.phone || ""}
+											onChange={(value) =>
+												setEditingTrainer((prev) =>
+													prev ? { ...prev, phone: value || "" } : prev
+												)
+											}
+										/>
+									</div>
+								</div>
+								<div className="grid grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="edit_hourly_rate">Hourly Rate ($)</Label>
+										<Input
+											id="edit_hourly_rate"
+											type="number"
+											value={editingTrainer.hourly_rate}
+											onChange={(e) =>
+												setEditingTrainer((prev) =>
+													prev
+														? { ...prev, hourly_rate: parseFloat(e.target.value) }
+														: prev
+												)
+											}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="edit_experience_years">
+											Experience (Years)
+										</Label>
+										<Input
+											id="edit_experience_years"
+											type="number"
+											value={editingTrainer.experience_years}
+											onChange={(e) =>
+												setEditingTrainer((prev) =>
+													prev
+														? {
+																...prev,
+																experience_years: parseInt(e.target.value),
+														  }
+														: prev
+												)
+											}
+										/>
+									</div>
+								</div>
 								<div className="space-y-2">
-									<Label htmlFor="edit_full_name">Full Name</Label>
-									<Input
-										id="edit_full_name"
-										value={editingTrainer.full_name}
+									<Label>Specializations</Label>
+									<div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+										{defaultSpecializations.map((spec) => (
+											<label
+												key={spec}
+												className="flex items-center space-x-2 text-sm">
+												<input
+													type="checkbox"
+													checked={editingTrainer.specializations.includes(spec)}
+													onChange={() => handleSpecializationToggle(spec, false)}
+													className="rounded border-gray-300"
+												/>
+												<span>{spec}</span>
+											</label>
+										))}
+									</div>
+								</div>
+								<div className="space-y-2">
+									<Label>Certifications</Label>
+									<div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+										{defaultCertifications.map((cert) => (
+											<label
+												key={cert}
+												className="flex items-center space-x-2 text-sm">
+												<input
+													type="checkbox"
+													checked={editingTrainer.certifications.includes(cert)}
+													onChange={() => handleCertificationToggle(cert, false)}
+													className="rounded border-gray-300"
+												/>
+												<span>{cert}</span>
+											</label>
+										))}
+									</div>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="edit_bio">Bio</Label>
+									<Textarea
+										id="edit_bio"
+										value={editingTrainer.bio}
 										onChange={(e) =>
 											setEditingTrainer((prev) =>
-												prev ? { ...prev, full_name: e.target.value } : prev
+												prev ? { ...prev, bio: e.target.value } : prev
 											)
 										}
+										rows={3}
 									/>
 								</div>
 								<div className="space-y-2">
-									<Label htmlFor="edit_phone">Phone</Label>
-									<PhoneInputField
-										id="edit_phone"
-										value={editingTrainer.phone || ""}
-										onChange={(value) =>
-											setEditingTrainer((prev) =>
-												prev ? { ...prev, phone: value || "" } : prev
-											)
+									<Label>Availability Status</Label>
+									<Select
+										value={
+											editingTrainer.is_available ? "available" : "unavailable"
 										}
-									/>
-								</div>
-							</div>
-							<div className="grid grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="edit_hourly_rate">Hourly Rate ($)</Label>
-									<Input
-										id="edit_hourly_rate"
-										type="number"
-										value={editingTrainer.hourly_rate}
-										onChange={(e) =>
+										onValueChange={(value) =>
 											setEditingTrainer((prev) =>
 												prev
-													? { ...prev, hourly_rate: parseFloat(e.target.value) }
+													? { ...prev, is_available: value === "available" }
 													: prev
 											)
-										}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="edit_experience_years">
-										Experience (Years)
-									</Label>
-									<Input
-										id="edit_experience_years"
-										type="number"
-										value={editingTrainer.experience_years}
-										onChange={(e) =>
-											setEditingTrainer((prev) =>
-												prev
-													? {
-															...prev,
-															experience_years: parseInt(e.target.value),
-													  }
-													: prev
-											)
-										}
-									/>
+										}>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="available">Available</SelectItem>
+											<SelectItem value="unavailable">Unavailable</SelectItem>
+										</SelectContent>
+									</Select>
 								</div>
 							</div>
-							<div className="space-y-2">
-								<Label>Specializations</Label>
-								<div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-									{defaultSpecializations.map((spec) => (
-										<label
-											key={spec}
-											className="flex items-center space-x-2 text-sm">
-											<input
-												type="checkbox"
-												checked={editingTrainer.specializations.includes(spec)}
-												onChange={() => handleSpecializationToggle(spec, false)}
-												className="rounded border-gray-300"
-											/>
-											<span>{spec}</span>
-										</label>
-									))}
-								</div>
-							</div>
-							<div className="space-y-2">
-								<Label>Certifications</Label>
-								<div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
-									{defaultCertifications.map((cert) => (
-										<label
-											key={cert}
-											className="flex items-center space-x-2 text-sm">
-											<input
-												type="checkbox"
-												checked={editingTrainer.certifications.includes(cert)}
-												onChange={() => handleCertificationToggle(cert, false)}
-												className="rounded border-gray-300"
-											/>
-											<span>{cert}</span>
-										</label>
-									))}
-								</div>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="edit_bio">Bio</Label>
-								<Textarea
-									id="edit_bio"
-									value={editingTrainer.bio}
-									onChange={(e) =>
-										setEditingTrainer((prev) =>
-											prev ? { ...prev, bio: e.target.value } : prev
-										)
-									}
-									rows={3}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label>Availability Status</Label>
-								<Select
-									value={
-										editingTrainer.is_available ? "available" : "unavailable"
-									}
-									onValueChange={(value) =>
-										setEditingTrainer((prev) =>
-											prev
-												? { ...prev, is_available: value === "available" }
-												: prev
-										)
-									}>
-									<SelectTrigger>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="available">Available</SelectItem>
-										<SelectItem value="unavailable">Unavailable</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-						</div>
-					)}
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setIsEditDialogOpen(false);
-								setEditingTrainer(null);
-							}}>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleEditTrainer}
-							className="bg-orange-500 hover:bg-orange-600 text-white">
-							Update Trainer
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						)}
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => {
+									setIsEditDialogOpen(false);
+									setEditingTrainer(null);
+								}}>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleEditTrainer}
+								className="bg-orange-500 hover:bg-orange-600 text-white">
+								Update Trainer
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			</div>
 		</div>
 	);
 }

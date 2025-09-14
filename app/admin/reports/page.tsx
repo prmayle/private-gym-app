@@ -54,6 +54,8 @@ import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminRoute } from "@/components/ProtectedRoute";
+import { PageHeader } from "@/components/page-header";
+import { useTheme } from "@/components/theme-provider";
 import {
 	BarChart,
 	Bar,
@@ -167,6 +169,7 @@ export default function ReportsPage() {
 	const router = useRouter();
 	const { toast } = useToast();
 	const auth = useAuth();
+	const { theme } = useTheme();
 	const [isLoading, setIsLoading] = useState(true);
 	const [stats, setStats] = useState<DashboardStats>({
 		totalMembers: 0,
@@ -924,144 +927,135 @@ export default function ReportsPage() {
 
 	return (
 		<AdminRoute>
-			<div className="container mx-auto max-w-7xl py-6 space-y-6">
-				{/* Header */}
-				<div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-					<div className="flex items-center gap-4">
-						<Button variant="ghost" size="icon" onClick={() => router.back()}>
-							<ArrowLeft className="h-4 w-4" />
-						</Button>
-						<div>
-							<h1 className="text-3xl font-bold">Analytics & Reports</h1>
-							<p className="text-muted-foreground">
-								Real-time insights and performance metrics
-							</p>
+			<PageHeader
+				title="Analytics & Reports"
+				subtitle="Real-time insights and performance metrics"
+				icon={BarChart3}
+				hasAddButton={false}
+			/>
+			<div className="container mx-auto max-w-7xl py-6 space-y-6 px-4">
+				{/* Date Range and Export Controls */}
+				<div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
+					{/* Date Range Selector */}
+					<div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+						<div className="flex items-center gap-2 text-sm">
+							<Filter className="h-4 w-4 text-muted-foreground" />
+							<Label htmlFor="dateFrom" className="text-sm font-medium">
+								From:
+							</Label>
+							<Input
+								id="dateFrom"
+								type="date"
+								value={dateFrom}
+								onChange={(e) => setDateFrom(e.target.value)}
+								className="w-auto"
+							/>
+							<Label htmlFor="dateTo" className="text-sm font-medium">
+								To:
+							</Label>
+							<Input
+								id="dateTo"
+								type="date"
+								value={dateTo}
+								onChange={(e) => setDateTo(e.target.value)}
+								className="w-auto"
+							/>
+						</div>
+
+						{/* Quick Date Presets */}
+						<div className="flex gap-1">
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => {
+									const today = new Date();
+									const weekAgo = new Date();
+									weekAgo.setDate(today.getDate() - 7);
+									setDateFrom(weekAgo.toISOString().split("T")[0]);
+									setDateTo(today.toISOString().split("T")[0]);
+								}}
+								className="text-xs h-7 px-2">
+								7d
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => {
+									const today = new Date();
+									const monthAgo = new Date();
+									monthAgo.setDate(today.getDate() - 30);
+									setDateFrom(monthAgo.toISOString().split("T")[0]);
+									setDateTo(today.toISOString().split("T")[0]);
+								}}
+								className="text-xs h-7 px-2">
+								30d
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => {
+									const today = new Date();
+									const monthsAgo = new Date();
+									monthsAgo.setMonth(today.getMonth() - 3);
+									setDateFrom(monthsAgo.toISOString().split("T")[0]);
+									setDateTo(today.toISOString().split("T")[0]);
+								}}
+								className="text-xs h-7 px-2">
+								3m
+							</Button>
 						</div>
 					</div>
 
-					{/* Date Range and Export Controls */}
-					<div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
-						{/* Date Range Selector */}
-						<div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-							<div className="flex items-center gap-2 text-sm">
-								<Filter className="h-4 w-4 text-muted-foreground" />
-								<Label htmlFor="dateFrom" className="text-sm font-medium">
-									From:
-								</Label>
-								<Input
-									id="dateFrom"
-									type="date"
-									value={dateFrom}
-									onChange={(e) => setDateFrom(e.target.value)}
-									className="w-auto"
-								/>
-								<Label htmlFor="dateTo" className="text-sm font-medium">
-									To:
-								</Label>
-								<Input
-									id="dateTo"
-									type="date"
-									value={dateTo}
-									onChange={(e) => setDateTo(e.target.value)}
-									className="w-auto"
-								/>
-							</div>
-
-							{/* Quick Date Presets */}
-							<div className="flex gap-1">
+					{/* Export Options */}
+					<div className="flex items-center gap-2">
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
 								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => {
-										const today = new Date();
-										const weekAgo = new Date();
-										weekAgo.setDate(today.getDate() - 7);
-										setDateFrom(weekAgo.toISOString().split("T")[0]);
-										setDateTo(today.toISOString().split("T")[0]);
-									}}
-									className="text-xs h-7 px-2">
-									7d
+									variant="outline"
+									disabled={isExporting}
+									className="gap-2">
+									<Download className="h-4 w-4" />
+									Export Reports
+									<ChevronDown className="h-4 w-4" />
 								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => {
-										const today = new Date();
-										const monthAgo = new Date();
-										monthAgo.setDate(today.getDate() - 30);
-										setDateFrom(monthAgo.toISOString().split("T")[0]);
-										setDateTo(today.toISOString().split("T")[0]);
-									}}
-									className="text-xs h-7 px-2">
-									30d
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => {
-										const today = new Date();
-										const monthsAgo = new Date();
-										monthsAgo.setMonth(today.getMonth() - 3);
-										setDateFrom(monthsAgo.toISOString().split("T")[0]);
-										setDateTo(today.toISOString().split("T")[0]);
-									}}
-									className="text-xs h-7 px-2">
-									3m
-								</Button>
-							</div>
-						</div>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-56">
+								<DropdownMenuItem
+									onClick={exportPackageReport}
+									disabled={isExporting}>
+									<FileText className="h-4 w-4 mr-2" />
+									Package Details Report
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={exportRevenueReport}
+									disabled={isExporting}>
+									<DollarSign className="h-4 w-4 mr-2" />
+									Revenue Summary Report
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={exportSessionReport}
+									disabled={isExporting}>
+									<Calendar className="h-4 w-4 mr-2" />
+									Session Attendance Report
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={exportDailyRevenueReport}
+									disabled={isExporting}>
+									<TrendingUp className="h-4 w-4 mr-2" />
+									Daily Revenue Report
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 
-						{/* Export Options */}
-						<div className="flex items-center gap-2">
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button
-										variant="outline"
-										disabled={isExporting}
-										className="gap-2">
-										<Download className="h-4 w-4" />
-										Export Reports
-										<ChevronDown className="h-4 w-4" />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" className="w-56">
-									<DropdownMenuItem
-										onClick={exportPackageReport}
-										disabled={isExporting}>
-										<FileText className="h-4 w-4 mr-2" />
-										Package Details Report
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={exportRevenueReport}
-										disabled={isExporting}>
-										<DollarSign className="h-4 w-4 mr-2" />
-										Revenue Summary Report
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={exportSessionReport}
-										disabled={isExporting}>
-										<Calendar className="h-4 w-4 mr-2" />
-										Session Attendance Report
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={exportDailyRevenueReport}
-										disabled={isExporting}>
-										<TrendingUp className="h-4 w-4 mr-2" />
-										Daily Revenue Report
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
-
-							<Button
-								onClick={loadReportsData}
-								disabled={isLoading}
-								variant="outline">
-								<RefreshCw
-									className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-								/>
-								Refresh
-							</Button>
-						</div>
+						<Button
+							onClick={loadReportsData}
+							disabled={isLoading}
+							variant="outline">
+							<RefreshCw
+								className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+							/>
+							Refresh
+						</Button>
 					</div>
 				</div>
 

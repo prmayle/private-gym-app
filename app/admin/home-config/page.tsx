@@ -25,7 +25,9 @@ import { PhoneInputField } from "@/components/ui/phone-input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Eye, Plus, Trash, Upload, GripVertical, Move } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
+import { PageHeader } from "@/components/page-header";
+import { ArrowLeft, Eye, Plus, Trash, Upload, GripVertical, Move, Settings } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import Image from "next/image";
 import { getSliderImages, upsertSliderImage, deleteSliderImage, updateSliderImageOrder } from "@/lib/supabase";
@@ -132,6 +134,7 @@ interface HomePageConfig {
 
 export default function HomeConfigPage() {
 	const { toast } = useToast();
+	const { theme } = useTheme();
 	const [config, setConfig] = useState<HomePageConfig | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [globalLoading, setGlobalLoading] = useState(false);
@@ -1413,35 +1416,57 @@ export default function HomeConfigPage() {
 
 	if (loading) {
 		return (
-			<div className="container mx-auto py-6">
-				<div className="animate-pulse space-y-4">
-					<div className="h-8 bg-gray-200 rounded w-1/4"></div>
-					<div className="h-64 bg-gray-200 rounded"></div>
+			<div className="space-y-6">
+				<PageHeader
+					title="Home Page Configuration"
+					subtitle="Configure your home page sections and content"
+					icon={Settings}
+					hasAddButton={false}
+					addLink=""
+				/>
+				<div className="container mx-auto max-w-7xl space-y-6 pt-4">
+					<div className="animate-pulse space-y-4">
+						<div className="h-8 bg-gray-200 rounded w-1/4"></div>
+						<div className="h-64 bg-gray-200 rounded"></div>
+					</div>
 				</div>
 			</div>
 		);
 	}
 
 	if (!config) {
-		return <div>Failed to load configuration</div>;
+		return (
+			<div className="space-y-6">
+				<PageHeader
+					title="Home Page Configuration"
+					subtitle="Configure your home page sections and content"
+					icon={Settings}
+					hasAddButton={false}
+					addLink=""
+				/>
+				<div className="container mx-auto max-w-7xl space-y-6 pt-4">
+					<div>Failed to load configuration</div>
+				</div>
+			</div>
+		);
 	}
 
 	return (
-		<div className="container mx-auto py-6 space-y-6 relative">
-			{/* Global Loading Overlay */}
-			<LoadingOverlay show={globalLoading} message={loadingMessage} />
+		<div className="space-y-6">
+			<PageHeader
+				title="Home Page Configuration"
+				subtitle="Configure your home page sections and content"
+				icon={Settings}
+				hasAddButton={false}
+				addLink=""
+			/>
 
-			<div className="flex items-center justify-between">
-				<div className="flex items-center">
-					<Button variant="ghost" size="sm" className="mr-2" asChild>
-						<Link href="/admin">
-							<ArrowLeft className="h-4 w-4 mr-2" />
-							Back to Admin
-						</Link>
-					</Button>
-					<h1 className="text-2xl font-bold">Home Page Configuration</h1>
-				</div>
-				<div className="flex space-x-2">
+			<div className="container mx-auto max-w-7xl space-y-6 pt-4 relative">
+				{/* Global Loading Overlay */}
+				<LoadingOverlay show={globalLoading} message={loadingMessage} />
+
+				{/* Action Buttons */}
+				<div className="flex justify-end space-x-2">
 					<Button variant="outline" onClick={() => window.open("/", "_blank")}>
 						<Eye className="h-4 w-4 mr-2" />
 						Preview
@@ -1450,588 +1475,327 @@ export default function HomeConfigPage() {
 						{saving ? "Saving..." : "Save Changes"}
 					</Button>
 				</div>
-			</div>
 
-			<Tabs
-				value={activeTab}
-				onValueChange={setActiveTab}
-				className="space-y-4">
-				<TabsList className="grid grid-cols-3 md:grid-cols-7 w-full">
-					<TabsTrigger value="hero">Hero</TabsTrigger>
-					<TabsTrigger value="about">About</TabsTrigger>
-					<TabsTrigger value="features">Services</TabsTrigger>
-					<TabsTrigger value="trainers">Trainers</TabsTrigger>
-					<TabsTrigger value="testimonials">Testimonials</TabsTrigger>
-					<TabsTrigger value="contact">Contact</TabsTrigger>
-					<TabsTrigger value="footer">Footer</TabsTrigger>
-				</TabsList>
+				<Tabs
+					value={activeTab}
+					onValueChange={setActiveTab}
+					className="space-y-4">
+					<TabsList className="grid grid-cols-3 md:grid-cols-7 w-full">
+						<TabsTrigger value="hero">Hero</TabsTrigger>
+						<TabsTrigger value="about">About</TabsTrigger>
+						<TabsTrigger value="features">Services</TabsTrigger>
+						<TabsTrigger value="trainers">Trainers</TabsTrigger>
+						<TabsTrigger value="testimonials">Testimonials</TabsTrigger>
+						<TabsTrigger value="contact">Contact</TabsTrigger>
+						<TabsTrigger value="footer">Footer</TabsTrigger>
+					</TabsList>
 
-				{/* Hero Section */}
-				<TabsContent value="hero" className="space-y-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>Hero Section</CardTitle>
-							<CardDescription>
-								Configure the main banner of your home page
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-6">
-							{/* Basic Hero Settings */}
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="heroTitle">Title</Label>
-									<Input
-										id="heroTitle"
-										value={config.hero.title}
-										onChange={(e) =>
-											updateConfig("hero", { title: e.target.value })
-										}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="heroSubtitle">Subtitle</Label>
-									<Input
-										id="heroSubtitle"
-										value={config.hero.subtitle}
-										onChange={(e) =>
-											updateConfig("hero", { subtitle: e.target.value })
-										}
-									/>
-								</div>
-							</div>
-
-							{/* Call-to-Action Button */}
-							<div className="space-y-4">
-								<div className="flex items-center space-x-2">
-									<Switch
-										id="heroShowButton"
-										checked={config.hero.showButton}
-										onCheckedChange={(checked) =>
-											updateConfig("hero", { showButton: checked })
-										}
-									/>
-									<Label htmlFor="heroShowButton">
-										Show Call-to-Action Button
-									</Label>
-								</div>
-
-								{config.hero.showButton && (
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="heroButtonText">Button Text</Label>
-											<Input
-												id="heroButtonText"
-												value={config.hero.buttonText}
-												onChange={(e) =>
-													updateConfig("hero", { buttonText: e.target.value })
-												}
-											/>
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="heroButtonLink">Button Link</Label>
-											<Input
-												id="heroButtonLink"
-												value={config.hero.buttonLink}
-												onChange={(e) =>
-													updateConfig("hero", { buttonLink: e.target.value })
-												}
-											/>
-										</div>
+					{/* Hero Section */}
+					<TabsContent value="hero" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<CardTitle>Hero Section</CardTitle>
+								<CardDescription>
+									Configure the main banner of your home page
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-6">
+								{/* Basic Hero Settings */}
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="heroTitle">Title</Label>
+										<Input
+											id="heroTitle"
+											value={config.hero.title}
+											onChange={(e) =>
+												updateConfig("hero", { title: e.target.value })
+											}
+										/>
 									</div>
-								)}
-							</div>
-
-							{/* Background Images/Slider */}
-							<div className="space-y-4">
-								<div>
-									<h3 className="text-lg font-medium mb-2">Background Images</h3>
-									<p className="text-sm text-muted-foreground mb-4">
-										Upload multiple images to create a slideshow, or a single image for a static background.
-									</p>
+									<div className="space-y-2">
+										<Label htmlFor="heroSubtitle">Subtitle</Label>
+										<Input
+											id="heroSubtitle"
+											value={config.hero.subtitle}
+											onChange={(e) =>
+												updateConfig("hero", { subtitle: e.target.value })
+											}
+										/>
+									</div>
 								</div>
 
-								<ImageManager
-									images={heroSliderImages}
-									onImagesChange={setHeroSliderImages}
-									onImageUpload={(files) => handleSliderImageUpload('hero', files)}
-									onImageDelete={(imageId) => handleSliderImageDelete('hero', imageId)}
-									onImageReorder={(fromIndex, toIndex) => handleSliderImageReorder('hero', fromIndex, toIndex)}
-									maxImages={5}
-									loading={globalLoading}
-								/>
-							</div>
-						</CardContent>
-					</Card>
-				</TabsContent>
+								{/* Call-to-Action Button */}
+								<div className="space-y-4">
+									<div className="flex items-center space-x-2">
+										<Switch
+											id="heroShowButton"
+											checked={config.hero.showButton}
+											onCheckedChange={(checked) =>
+												updateConfig("hero", { showButton: checked })
+											}
+										/>
+										<Label htmlFor="heroShowButton">
+											Show Call-to-Action Button
+										</Label>
+									</div>
 
-
-				{/* About Section */}
-				<TabsContent value="about" className="space-y-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>About Section</CardTitle>
-							<CardDescription>
-								Configure the introduction section of your home page
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-6">
-							{/* Basic About Settings */}
-							<div className="space-y-4">
-								<div className="space-y-2">
-									<Label htmlFor="aboutTitle">Title</Label>
-									<Input
-										id="aboutTitle"
-										value={config.about.title}
-										onChange={(e) =>
-											updateConfig("about", { title: e.target.value })
-										}
-									/>
-								</div>
-
-								<div className="space-y-2">
-									<Label htmlFor="aboutContent">Content</Label>
-									<Textarea
-										id="aboutContent"
-										rows={4}
-										value={config.about.content}
-										onChange={(e) =>
-											updateConfig("about", { content: e.target.value })
-										}
-									/>
-								</div>
-							</div>
-
-							{/* Bullet Points */}
-							<div className="space-y-4">
-								<div className="flex items-center justify-between">
-									<Label>Bullet Points</Label>
-									<Button variant="outline" size="sm" onClick={addBulletPoint}>
-										<Plus className="h-4 w-4 mr-2" />
-										Add Point
-									</Button>
-								</div>
-								<div className="space-y-2">
-									{config.about.bulletPoints.map((point, index) => (
-										<div key={index} className="flex items-center space-x-2">
-											<Input
-												value={point}
-												onChange={(e) =>
-													updateBulletPoint(index, e.target.value)
-												}
-											/>
-											<Button
-												variant="ghost"
-												size="icon"
-												onClick={() => removeBulletPoint(index)}>
-												<Trash className="h-4 w-4 text-red-500" />
-											</Button>
+									{config.hero.showButton && (
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+											<div className="space-y-2">
+												<Label htmlFor="heroButtonText">Button Text</Label>
+												<Input
+													id="heroButtonText"
+													value={config.hero.buttonText}
+													onChange={(e) =>
+														updateConfig("hero", { buttonText: e.target.value })
+													}
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label htmlFor="heroButtonLink">Button Link</Label>
+												<Input
+													id="heroButtonLink"
+													value={config.hero.buttonLink}
+													onChange={(e) =>
+														updateConfig("hero", { buttonLink: e.target.value })
+													}
+												/>
+											</div>
 										</div>
-									))}
+									)}
 								</div>
-							</div>
 
-							{/* Images Toggle */}
-							<div className="flex items-center space-x-2">
-								<Switch
-									id="aboutShowImage"
-									checked={config.about.showImage}
-									onCheckedChange={(checked) =>
-										updateConfig("about", { showImage: checked })
-									}
-								/>
-								<Label htmlFor="aboutShowImage">Show Images</Label>
-							</div>
-
-							{/* Image Slider/Manager */}
-							{config.about.showImage && (
+								{/* Background Images/Slider */}
 								<div className="space-y-4">
 									<div>
-										<h3 className="text-lg font-medium mb-2">About Images</h3>
+										<h3 className="text-lg font-medium mb-2">Background Images</h3>
 										<p className="text-sm text-muted-foreground mb-4">
-											Upload multiple images to create a slideshow, or a single image for a static display.
+											Upload multiple images to create a slideshow, or a single image for a static background.
 										</p>
 									</div>
 
 									<ImageManager
-										images={aboutSliderImages}
-										onImagesChange={setAboutSliderImages}
-										onImageUpload={(files) => handleSliderImageUpload('about', files)}
-										onImageDelete={(imageId) => handleSliderImageDelete('about', imageId)}
-										onImageReorder={(fromIndex, toIndex) => handleSliderImageReorder('about', fromIndex, toIndex)}
+										images={heroSliderImages}
+										onImagesChange={setHeroSliderImages}
+										onImageUpload={(files) => handleSliderImageUpload('hero', files)}
+										onImageDelete={(imageId) => handleSliderImageDelete('hero', imageId)}
+										onImageReorder={(fromIndex, toIndex) => handleSliderImageReorder('hero', fromIndex, toIndex)}
 										maxImages={5}
 										loading={globalLoading}
 									/>
 								</div>
-							)}
-						</CardContent>
-					</Card>
-				</TabsContent>
+							</CardContent>
+						</Card>
+					</TabsContent>
 
 
-				{/* Features/Services Section */}
-				<TabsContent value="features" className="space-y-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>Services Section</CardTitle>
-							<CardDescription>
-								Configure the services offered by your gym
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="featuresTitle">Title</Label>
-									<Input
-										id="featuresTitle"
-										value={config.features.title}
-										onChange={(e) =>
-											updateConfig("features", { title: e.target.value })
-										}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="featuresSubtitle">Subtitle</Label>
-									<Input
-										id="featuresSubtitle"
-										value={config.features.subtitle}
-										onChange={(e) =>
-											updateConfig("features", { subtitle: e.target.value })
-										}
-									/>
-								</div>
-							</div>
-
-							<div className="space-y-2">
-								<div className="flex items-center justify-between">
-									<Label>Services</Label>
-									<Button variant="outline" size="sm" onClick={addFeature}>
-										<Plus className="h-4 w-4 mr-2" />
-										Add Service
-									</Button>
-								</div>
-
+					{/* About Section */}
+					<TabsContent value="about" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<CardTitle>About Section</CardTitle>
+								<CardDescription>
+									Configure the introduction section of your home page
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-6">
+								{/* Basic About Settings */}
 								<div className="space-y-4">
-									{config.features.features.map((feature, index) => (
-										<Card key={feature.id}>
-											<CardContent className="pt-4 space-y-4">
-												<div className="flex justify-between items-start">
-													<div className="space-y-2 flex-1">
-														<div className="space-y-2">
-															<Label htmlFor={`featureTitle-${feature.id}`}>
-																Title
-															</Label>
-															<Input
-																id={`featureTitle-${feature.id}`}
-																value={feature.title}
-																onChange={(e) =>
-																	updateFeature(index, "title", e.target.value)
-																}
-															/>
-														</div>
-														<div className="space-y-2">
-															<Label htmlFor={`featureDesc-${feature.id}`}>
-																Description
-															</Label>
-															<Textarea
-																id={`featureDesc-${feature.id}`}
-																value={feature.description}
-																onChange={(e) =>
-																	updateFeature(
-																		index,
-																		"description",
-																		e.target.value
-																	)
-																}
-															/>
-														</div>
-														<div className="space-y-2">
-															<Label htmlFor={`featureIcon-${feature.id}`}>
-																Icon
-															</Label>
-															<Select
-																value={feature.icon}
-																onValueChange={(value) =>
-																	updateFeature(index, "icon", value)
-																}>
-																<SelectTrigger id={`featureIcon-${feature.id}`}>
-																	<SelectValue placeholder="Select an icon" />
-																</SelectTrigger>
-																<SelectContent>
-																	<SelectItem value="dumbbell">
-																		Dumbbell
-																	</SelectItem>
-																	<SelectItem value="users">Group</SelectItem>
-																	<SelectItem value="apple">
-																		Nutrition
-																	</SelectItem>
-																	<SelectItem value="heart">Health</SelectItem>
-																	<SelectItem value="star">Star</SelectItem>
-																</SelectContent>
-															</Select>
-														</div>
-														<div className="flex gap-2">
-															<Button
-																onClick={() => saveFeature(feature)}
-																size="sm"
-																className="flex-1">
-																Save
-															</Button>
-														</div>
-													</div>
-													<Button
-														variant="ghost"
-														size="icon"
-														onClick={() => deleteFeature(feature.id)}
-														className="ml-2">
-														<Trash className="h-4 w-4 text-red-500" />
-													</Button>
-												</div>
-											</CardContent>
-										</Card>
-									))}
-								</div>
-							</div>
-						</CardContent>
-					</Card>
-				</TabsContent>
+									<div className="space-y-2">
+										<Label htmlFor="aboutTitle">Title</Label>
+										<Input
+											id="aboutTitle"
+											value={config.about.title}
+											onChange={(e) =>
+												updateConfig("about", { title: e.target.value })
+											}
+										/>
+									</div>
 
-				{/* Trainers Section */}
-				<TabsContent value="trainers" className="space-y-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>Trainers Section</CardTitle>
-							<CardDescription>
-								Configure the trainers section of your home page
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="trainersTitle">Title</Label>
-									<Input
-										id="trainersTitle"
-										value={config.trainers.title}
-										onChange={(e) =>
-											updateConfig("trainers", { title: e.target.value })
-										}
-									/>
+									<div className="space-y-2">
+										<Label htmlFor="aboutContent">Content</Label>
+										<Textarea
+											id="aboutContent"
+											rows={4}
+											value={config.about.content}
+											onChange={(e) =>
+												updateConfig("about", { content: e.target.value })
+											}
+										/>
+									</div>
 								</div>
-								<div className="space-y-2">
-									<Label htmlFor="trainersSubtitle">Subtitle</Label>
-									<Input
-										id="trainersSubtitle"
-										value={config.trainers.subtitle}
-										onChange={(e) =>
-											updateConfig("trainers", { subtitle: e.target.value })
-										}
-									/>
-								</div>
-							</div>
 
-							<div className="space-y-2">
-								<Label>Trainers to Display</Label>
+								{/* Bullet Points */}
 								<div className="space-y-4">
-									{config.trainers.trainers.map((trainer, index) => (
-										<Card key={trainer.id}>
-											<CardContent className="pt-4 space-y-4">
-												<div className="flex items-center space-x-4">
-													<div className="flex items-center space-x-2">
-														<Switch
-															id={`trainerVisible-${trainer.id}`}
-															checked={trainer.isAvailable}
-															onCheckedChange={(checked) => {
-																const updatedTrainers = [...config.trainers.trainers];
-																updatedTrainers[index] = { ...updatedTrainers[index], isAvailable: checked };
-																updateConfig("trainers", { trainers: updatedTrainers });
-															}}
-														/>
-														<Label htmlFor={`trainerVisible-${trainer.id}`}>
-															Show on Homepage
-														</Label>
-													</div>
-												</div>
-												<div className="flex items-center space-x-4">
-													<div className="relative w-16 h-16">
-														<img
-															src={trainer.profilePhotoUrl || "/placeholder.svg"}
-															alt={trainer.name}
-															className="rounded-full object-cover w-full h-full"
-														/>
-													</div>
-													<div className="flex-1">
-														<h3 className="font-semibold">{trainer.name}</h3>
-														<p className="text-sm text-foreground/70">{trainer.specializations}</p>
-														<p className="text-sm text-foreground/60 line-clamp-2">{trainer.bio}</p>
-													</div>
-												</div>
-											</CardContent>
-										</Card>
-									))}
-									{config.trainers.trainers.length === 0 && (
-										<div className="text-center py-8 text-foreground/50">
-											No trainers found. Add trainers in the Trainers management section first.
+									<div className="flex items-center justify-between">
+										<Label>Bullet Points</Label>
+										<Button variant="outline" size="sm" onClick={addBulletPoint}>
+											<Plus className="h-4 w-4 mr-2" />
+											Add Point
+										</Button>
+									</div>
+									<div className="space-y-2">
+										{config.about.bulletPoints.map((point, index) => (
+											<div key={index} className="flex items-center space-x-2">
+												<Input
+													value={point}
+													onChange={(e) =>
+														updateBulletPoint(index, e.target.value)
+													}
+												/>
+												<Button
+													variant="ghost"
+													size="icon"
+													onClick={() => removeBulletPoint(index)}>
+													<Trash className="h-4 w-4 text-red-500" />
+												</Button>
+											</div>
+										))}
+									</div>
+								</div>
+
+								{/* Images Toggle */}
+								<div className="flex items-center space-x-2">
+									<Switch
+										id="aboutShowImage"
+										checked={config.about.showImage}
+										onCheckedChange={(checked) =>
+											updateConfig("about", { showImage: checked })
+										}
+									/>
+									<Label htmlFor="aboutShowImage">Show Images</Label>
+								</div>
+
+								{/* Image Slider/Manager */}
+								{config.about.showImage && (
+									<div className="space-y-4">
+										<div>
+											<h3 className="text-lg font-medium mb-2">About Images</h3>
+											<p className="text-sm text-muted-foreground mb-4">
+												Upload multiple images to create a slideshow, or a single image for a static display.
+											</p>
 										</div>
-									)}
+
+										<ImageManager
+											images={aboutSliderImages}
+											onImagesChange={setAboutSliderImages}
+											onImageUpload={(files) => handleSliderImageUpload('about', files)}
+											onImageDelete={(imageId) => handleSliderImageDelete('about', imageId)}
+											onImageReorder={(fromIndex, toIndex) => handleSliderImageReorder('about', fromIndex, toIndex)}
+											maxImages={5}
+											loading={globalLoading}
+										/>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</TabsContent>
+
+
+					{/* Features/Services Section */}
+					<TabsContent value="features" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<CardTitle>Services Section</CardTitle>
+								<CardDescription>
+									Configure the services offered by your gym
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="featuresTitle">Title</Label>
+										<Input
+											id="featuresTitle"
+											value={config.features.title}
+											onChange={(e) =>
+												updateConfig("features", { title: e.target.value })
+											}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="featuresSubtitle">Subtitle</Label>
+										<Input
+											id="featuresSubtitle"
+											value={config.features.subtitle}
+											onChange={(e) =>
+												updateConfig("features", { subtitle: e.target.value })
+											}
+										/>
+									</div>
 								</div>
-							</div>
 
-							<div className="flex gap-2">
-								<Button
-									onClick={() => saveSection("trainers")}
-									className="flex-1">
-									Save Trainers Section
-								</Button>
-							</div>
-						</CardContent>
-					</Card>
-				</TabsContent>
-
-				{/* Testimonials Section */}
-				<TabsContent value="testimonials" className="space-y-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>Testimonials Section</CardTitle>
-							<CardDescription>
-								Configure member testimonials for your home page
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="space-y-2">
-									<Label htmlFor="testimonialsTitle">Title</Label>
-									<Input
-										id="testimonialsTitle"
-										value={config.testimonials.title}
-										onChange={(e) =>
-											updateConfig("testimonials", { title: e.target.value })
-										}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="testimonialsSubtitle">Subtitle</Label>
-									<Input
-										id="testimonialsSubtitle"
-										value={config.testimonials.subtitle}
-										onChange={(e) =>
-											updateConfig("testimonials", { subtitle: e.target.value })
-										}
-									/>
-								</div>
-							</div>
+									<div className="flex items-center justify-between">
+										<Label>Services</Label>
+										<Button variant="outline" size="sm" onClick={addFeature}>
+											<Plus className="h-4 w-4 mr-2" />
+											Add Service
+										</Button>
+									</div>
 
-							<div className="space-y-2">
-								<div className="flex items-center justify-between">
-									<Label>Testimonials</Label>
-									<Button variant="outline" size="sm" onClick={addTestimonial}>
-										<Plus className="h-4 w-4 mr-2" />
-										Add Testimonial
-									</Button>
-								</div>
-
-								<div className="space-y-4">
-									{config.testimonials.testimonials.map(
-										(testimonial, index) => (
-											<Card key={testimonial.id}>
+									<div className="space-y-4">
+										{config.features.features.map((feature, index) => (
+											<Card key={feature.id}>
 												<CardContent className="pt-4 space-y-4">
 													<div className="flex justify-between items-start">
-														<div className="space-y-4 flex-1">
-															<div className="flex items-center space-x-4">
-																<div className="relative w-16 h-16">
-																	<img
-																		src={
-																			testimonial.image || "/placeholder.svg"
-																		}
-																		alt={testimonial.name}
-																		className="rounded-full object-cover w-full h-full"
-																		onError={(e) => {
-																			const target =
-																				e.target as HTMLImageElement;
-																			if (target.src !== "/placeholder.svg") {
-																				console.log(
-																					"Testimonial image failed to load:",
-																					target.src
-																				);
-																				target.src = "/placeholder.svg";
-																			}
-																		}}
-																		onLoad={() => {
-																			console.log(
-																				"Testimonial image loaded successfully:",
-																				testimonial.image
-																			);
-																		}}
-																	/>
-																	<Button
-																		variant="outline"
-																		size="icon"
-																		className="absolute -bottom-2 -right-2 h-6 w-6 rounded-full"
-																		onClick={() =>
-																			handleImageUpload(
-																				"testimonial",
-																				"image",
-																				testimonial.id
-																			)
-																		}>
-																		<Upload className="h-3 w-3" />
-																	</Button>
-																</div>
-																<div className="space-y-2 flex-1">
-																	<div className="space-y-2">
-																		<Label
-																			htmlFor={`testimonialName-${testimonial.id}`}>
-																			Name
-																		</Label>
-																		<Input
-																			id={`testimonialName-${testimonial.id}`}
-																			value={testimonial.name}
-																			onChange={(e) =>
-																				updateTestimonial(
-																					index,
-																					"name",
-																					e.target.value
-																				)
-																			}
-																		/>
-																	</div>
-																	<div className="space-y-2">
-																		<Label
-																			htmlFor={`testimonialRole-${testimonial.id}`}>
-																			Role/Title
-																		</Label>
-																		<Input
-																			id={`testimonialRole-${testimonial.id}`}
-																			value={testimonial.role}
-																			onChange={(e) =>
-																				updateTestimonial(
-																					index,
-																					"role",
-																					e.target.value
-																				)
-																			}
-																		/>
-																	</div>
-																</div>
+														<div className="space-y-2 flex-1">
+															<div className="space-y-2">
+																<Label htmlFor={`featureTitle-${feature.id}`}>
+																	Title
+																</Label>
+																<Input
+																	id={`featureTitle-${feature.id}`}
+																	value={feature.title}
+																	onChange={(e) =>
+																		updateFeature(index, "title", e.target.value)
+																	}
+																/>
 															</div>
 															<div className="space-y-2">
-																<Label
-																	htmlFor={`testimonialContent-${testimonial.id}`}>
-																	Testimonial
+																<Label htmlFor={`featureDesc-${feature.id}`}>
+																	Description
 																</Label>
 																<Textarea
-																	id={`testimonialContent-${testimonial.id}`}
-																	value={testimonial.content}
+																	id={`featureDesc-${feature.id}`}
+																	value={feature.description}
 																	onChange={(e) =>
-																		updateTestimonial(
+																		updateFeature(
 																			index,
-																			"content",
+																			"description",
 																			e.target.value
 																		)
 																	}
 																/>
 															</div>
+															<div className="space-y-2">
+																<Label htmlFor={`featureIcon-${feature.id}`}>
+																	Icon
+																</Label>
+																<Select
+																	value={feature.icon}
+																	onValueChange={(value) =>
+																		updateFeature(index, "icon", value)
+																	}>
+																	<SelectTrigger id={`featureIcon-${feature.id}`}>
+																		<SelectValue placeholder="Select an icon" />
+																	</SelectTrigger>
+																	<SelectContent>
+																		<SelectItem value="dumbbell">
+																			Dumbbell
+																		</SelectItem>
+																		<SelectItem value="users">Group</SelectItem>
+																		<SelectItem value="apple">
+																			Nutrition
+																		</SelectItem>
+																		<SelectItem value="heart">Health</SelectItem>
+																		<SelectItem value="star">Star</SelectItem>
+																	</SelectContent>
+																</Select>
+															</div>
 															<div className="flex gap-2">
 																<Button
-																	onClick={() => saveTestimonial(testimonial)}
+																	onClick={() => saveFeature(feature)}
 																	size="sm"
 																	className="flex-1">
 																	Save
@@ -2041,298 +1805,559 @@ export default function HomeConfigPage() {
 														<Button
 															variant="ghost"
 															size="icon"
-															onClick={() => deleteTestimonial(testimonial.id)}
+															onClick={() => deleteFeature(feature.id)}
 															className="ml-2">
 															<Trash className="h-4 w-4 text-red-500" />
 														</Button>
 													</div>
 												</CardContent>
 											</Card>
-										)
-									)}
+										))}
+									</div>
 								</div>
-							</div>
-						</CardContent>
-					</Card>
-				</TabsContent>
+							</CardContent>
+						</Card>
+					</TabsContent>
 
-				{/* Contact Section */}
-				<TabsContent value="contact" className="space-y-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>Contact Section</CardTitle>
-							<CardDescription>
-								Configure contact information for your gym
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="contactTitle">Title</Label>
-									<Input
-										id="contactTitle"
-										value={config.contact.title}
-										onChange={(e) =>
-											updateConfig("contact", { title: e.target.value })
-										}
-									/>
+					{/* Trainers Section */}
+					<TabsContent value="trainers" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<CardTitle>Trainers Section</CardTitle>
+								<CardDescription>
+									Configure the trainers section of your home page
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="trainersTitle">Title</Label>
+										<Input
+											id="trainersTitle"
+											value={config.trainers.title}
+											onChange={(e) =>
+												updateConfig("trainers", { title: e.target.value })
+											}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="trainersSubtitle">Subtitle</Label>
+										<Input
+											id="trainersSubtitle"
+											value={config.trainers.subtitle}
+											onChange={(e) =>
+												updateConfig("trainers", { subtitle: e.target.value })
+											}
+										/>
+									</div>
 								</div>
-								<div className="space-y-2">
-									<Label htmlFor="contactSubtitle">Subtitle</Label>
-									<Input
-										id="contactSubtitle"
-										value={config.contact.subtitle}
-										onChange={(e) =>
-											updateConfig("contact", { subtitle: e.target.value })
-										}
-									/>
-								</div>
-							</div>
 
-							<div className="space-y-2">
-								<Label htmlFor="contactAddress">Address</Label>
-								<Input
-									id="contactAddress"
-									value={config.contact.address}
-									onChange={(e) =>
-										updateConfig("contact", { address: e.target.value })
-									}
-								/>
-							</div>
-
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="space-y-2">
-									<Label htmlFor="contactPhone">Phone</Label>
-									<PhoneInputField
-										id="contactPhone"
-										value={config.contact.phone}
-										onChange={(value) =>
-											updateConfig("contact", { phone: value || "" })
-										}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="contactEmail">Email</Label>
-									<Input
-										id="contactEmail"
-										value={config.contact.email}
-										onChange={(e) =>
-											updateConfig("contact", { email: e.target.value })
-										}
-									/>
-								</div>
-							</div>
-
-							<div className="flex items-center space-x-2">
-								<Switch
-									id="contactShowMap"
-									checked={config.contact.showMap}
-									onCheckedChange={(checked) =>
-										updateConfig("contact", { showMap: checked })
-									}
-								/>
-								<Label htmlFor="contactShowMap">Show Map</Label>
-							</div>
-
-							{config.contact.showMap && (
-								<div className="space-y-2">
-									<Label htmlFor="contactMapLocation">Map Location</Label>
-									<Input
-										id="contactMapLocation"
-										value={config.contact.mapLocation}
-										onChange={(e) =>
-											updateConfig("contact", { mapLocation: e.target.value })
-										}
-										placeholder="Enter address or place name (e.g., 123 Main St, New York, NY)"
-									/>
-									<div className="border rounded-md overflow-hidden">
-										{config.contact.mapLocation ? (
-											<iframe
-												width="100%"
-												height="200"
-												style={{ border: 0 }}
-												loading="lazy"
-												allowFullScreen
-												referrerPolicy="no-referrer-when-downgrade"
-												src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY'}&q=${encodeURIComponent(config.contact.mapLocation)}`}
-											/>
-										) : (
-											<div className="h-48 bg-gray-100 flex items-center justify-center">
-												<div className="text-center">
-													<p className="text-sm text-gray-500">
-														Enter a location above to see the map
-													</p>
-													<p className="text-xs text-gray-400 mt-1">
-														Example: "123 Main St, New York, NY" or "Central Park"
-													</p>
-												</div>
+									<Label>Trainers to Display</Label>
+									<div className="space-y-4">
+										{config.trainers.trainers.map((trainer, index) => (
+											<Card key={trainer.id}>
+												<CardContent className="pt-4 space-y-4">
+													<div className="flex items-center space-x-4">
+														<div className="flex items-center space-x-2">
+															<Switch
+																id={`trainerVisible-${trainer.id}`}
+																checked={trainer.isAvailable}
+																onCheckedChange={(checked) => {
+																	const updatedTrainers = [...config.trainers.trainers];
+																	updatedTrainers[index] = { ...updatedTrainers[index], isAvailable: checked };
+																	updateConfig("trainers", { trainers: updatedTrainers });
+																}}
+															/>
+															<Label htmlFor={`trainerVisible-${trainer.id}`}>
+																Show on Homepage
+															</Label>
+														</div>
+													</div>
+													<div className="flex items-center space-x-4">
+														<div className="relative w-16 h-16">
+															<img
+																src={trainer.profilePhotoUrl || "/placeholder.svg"}
+																alt={trainer.name}
+																className="rounded-full object-cover w-full h-full"
+															/>
+														</div>
+														<div className="flex-1">
+															<h3 className="font-semibold">{trainer.name}</h3>
+															<p className="text-sm text-foreground/70">{trainer.specializations}</p>
+															<p className="text-sm text-foreground/60 line-clamp-2">{trainer.bio}</p>
+														</div>
+													</div>
+												</CardContent>
+											</Card>
+										))}
+										{config.trainers.trainers.length === 0 && (
+											<div className="text-center py-8 text-foreground/50">
+												No trainers found. Add trainers in the Trainers management section first.
 											</div>
 										)}
 									</div>
-									{config.contact.mapLocation && !process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-										<div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-											<p className="text-sm text-yellow-800">
-												<strong>Note:</strong> To display the map, you need to set up a Google Maps API key.
-												Add <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to your environment variables.
-											</p>
-										</div>
-									)}
 								</div>
-							)}
-						</CardContent>
-					</Card>
-				</TabsContent>
 
-				{/* Footer Section */}
-				<TabsContent value="footer" className="space-y-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>Footer Section</CardTitle>
-							<CardDescription>
-								Configure the footer of your home page
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="footerCompanyName">Company Name</Label>
-									<Input
-										id="footerCompanyName"
-										value={config.footer.companyName}
-										onChange={(e) =>
-											updateConfig("footer", { companyName: e.target.value })
-										}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="footerTagline">Tagline</Label>
-									<Input
-										id="footerTagline"
-										value={config.footer.tagline}
-										onChange={(e) =>
-											updateConfig("footer", { tagline: e.target.value })
-										}
-									/>
-								</div>
-							</div>
-
-							{/* <div className="space-y-2">
-								<div className="flex items-center justify-between">
-									<Label>Quick Links</Label>
-									<Button variant="outline" size="sm" onClick={addQuickLink}>
-										<Plus className="h-4 w-4 mr-2" />
-										Add Link
+								<div className="flex gap-2">
+									<Button
+										onClick={() => saveSection("trainers")}
+										className="flex-1">
+										Save Trainers Section
 									</Button>
 								</div>
+							</CardContent>
+						</Card>
+					</TabsContent>
+
+					{/* Testimonials Section */}
+					<TabsContent value="testimonials" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<CardTitle>Testimonials Section</CardTitle>
+								<CardDescription>
+									Configure member testimonials for your home page
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="testimonialsTitle">Title</Label>
+										<Input
+											id="testimonialsTitle"
+											value={config.testimonials.title}
+											onChange={(e) =>
+												updateConfig("testimonials", { title: e.target.value })
+											}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="testimonialsSubtitle">Subtitle</Label>
+										<Input
+											id="testimonialsSubtitle"
+											value={config.testimonials.subtitle}
+											onChange={(e) =>
+												updateConfig("testimonials", { subtitle: e.target.value })
+											}
+										/>
+									</div>
+								</div>
+
 								<div className="space-y-2">
-									{config.footer.quickLinks.map((link, index) => (
-										<div key={index} className="flex items-center space-x-2">
-											<Input
-												value={link}
-												onChange={(e) => updateQuickLink(index, e.target.value)}
-												placeholder="Link text"
-											/>
-											<Button
-												variant="ghost"
-												size="icon"
-												onClick={() => removeQuickLink(index)}>
-												<Trash className="h-4 w-4 text-red-500" />
-											</Button>
+									<div className="flex items-center justify-between">
+										<Label>Testimonials</Label>
+										<Button variant="outline" size="sm" onClick={addTestimonial}>
+											<Plus className="h-4 w-4 mr-2" />
+											Add Testimonial
+										</Button>
+									</div>
+
+									<div className="space-y-4">
+										{config.testimonials.testimonials.map(
+											(testimonial, index) => (
+												<Card key={testimonial.id}>
+													<CardContent className="pt-4 space-y-4">
+														<div className="flex justify-between items-start">
+															<div className="space-y-4 flex-1">
+																<div className="flex items-center space-x-4">
+																	<div className="relative w-16 h-16">
+																		<img
+																			src={
+																				testimonial.image || "/placeholder.svg"
+																			}
+																			alt={testimonial.name}
+																			className="rounded-full object-cover w-full h-full"
+																			onError={(e) => {
+																				const target =
+																					e.target as HTMLImageElement;
+																				if (target.src !== "/placeholder.svg") {
+																					console.log(
+																						"Testimonial image failed to load:",
+																						target.src
+																					);
+																					target.src = "/placeholder.svg";
+																				}
+																			}}
+																			onLoad={() => {
+																				console.log(
+																					"Testimonial image loaded successfully:",
+																					testimonial.image
+																				);
+																			}}
+																		/>
+																		<Button
+																			variant="outline"
+																			size="icon"
+																			className="absolute -bottom-2 -right-2 h-6 w-6 rounded-full"
+																			onClick={() =>
+																				handleImageUpload(
+																					"testimonial",
+																					"image",
+																					testimonial.id
+																				)
+																			}>
+																			<Upload className="h-3 w-3" />
+																		</Button>
+																	</div>
+																	<div className="space-y-2 flex-1">
+																		<div className="space-y-2">
+																			<Label
+																				htmlFor={`testimonialName-${testimonial.id}`}>
+																				Name
+																			</Label>
+																			<Input
+																				id={`testimonialName-${testimonial.id}`}
+																				value={testimonial.name}
+																				onChange={(e) =>
+																					updateTestimonial(
+																						index,
+																						"name",
+																						e.target.value
+																					)
+																				}
+																			/>
+																		</div>
+																		<div className="space-y-2">
+																			<Label
+																				htmlFor={`testimonialRole-${testimonial.id}`}>
+																				Role/Title
+																			</Label>
+																			<Input
+																				id={`testimonialRole-${testimonial.id}`}
+																				value={testimonial.role}
+																				onChange={(e) =>
+																					updateTestimonial(
+																						index,
+																						"role",
+																						e.target.value
+																					)
+																				}
+																			/>
+																		</div>
+																	</div>
+																</div>
+																<div className="space-y-2">
+																	<Label
+																		htmlFor={`testimonialContent-${testimonial.id}`}>
+																		Testimonial
+																	</Label>
+																	<Textarea
+																		id={`testimonialContent-${testimonial.id}`}
+																		value={testimonial.content}
+																		onChange={(e) =>
+																			updateTestimonial(
+																				index,
+																				"content",
+																				e.target.value
+																			)
+																		}
+																	/>
+																</div>
+																<div className="flex gap-2">
+																	<Button
+																		onClick={() => saveTestimonial(testimonial)}
+																		size="sm"
+																		className="flex-1">
+																		Save
+																	</Button>
+																</div>
+															</div>
+															<Button
+																variant="ghost"
+																size="icon"
+																onClick={() => deleteTestimonial(testimonial.id)}
+																className="ml-2">
+																<Trash className="h-4 w-4 text-red-500" />
+															</Button>
+														</div>
+													</CardContent>
+												</Card>
+											)
+										)}
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					</TabsContent>
+
+					{/* Contact Section */}
+					<TabsContent value="contact" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<CardTitle>Contact Section</CardTitle>
+								<CardDescription>
+									Configure contact information for your gym
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="contactTitle">Title</Label>
+										<Input
+											id="contactTitle"
+											value={config.contact.title}
+											onChange={(e) =>
+												updateConfig("contact", { title: e.target.value })
+											}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="contactSubtitle">Subtitle</Label>
+										<Input
+											id="contactSubtitle"
+											value={config.contact.subtitle}
+											onChange={(e) =>
+												updateConfig("contact", { subtitle: e.target.value })
+											}
+										/>
+									</div>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="contactAddress">Address</Label>
+									<Input
+										id="contactAddress"
+										value={config.contact.address}
+										onChange={(e) =>
+											updateConfig("contact", { address: e.target.value })
+										}
+									/>
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div className="space-y-2">
+										<Label htmlFor="contactPhone">Phone</Label>
+										<PhoneInputField
+											id="contactPhone"
+											value={config.contact.phone}
+											onChange={(value) =>
+												updateConfig("contact", { phone: value || "" })
+											}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="contactEmail">Email</Label>
+										<Input
+											id="contactEmail"
+											value={config.contact.email}
+											onChange={(e) =>
+												updateConfig("contact", { email: e.target.value })
+											}
+										/>
+									</div>
+								</div>
+
+								<div className="flex items-center space-x-2">
+									<Switch
+										id="contactShowMap"
+										checked={config.contact.showMap}
+										onCheckedChange={(checked) =>
+											updateConfig("contact", { showMap: checked })
+										}
+									/>
+									<Label htmlFor="contactShowMap">Show Map</Label>
+								</div>
+
+								{config.contact.showMap && (
+									<div className="space-y-2">
+										<Label htmlFor="contactMapLocation">Map Location</Label>
+										<Input
+											id="contactMapLocation"
+											value={config.contact.mapLocation}
+											onChange={(e) =>
+												updateConfig("contact", { mapLocation: e.target.value })
+											}
+											placeholder="Enter address or place name (e.g., 123 Main St, New York, NY)"
+										/>
+										<div className="border rounded-md overflow-hidden">
+											{config.contact.mapLocation ? (
+												<iframe
+													width="100%"
+													height="200"
+													style={{ border: 0 }}
+													loading="lazy"
+													allowFullScreen
+													referrerPolicy="no-referrer-when-downgrade"
+													src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY'}&q=${encodeURIComponent(config.contact.mapLocation)}`}
+												/>
+											) : (
+												<div className="h-48 bg-gray-100 flex items-center justify-center">
+													<div className="text-center">
+														<p className="text-sm text-gray-500">
+															Enter a location above to see the map
+														</p>
+														<p className="text-xs text-gray-400 mt-1">
+															Example: "123 Main St, New York, NY" or "Central Park"
+														</p>
+													</div>
+												</div>
+											)}
 										</div>
-									))}
-								</div>
-							</div> */}
+										{config.contact.mapLocation && !process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+											<div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+												<p className="text-sm text-yellow-800">
+													<strong>Note:</strong> To display the map, you need to set up a Google Maps API key.
+													Add <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to your environment variables.
+												</p>
+											</div>
+										)}
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</TabsContent>
 
-							<div className="flex items-center space-x-2">
-								<Switch
-									id="footerShowSocial"
-									checked={config.footer.showSocial}
-									onCheckedChange={(checked) =>
-										updateConfig("footer", { showSocial: checked })
-									}
-								/>
-								<Label htmlFor="footerShowSocial">
-									Show Social Media Links
-								</Label>
-							</div>
-
-							{config.footer.showSocial && (
-								<div className="space-y-4">
+					{/* Footer Section */}
+					<TabsContent value="footer" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<CardTitle>Footer Section</CardTitle>
+								<CardDescription>
+									Configure the footer of your home page
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 									<div className="space-y-2">
-										<Label htmlFor="footerFacebook">Facebook URL</Label>
+										<Label htmlFor="footerCompanyName">Company Name</Label>
 										<Input
-											id="footerFacebook"
-											value={config.footer.socialLinks.facebook}
+											id="footerCompanyName"
+											value={config.footer.companyName}
 											onChange={(e) =>
-												updateConfig("footer", {
-													socialLinks: {
-														...config.footer.socialLinks,
-														facebook: e.target.value,
-													},
-												})
+												updateConfig("footer", { companyName: e.target.value })
 											}
 										/>
 									</div>
 									<div className="space-y-2">
-										<Label htmlFor="footerInstagram">Instagram URL</Label>
+										<Label htmlFor="footerTagline">Tagline</Label>
 										<Input
-											id="footerInstagram"
-											value={config.footer.socialLinks.instagram}
+											id="footerTagline"
+											value={config.footer.tagline}
 											onChange={(e) =>
-												updateConfig("footer", {
-													socialLinks: {
-														...config.footer.socialLinks,
-														instagram: e.target.value,
-													},
-												})
-											}
-										/>
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="footerTwitter">Twitter URL</Label>
-										<Input
-											id="footerTwitter"
-											value={config.footer.socialLinks.twitter}
-											onChange={(e) =>
-												updateConfig("footer", {
-													socialLinks: {
-														...config.footer.socialLinks,
-														twitter: e.target.value,
-													},
-												})
-											}
-										/>
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="footerYoutube">YouTube URL</Label>
-										<Input
-											id="footerYoutube"
-											value={config.footer.socialLinks.youtube}
-											onChange={(e) =>
-												updateConfig("footer", {
-													socialLinks: {
-														...config.footer.socialLinks,
-														youtube: e.target.value,
-													},
-												})
+												updateConfig("footer", { tagline: e.target.value })
 											}
 										/>
 									</div>
 								</div>
-							)}
-						</CardContent>
-					</Card>
-				</TabsContent>
-			</Tabs>
 
-			{/* Hidden file input for image uploads */}
-			<input
-				type="file"
-				ref={fileInputRef}
-				className="hidden"
-				accept="image/*"
-				onChange={handleFileSelect}
-			/>
+								{/* <div className="space-y-2">
+									<div className="flex items-center justify-between">
+										<Label>Quick Links</Label>
+										<Button variant="outline" size="sm" onClick={addQuickLink}>
+											<Plus className="h-4 w-4 mr-2" />
+											Add Link
+										</Button>
+									</div>
+									<div className="space-y-2">
+										{config.footer.quickLinks.map((link, index) => (
+											<div key={index} className="flex items-center space-x-2">
+												<Input
+													value={link}
+													onChange={(e) => updateQuickLink(index, e.target.value)}
+													placeholder="Link text"
+												/>
+												<Button
+													variant="ghost"
+													size="icon"
+													onClick={() => removeQuickLink(index)}>
+													<Trash className="h-4 w-4 text-red-500" />
+												</Button>
+											</div>
+										))}
+									</div>
+								</div> */}
+
+								<div className="flex items-center space-x-2">
+									<Switch
+										id="footerShowSocial"
+										checked={config.footer.showSocial}
+										onCheckedChange={(checked) =>
+											updateConfig("footer", { showSocial: checked })
+										}
+									/>
+									<Label htmlFor="footerShowSocial">
+										Show Social Media Links
+									</Label>
+								</div>
+
+								{config.footer.showSocial && (
+									<div className="space-y-4">
+										<div className="space-y-2">
+											<Label htmlFor="footerFacebook">Facebook URL</Label>
+											<Input
+												id="footerFacebook"
+												value={config.footer.socialLinks.facebook}
+												onChange={(e) =>
+													updateConfig("footer", {
+														socialLinks: {
+															...config.footer.socialLinks,
+															facebook: e.target.value,
+														},
+													})
+												}
+											/>
+										</div>
+										<div className="space-y-2">
+											<Label htmlFor="footerInstagram">Instagram URL</Label>
+											<Input
+												id="footerInstagram"
+												value={config.footer.socialLinks.instagram}
+												onChange={(e) =>
+													updateConfig("footer", {
+														socialLinks: {
+															...config.footer.socialLinks,
+															instagram: e.target.value,
+														},
+													})
+												}
+											/>
+										</div>
+										<div className="space-y-2">
+											<Label htmlFor="footerTwitter">Twitter URL</Label>
+											<Input
+												id="footerTwitter"
+												value={config.footer.socialLinks.twitter}
+												onChange={(e) =>
+													updateConfig("footer", {
+														socialLinks: {
+															...config.footer.socialLinks,
+															twitter: e.target.value,
+														},
+													})
+												}
+											/>
+										</div>
+										<div className="space-y-2">
+											<Label htmlFor="footerYoutube">YouTube URL</Label>
+											<Input
+												id="footerYoutube"
+												value={config.footer.socialLinks.youtube}
+												onChange={(e) =>
+													updateConfig("footer", {
+														socialLinks: {
+															...config.footer.socialLinks,
+															youtube: e.target.value,
+														},
+													})
+												}
+											/>
+										</div>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</TabsContent>
+				</Tabs>
+
+				{/* Hidden file input for image uploads */}
+				<input
+					type="file"
+					ref={fileInputRef}
+					className="hidden"
+					accept="image/*"
+					onChange={handleFileSelect}
+				/>
+			</div>
 		</div>
 	);
 }

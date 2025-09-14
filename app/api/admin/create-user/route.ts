@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, password, userData } = body
+    const { email, password,phone, userData } = body
 
-    if (!email || !password) {
+    if (!password || (!email && !phone)) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     // Create user with admin client
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
+      phone,
       password,
       email_confirm: true,
       user_metadata: userData || {}
@@ -47,6 +48,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    console.log('Auth data:', authData)
 
     return NextResponse.json({ 
       success: true, 

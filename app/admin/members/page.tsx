@@ -32,18 +32,14 @@ import { StatusFilter } from "@/components/ui/status-filter";
 import { normalizeStatus, isActiveStatus } from "@/types/status";
 import { createClient } from "@/utils/supabase/client";
 import {
-	ArrowLeft,
 	Search,
 	MoreHorizontal,
-	UserPlus,
 	Edit,
 	Package,
-	BarChart3,
 	ChevronLeft,
 	ChevronRight,
 	Users,
 	UserCheck,
-	UserX,
 	Loader2,
 	Trash2,
 	Ban,
@@ -58,6 +54,8 @@ import {
 	DialogTitle,
 	DialogFooter,
 } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/page-header";
+import { useTheme } from "@/components/theme-provider";
 
 // Member and Profile interfaces based on DB schema
 interface Profile {
@@ -150,6 +148,8 @@ export default function MembersPage() {
 	const [disableDialogOpen, setDisableDialogOpen] = useState<string | null>(
 		null
 	);
+	const { theme, setTheme } = useTheme();
+
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
 	const [actionLoading, setActionLoading] = useState(false);
 	const [selectedMember, setSelectedMember] = useState<MemberDisplay | null>(
@@ -761,480 +761,464 @@ export default function MembersPage() {
 	};
 
 	return (
-		<div className="container mx-auto max-w-7xl py-6 space-y-6">
-			{/* Header */}
-			<div className="relative mb-8">
-				<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
-				<div className="flex items-center justify-between gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
-					<div className="flex items-center gap-6">
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={() => router.push("/admin")}
-							className="mr-2"
-							aria-label="Go back">
-							<ArrowLeft className="h-5 w-5" />
-						</Button>
-						<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
-							<Users className="w-10 h-10 text-primary" />
-						</div>
-						<div>
-							<div className="font-bold text-2xl flex items-center gap-2">
-								Members Management
-							</div>
-							<div className="text-muted-foreground text-sm">
-								Manage gym members, view profiles, and handle package requests
-							</div>
-						</div>
-					</div>
-					<Button asChild>
-						<Link href="/admin/members/new">
-							<UserPlus className="mr-2 h-4 w-4" />
-							Add Member
-						</Link>
-					</Button>
-				</div>
-			</div>
+		<div className="min-h-screen bg-background">
+			{/* Modern Header */}
+			<PageHeader
+				title="Members Management"
+				subtitle="Manage gym members, view profiles, and handle package requests"
+				icon={Users}
+				hasAddButton={true}
+				addLink="/admin/members/new"
+			/>
 
-			{/* Tabs */}
-			<div className="flex space-x-4 border-b">
-				<button
-					onClick={() => setActiveTab("members")}
-					className={`pb-2 px-1 border-b-2 font-medium text-sm ${
-						activeTab === "members"
-							? "border-primary text-primary"
-							: "border-transparent text-muted-foreground hover:text-foreground"
-					}`}>
-					Members ({members.length})
-				</button>
-				<button
-					onClick={() => setActiveTab("requests")}
-					className={`pb-2 px-1 border-b-2 font-medium text-sm ${
-						activeTab === "requests"
-							? "border-primary text-primary"
-							: "border-transparent text-muted-foreground hover:text-foreground"
-					}`}>
-					Package Requests (
-					{packageRequests.filter((r) => r.status === "pending").length})
-				</button>
-			</div>
-
-			{/* Members Tab */}
-			{activeTab === "members" && (
-				<>
-					{/* Search and Filters */}
-					<div className="flex items-center justify-between">
-						<div className="flex items-center space-x-4">
-							<div className="relative">
-								<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-								<Input
-									placeholder="Search members by name, email, or phone..."
-									value={searchTerm}
-									onChange={(e) => setSearchTerm(e.target.value)}
-									className="max-w-sm pl-10"
-								/>
-							</div>
-							<StatusFilter
-								value={statusFilter}
-								onValueChange={setStatusFilter}
-								className="w-[180px]"
-								disabled={loading}
-							/>
-						</div>
+			{/* Main Content with top padding to account for fixed header */}
+			<div className="pt-0">
+				<div className="container mx-auto max-w-7xl py-6 space-y-6 px-4">
+					{/* Tabs */}
+					<div className="flex space-x-4 border-b">
+						<button
+							onClick={() => setActiveTab("members")}
+							className={`pb-2 px-1 border-b-2 font-medium text-sm ${
+								activeTab === "members"
+									? "border-primary text-primary"
+									: "border-transparent text-muted-foreground hover:text-foreground"
+							}`}>
+							Members ({members.length})
+						</button>
+						<button
+							onClick={() => setActiveTab("requests")}
+							className={`pb-2 px-1 border-b-2 font-medium text-sm ${
+								activeTab === "requests"
+									? "border-primary text-primary"
+									: "border-transparent text-muted-foreground hover:text-foreground"
+							}`}>
+							Package Requests (
+							{packageRequests.filter((r) => r.status === "pending").length})
+						</button>
 					</div>
 
-					{/* Members Table */}
-					<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Users className="h-5 w-5" />
-								Members
-							</CardTitle>
-							<CardDescription>
-								{filteredMembers.length} member
-								{filteredMembers.length !== 1 ? "s" : ""} found
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{loading ? (
-								<div className="flex items-center justify-center h-32">
-									<p className="text-muted-foreground">Loading members...</p>
+					{/* Members Tab */}
+					{activeTab === "members" && (
+						<>
+							{/* Search and Filters */}
+							<div className="flex items-center justify-between">
+								<div className="flex items-center space-x-4">
+									<div className="relative">
+										<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+										<Input
+											placeholder="Search members by name, email, or phone..."
+											value={searchTerm}
+											onChange={(e) => setSearchTerm(e.target.value)}
+											className="max-w-sm pl-10"
+										/>
+									</div>
+									<StatusFilter
+										value={statusFilter}
+										onValueChange={setStatusFilter}
+										className="w-[180px]"
+										disabled={loading}
+									/>
 								</div>
-							) : (
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>Member</TableHead>
-											<TableHead>Contact</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead>Join Date</TableHead>
-											<TableHead>Packages</TableHead>
-											<TableHead>Package Requests</TableHead>
-											<TableHead>Actions</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{paginatedMembers.map(
-											(member) => (
-												console.log(member),
-												(
-													<TableRow key={member.id}>
-														<TableCell>
-															<div className="flex items-center space-x-3">
-																<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-																	{member.profilePhoto ? (
-																		<img
-																			src={member.profilePhoto}
-																			alt={member.name}
-																			className="w-10 h-10 rounded-full object-cover"
-																		/>
+							</div>
+
+							{/* Members Table */}
+							<Card className="border border-border/50 shadow-sm mb-6">
+								<CardHeader>
+									<CardTitle className="flex items-center gap-2">
+										<Users className="h-5 w-5" />
+										Members
+									</CardTitle>
+									<CardDescription>
+										{filteredMembers.length} member
+										{filteredMembers.length !== 1 ? "s" : ""} found
+									</CardDescription>
+								</CardHeader>
+								<CardContent>
+									{loading ? (
+										<div className="flex items-center justify-center h-32">
+											<p className="text-muted-foreground">Loading members...</p>
+										</div>
+									) : (
+										<Table>
+											<TableHeader>
+												<TableRow>
+													<TableHead>Member</TableHead>
+													<TableHead>Contact</TableHead>
+													<TableHead>Status</TableHead>
+													<TableHead>Join Date</TableHead>
+													<TableHead>Packages</TableHead>
+													<TableHead>Package Requests</TableHead>
+													<TableHead>Actions</TableHead>
+												</TableRow>
+											</TableHeader>
+											<TableBody>
+												{paginatedMembers.map(
+													(member) => (
+														console.log(member),
+														(
+															<TableRow key={member.id}>
+																<TableCell>
+																	<div className="flex items-center space-x-3">
+																		<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+																			{member.profilePhoto ? (
+																				<img
+																					src={member.profilePhoto}
+																					alt={member.name}
+																					className="w-10 h-10 rounded-full object-cover"
+																				/>
+																			) : (
+																				<span className="text-sm font-medium">
+																					{member.name.charAt(0).toUpperCase()}
+																				</span>
+																			)}
+																		</div>
+																		<div>
+																			<div className="font-medium">
+																				{member.name}
+																			</div>
+																			<div className="text-sm text-muted-foreground">
+																				{member.memberNumber || "No member number"}
+																			</div>
+																		</div>
+																	</div>
+																</TableCell>
+																<TableCell>
+																	<div>
+																		<div className="text-sm">{member.email}</div>
+																		<div className="text-sm text-muted-foreground">
+																			{member.phone}
+																		</div>
+																	</div>
+																</TableCell>
+																<TableCell>
+																	<TableStatusBadge status={member.status} />
+																</TableCell>
+																<TableCell>{member.joinDate}</TableCell>
+																<TableCell>
+																	{member.packages.length > 0 ? (
+																		<div className="flex flex-wrap gap-1">
+																			{member.packages.map((pkg, index) => (
+																				<Badge
+																					key={index}
+																					variant="outline"
+																					className="text-xs">
+																					{pkg}
+																				</Badge>
+																			))}
+																		</div>
 																	) : (
-																		<span className="text-sm font-medium">
-																			{member.name.charAt(0).toUpperCase()}
+																		<span className="text-muted-foreground">
+																			No packages
 																		</span>
 																	)}
-																</div>
-																<div>
-																	<div className="font-medium">
-																		{member.name}
-																	</div>
-																	<div className="text-sm text-muted-foreground">
-																		{member.memberNumber || "No member number"}
-																	</div>
-																</div>
-															</div>
-														</TableCell>
-														<TableCell>
-															<div>
-																<div className="text-sm">{member.email}</div>
-																<div className="text-sm text-muted-foreground">
-																	{member.phone}
-																</div>
-															</div>
-														</TableCell>
-														<TableCell>
-															<TableStatusBadge status={member.status} />
-														</TableCell>
-														<TableCell>{member.joinDate}</TableCell>
-														<TableCell>
-															{member.packages.length > 0 ? (
-																<div className="flex flex-wrap gap-1">
-																	{member.packages.map((pkg, index) => (
-																		<Badge
-																			key={index}
-																			variant="outline"
-																			className="text-xs">
-																			{pkg}
+																</TableCell>
+																<TableCell>
+																	{member.packageRequests > 0 ? (
+																		<Badge variant="secondary">
+																			{member.packageRequests} request
+																			{member.packageRequests !== 1 ? "s" : ""}
 																		</Badge>
-																	))}
-																</div>
-															) : (
-																<span className="text-muted-foreground">
-																	No packages
-																</span>
-															)}
-														</TableCell>
-														<TableCell>
-															{member.packageRequests > 0 ? (
-																<Badge variant="secondary">
-																	{member.packageRequests} request
-																	{member.packageRequests !== 1 ? "s" : ""}
-																</Badge>
-															) : (
-																<span className="text-muted-foreground">
-																	None
-																</span>
-															)}
-														</TableCell>
-														<TableCell>
-															<DropdownMenu>
-																<DropdownMenuTrigger asChild>
-																	<Button
-																		variant="ghost"
-																		size="sm"
-																		disabled={loading}>
-																		<MoreHorizontal className="h-4 w-4" />
-																	</Button>
-																</DropdownMenuTrigger>
-																<DropdownMenuContent align="end">
-																	<DropdownMenuItem asChild>
-																		<Link
-																			href={`/admin/members/${member.id}/manage`}>
-																			<Edit className="mr-2 h-4 w-4" />
-																			Edit Member
-																		</Link>
-																	</DropdownMenuItem>
-																	{member.status === "inactive" ? (
-																		<DropdownMenuItem
-																			onClick={() => {
-																				setSelectedMember(member);
-																				setActivateDialogOpen(member.id);
-																			}}
-																			disabled={loading}>
-																			<UserCheck className="mr-2 h-4 w-4 text-green-600" />
-																			Activate Member
-																		</DropdownMenuItem>
 																	) : (
-																		<DropdownMenuItem
-																			onClick={() => {
-																				setSelectedMember(member);
-																				setDisableDialogOpen(member.id);
-																			}}
-																			disabled={
-																				loading || member.status === "Inactive"
-																			}>
-																			<Ban className="mr-2 h-4 w-4 text-yellow-600" />
-																			Disable Member
-																		</DropdownMenuItem>
+																		<span className="text-muted-foreground">
+																			None
+																		</span>
 																	)}
-																	<DropdownMenuItem
-																		onClick={() => {
-																			setSelectedMember(member);
-																			setDeleteDialogOpen(member.id);
-																		}}
-																		disabled={loading}>
-																		<Trash2 className="mr-2 h-4 w-4 text-red-600" />
-																		Delete Member
-																	</DropdownMenuItem>
-																</DropdownMenuContent>
-															</DropdownMenu>
-														</TableCell>
-													</TableRow>
-												)
-											)
-										)}
-									</TableBody>
-								</Table>
-							)}
-						</CardContent>
-					</Card>
-
-					{/* Pagination */}
-					{totalPages > 1 && (
-						<div className="flex items-center justify-between">
-							<div className="text-sm text-muted-foreground">
-								Showing {startIndex + 1} to{" "}
-								{Math.min(startIndex + itemsPerPage, filteredMembers.length)} of{" "}
-								{filteredMembers.length} members
-							</div>
-							<div className="flex items-center space-x-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setCurrentPage(currentPage - 1)}
-									disabled={currentPage === 1}>
-									<ChevronLeft className="h-4 w-4" />
-									Previous
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setCurrentPage(currentPage + 1)}
-									disabled={currentPage === totalPages}>
-									Next
-									<ChevronRight className="h-4 w-4" />
-								</Button>
-							</div>
-						</div>
-					)}
-				</>
-			)}
-
-			{/* Package Requests Tab */}
-			{activeTab === "requests" && (
-				<Card>
-					<CardHeader>
-						<CardTitle>Package Requests</CardTitle>
-						<CardDescription>
-							Manage member requests for new packages
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						{loading ? (
-							<div className="flex items-center justify-center h-32">
-								<p className="text-muted-foreground">
-									Loading package requests...
-								</p>
-							</div>
-						) : packageRequests.length === 0 ? (
-							<div className="text-center py-8">
-								<Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-								<p className="text-muted-foreground">
-									No package requests found
-								</p>
-							</div>
-						) : (
-							<div className="space-y-4">
-								{packageRequests.map((request) => (
-									<div
-										key={request.id}
-										className="p-4 border rounded-lg hover:bg-muted/50">
-										<div className="flex items-start justify-between">
-											<div className="flex-1">
-												<h4 className="font-medium">
-													{request.packages?.name} Package Request
-												</h4>
-												<p className="text-sm text-muted-foreground">
-													Requested by:{" "}
-													{request.members?.profiles?.full_name ||
-														"Unknown Member"}
-												</p>
-												<p className="text-sm text-muted-foreground">
-													Email:{" "}
-													{request.members?.profiles?.email || "No email"}
-												</p>
-												<p className="text-sm text-muted-foreground">
-													Requested on:{" "}
-													{new Date(request.requested_at).toLocaleDateString()}
-												</p>
-												<p className="text-sm text-muted-foreground">
-													Price: ${request.packages?.price}
-												</p>
-												<p className="text-sm text-muted-foreground">
-													Sessions: {request.packages?.session_count}
-												</p>
-												{request.notes && (
-													<p className="text-sm text-muted-foreground mt-2">
-														<strong>Notes:</strong> {request.notes}
-													</p>
+																</TableCell>
+																<TableCell>
+																	<DropdownMenu>
+																		<DropdownMenuTrigger asChild>
+																			<Button
+																				variant="ghost"
+																				size="sm"
+																				disabled={loading}>
+																				<MoreHorizontal className="h-4 w-4" />
+																			</Button>
+																		</DropdownMenuTrigger>
+																		<DropdownMenuContent align="end">
+																			<DropdownMenuItem asChild>
+																				<Link
+																					href={`/admin/members/${member.id}/manage`}>
+																					<Edit className="mr-2 h-4 w-4" />
+																					Edit Member
+																				</Link>
+																			</DropdownMenuItem>
+																			{member.status === "inactive" ? (
+																				<DropdownMenuItem
+																					onClick={() => {
+																						setSelectedMember(member);
+																						setActivateDialogOpen(member.id);
+																					}}
+																					disabled={loading}>
+																					<UserCheck className="mr-2 h-4 w-4 text-green-600" />
+																					Activate Member
+																				</DropdownMenuItem>
+																			) : (
+																				<DropdownMenuItem
+																					onClick={() => {
+																						setSelectedMember(member);
+																						setDisableDialogOpen(member.id);
+																					}}
+																					disabled={
+																						loading || member.status === "Inactive"
+																					}>
+																					<Ban className="mr-2 h-4 w-4 text-yellow-600" />
+																					Disable Member
+																				</DropdownMenuItem>
+																			)}
+																			<DropdownMenuItem
+																				onClick={() => {
+																					setSelectedMember(member);
+																					setDeleteDialogOpen(member.id);
+																				}}
+																				disabled={loading}>
+																				<Trash2 className="mr-2 h-4 w-4 text-red-600" />
+																				Delete Member
+																			</DropdownMenuItem>
+																		</DropdownMenuContent>
+																	</DropdownMenu>
+																</TableCell>
+															</TableRow>
+														)
+													)
 												)}
-											</div>
-											<div className="flex flex-col items-end gap-2">
-												{getStatusBadge(request.status)}
-												{request.status === "pending" && (
-													<div className="flex gap-2">
-														<Button
-															variant="outline"
-															size="sm"
-															onClick={() => handleApproveRequest(request.id)}
-															className="text-green-600 hover:text-green-700">
-															Approve
-														</Button>
-														<Button
-															variant="outline"
-															size="sm"
-															onClick={() => handleRejectRequest(request.id)}
-															className="text-red-600 hover:text-red-700">
-															Reject
-														</Button>
-													</div>
-												)}
-											</div>
-										</div>
+											</TableBody>
+										</Table>
+									)}
+								</CardContent>
+							</Card>
+
+							{/* Pagination */}
+							{totalPages > 1 && (
+								<div className="flex items-center justify-between">
+									<div className="text-sm text-muted-foreground">
+										Showing {startIndex + 1} to{" "}
+										{Math.min(startIndex + itemsPerPage, filteredMembers.length)} of{" "}
+										{filteredMembers.length} members
 									</div>
-								))}
-							</div>
-						)}
-					</CardContent>
-				</Card>
-			)}
-			{/* Disable Member Dialog */}
-			<Dialog
-				open={!!disableDialogOpen}
-				onOpenChange={(open) =>
-					setDisableDialogOpen(open ? disableDialogOpen : null)
-				}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Disable Member</DialogTitle>
-					</DialogHeader>
-					<p>
-						Are you sure you want to disable <b>{selectedMember?.name}</b>? This
-						will prevent them from logging in or booking sessions, but their
-						data will be retained.
-					</p>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setDisableDialogOpen(null)}
-							disabled={actionLoading}>
-							Cancel
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={() =>
-								selectedMember && handleDisableMember(selectedMember)
-							}
-							disabled={actionLoading}>
-							{actionLoading ? (
-								<Loader2 className="animate-spin w-4 h-4 mr-2" />
-							) : null}
-							Disable
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-			{/* Delete Member Dialog */}
-			<Dialog
-				open={!!deleteDialogOpen}
-				onOpenChange={(open) =>
-					setDeleteDialogOpen(open ? deleteDialogOpen : null)
-				}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Delete Member</DialogTitle>
-					</DialogHeader>
-					<p>
-						Are you sure you want to <b>permanently delete</b>{" "}
-						<b>{selectedMember?.name}</b>? This action cannot be undone and will
-						remove all their data.
-					</p>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setDeleteDialogOpen(null)}
-							disabled={actionLoading}>
-							Cancel
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={() =>
-								selectedMember && handleDeleteMember(selectedMember)
-							}
-							disabled={actionLoading}>
-							{actionLoading ? (
-								<Loader2 className="animate-spin w-4 h-4 mr-2" />
-							) : null}
-							Delete
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-			{/* Activate Member Dialog */}
-			<Dialog
-				open={!!activateDialogOpen}
-				onOpenChange={(open) =>
-					setActivateDialogOpen(open ? activateDialogOpen : null)
-				}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Activate Member</DialogTitle>
-					</DialogHeader>
-					<p>
-						Are you sure you want to activate <b>{selectedMember?.name}</b>?
-						This will allow them to log in and book sessions again.
-					</p>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setActivateDialogOpen(null)}
-							disabled={actionLoading}>
-							Cancel
-						</Button>
-						<Button
-							variant="default"
-							onClick={() =>
-								selectedMember && handleActivateMember(selectedMember)
-							}
-							disabled={actionLoading}>
-							{actionLoading ? (
-								<Loader2 className="animate-spin w-4 h-4 mr-2" />
-							) : null}
-							Activate
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+									<div className="flex items-center space-x-2">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => setCurrentPage(currentPage - 1)}
+											disabled={currentPage === 1}>
+											<ChevronLeft className="h-4 w-4" />
+											Previous
+										</Button>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => setCurrentPage(currentPage + 1)}
+											disabled={currentPage === totalPages}>
+											Next
+											<ChevronRight className="h-4 w-4" />
+										</Button>
+									</div>
+								</div>
+							)}
+						</>
+					)}
+
+					{/* Package Requests Tab */}
+					{activeTab === "requests" && (
+						<Card className="border border-border/50 shadow-sm">
+							<CardHeader>
+								<CardTitle>Package Requests</CardTitle>
+								<CardDescription>
+									Manage member requests for new packages
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								{loading ? (
+									<div className="flex items-center justify-center h-32">
+										<p className="text-muted-foreground">
+											Loading package requests...
+										</p>
+									</div>
+								) : packageRequests.length === 0 ? (
+									<div className="text-center py-8">
+										<Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+										<p className="text-muted-foreground">
+											No package requests found
+										</p>
+									</div>
+								) : (
+									<div className="space-y-4">
+										{packageRequests.map((request) => (
+											<div
+												key={request.id}
+												className="p-4 border rounded-lg hover:bg-muted/50">
+												<div className="flex items-start justify-between">
+													<div className="flex-1">
+														<h4 className="font-medium">
+															{request.packages?.name} Package Request
+														</h4>
+														<p className="text-sm text-muted-foreground">
+															Requested by:{" "}
+															{request.members?.profiles?.full_name ||
+																"Unknown Member"}
+														</p>
+														<p className="text-sm text-muted-foreground">
+															Email:{" "}
+															{request.members?.profiles?.email || "No email"}
+														</p>
+														<p className="text-sm text-muted-foreground">
+															Requested on:{" "}
+															{new Date(request.requested_at).toLocaleDateString()}
+														</p>
+														<p className="text-sm text-muted-foreground">
+															Price: ${request.packages?.price}
+														</p>
+														<p className="text-sm text-muted-foreground">
+															Sessions: {request.packages?.session_count}
+														</p>
+														{request.notes && (
+															<p className="text-sm text-muted-foreground mt-2">
+																<strong>Notes:</strong> {request.notes}
+															</p>
+														)}
+													</div>
+													<div className="flex flex-col items-end gap-2">
+														{getStatusBadge(request.status)}
+														{request.status === "pending" && (
+															<div className="flex gap-2">
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() => handleApproveRequest(request.id)}
+																	className="text-green-600 hover:text-green-700">
+																	Approve
+																</Button>
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() => handleRejectRequest(request.id)}
+																	className="text-red-600 hover:text-red-700">
+																	Reject
+																</Button>
+															</div>
+														)}
+													</div>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					)}
+
+					{/* All the existing dialogs remain the same */}
+					{/* Disable Member Dialog */}
+					<Dialog
+						open={!!disableDialogOpen}
+						onOpenChange={(open) =>
+							setDisableDialogOpen(open ? disableDialogOpen : null)
+						}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Disable Member</DialogTitle>
+							</DialogHeader>
+							<p>
+								Are you sure you want to disable <b>{selectedMember?.name}</b>? This
+								will prevent them from logging in or booking sessions, but their
+								data will be retained.
+							</p>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => setDisableDialogOpen(null)}
+									disabled={actionLoading}>
+									Cancel
+								</Button>
+								<Button
+									variant="destructive"
+									onClick={() =>
+										selectedMember && handleDisableMember(selectedMember)
+									}
+									disabled={actionLoading}>
+									{actionLoading ? (
+										<Loader2 className="animate-spin w-4 h-4 mr-2" />
+									) : null}
+									Disable
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+
+					{/* Delete Member Dialog */}
+					<Dialog
+						open={!!deleteDialogOpen}
+						onOpenChange={(open) =>
+							setDeleteDialogOpen(open ? deleteDialogOpen : null)
+						}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Delete Member</DialogTitle>
+							</DialogHeader>
+							<p>
+								Are you sure you want to <b>permanently delete</b>{" "}
+								<b>{selectedMember?.name}</b>? This action cannot be undone and will
+								remove all their data.
+							</p>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => setDeleteDialogOpen(null)}
+									disabled={actionLoading}>
+									Cancel
+								</Button>
+								<Button
+									variant="destructive"
+									onClick={() =>
+										selectedMember && handleDeleteMember(selectedMember)
+									}
+									disabled={actionLoading}>
+									{actionLoading ? (
+										<Loader2 className="animate-spin w-4 h-4 mr-2" />
+									) : null}
+									Delete
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+
+					{/* Activate Member Dialog */}
+					<Dialog
+						open={!!activateDialogOpen}
+						onOpenChange={(open) =>
+							setActivateDialogOpen(open ? activateDialogOpen : null)
+						}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Activate Member</DialogTitle>
+							</DialogHeader>
+							<p>
+								Are you sure you want to activate <b>{selectedMember?.name}</b>?
+								This will allow them to log in and book sessions again.
+							</p>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => setActivateDialogOpen(null)}
+									disabled={actionLoading}>
+									Cancel
+								</Button>
+								<Button
+									variant="default"
+									onClick={() =>
+										selectedMember && handleActivateMember(selectedMember)
+									}
+									disabled={actionLoading}>
+									{actionLoading ? (
+										<Loader2 className="animate-spin w-4 h-4 mr-2" />
+									) : null}
+									Activate
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				</div>
+			</div>
 		</div>
 	);
 }
