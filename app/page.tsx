@@ -14,6 +14,7 @@ import {
 	Youtube,
 	Mail,
 	Users,
+	Zap,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
@@ -25,6 +26,9 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { UserDropdown } from "@/components/ui/user-dropdown";
 import { ImageSlider } from "@/components/ui/image-slider";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 // Import WhatsApp icon
 const WhatsAppIcon = () => (
@@ -252,6 +256,22 @@ export default function Home() {
 		}
 	};
 
+	// Slick slider settings for mobile
+	const sliderSettings = {
+	dots: true,
+	infinite: true,
+	speed: 500,
+	slidesToShow: 1,
+	slidesToScroll: 1,
+	autoplay: true,
+	autoplaySpeed: 4000,
+	pauseOnHover: true,
+	arrows: false,
+	adaptiveHeight: true,
+	draggable: true,
+	swipeToSlide: true,
+};
+
 	// Remove blocking loading screen - let page render with defaults
 	// if (isLoading) {
 	// 	return (
@@ -291,7 +311,10 @@ export default function Home() {
 								<Link href="/login">Login</Link>
 							</Button>
 						)}
-						<Button asChild>
+						<Button 
+							asChild
+							className="bg-[#25D366] hover:bg-[#20BA5A] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
+						>
 							<a
 								href={homeConfig.hero.buttonLink}
 								target="_blank"
@@ -339,7 +362,11 @@ export default function Home() {
 							{homeConfig.hero.subtitle}
 						</p>
 						{homeConfig.hero.showButton && (
-							<Button size="lg" asChild className="shadow-lg">
+							<Button 
+								size="lg" 
+								asChild 
+								className="bg-[#25D366] hover:bg-[#20BA5A] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
+							>
 								<a
 									href={homeConfig.hero.buttonLink}
 									target="_blank"
@@ -354,27 +381,40 @@ export default function Home() {
 			</section>
 
 			{/* About Section */}
-			<section className="py-16 bg-background">
-				<div className="container mx-auto max-w-7xl px-4">
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+			<section className="py-20 bg-gradient-to-br from-primary/5 via-background to-primary/5 relative overflow-hidden">
+				{/* Background Elements */}
+				<div className="absolute top-0 right-1/4 w-72 h-72 bg-primary/5 rounded-full blur-3xl"></div>
+				<div className="absolute bottom-0 left-1/4 w-96 h-96 bg-primary/3 rounded-full blur-3xl"></div>
+				
+				<div className="container mx-auto max-w-7xl px-4 relative z-10">
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
 						{homeConfig.about.showImage && (
 							<div className="order-2 md:order-1">
 								{aboutSliderImages.length > 0 ? (
-									<ImageSlider
-										images={aboutSliderImages}
-										className="rounded-lg shadow-lg w-full h-64 md:h-80"
-										showControls={true}
-										showIndicators={true}
-										autoPlay={true}
-										interval={7000}
-									/>
+									<div className="relative group">
+										<div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-primary/10 rounded-2xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+										<ImageSlider
+											images={aboutSliderImages}
+											className="rounded-2xl shadow-2xl w-full h-64 md:h-80 relative z-10"
+											showControls={true}
+											showIndicators={true}
+											autoPlay={true}
+											interval={7000}
+										/>
+									</div>
 								) : (
-									<div className="rounded-lg shadow-lg w-full h-64 md:h-80 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
-										<div className="text-center text-muted-foreground">
-											<p className="text-lg font-medium mb-2">
-												No images available
-											</p>
-											<p className="text-sm">Add images in the admin panel</p>
+									<div className="relative group">
+										<div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-primary/10 rounded-2xl blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+										<div className="rounded-2xl shadow-2xl w-full h-64 md:h-80 bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center relative z-10 border border-border/50">
+											<div className="text-center text-muted-foreground">
+												<div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+													<Star className="h-8 w-8 text-primary" />
+												</div>
+												<p className="text-lg font-medium mb-2">
+													No images available
+												</p>
+												<p className="text-sm">Add images in the admin panel</p>
+											</div>
 										</div>
 									</div>
 								)}
@@ -384,46 +424,81 @@ export default function Home() {
 							className={`order-1 ${
 								homeConfig.about.showImage ? "md:order-2" : ""
 							}`}>
-							<h2 className="text-2xl md:text-3xl font-bold mb-4 text-primary">
-								{homeConfig.about.title}
-							</h2>
-							<p className="mb-6 text-foreground/80">
-								{homeConfig.about.content}
-							</p>
-							<ul className="space-y-2">
-								{homeConfig.about.bulletPoints.map((point, index) => (
-									<li key={index} className="flex items-center">
-										<span className="bg-primary/10 p-1 rounded-full mr-2">
-											<Star className="h-4 w-4 text-primary" />
-										</span>
-										{point}
-									</li>
-								))}
-							</ul>
+							<div className="max-w-2xl">
+								<div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full mb-6">
+									<Heart className="h-4 w-4 text-primary" />
+									<span className="text-sm font-medium text-primary">Our Mission</span>
+								</div>
+								<h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+									{homeConfig.about.title}
+								</h2>
+								<p className="text-lg text-foreground/80 leading-relaxed mb-8">
+									{homeConfig.about.content}
+								</p>
+								<div className="space-y-4">
+									{homeConfig.about.bulletPoints.map((point, index) => (
+										<div key={index} className="flex items-center group">
+											<div className="bg-gradient-to-br from-primary/20 to-primary/10 p-3 rounded-2xl mr-4 group-hover:scale-110 transition-transform duration-300">
+												<Star className="h-5 w-5 text-primary" />
+											</div>
+											<span className="text-foreground/80 font-medium group-hover:text-foreground transition-colors duration-300">
+												{point}
+											</span>
+										</div>
+									))}
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
 			</section>
 
 			{/* Services Section */}
-			<section className="py-16 bg-card/30">
-				<div className="container mx-auto max-w-7xl px-4 text-center">
-					<h2 className="text-2xl md:text-3xl font-bold mb-2 text-primary">
-						{homeConfig.features.title}
-					</h2>
-					<p className="mb-12 text-foreground/80">
-						{homeConfig.features.subtitle}
-					</p>
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-						{homeConfig.features.features.map((feature, index) => (
-							<div
-								key={feature.id || `feature-${index}`}
-								className="bg-card p-6 rounded-lg shadow-md">
-								<div className="bg-primary/10 p-3 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-									{renderIcon(feature.icon, "h-8 w-8 text-primary")}
+			<section className="py-20 bg-gradient-to-br from-primary/5 via-background to-primary/5 relative">
+				{/* Background Elements */}
+				<div className="absolute top-0 left-1/4 w-72 h-72 bg-primary/5 rounded-full blur-3xl"></div>
+				<div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary/3 rounded-full blur-3xl"></div>
+				
+				<div className="container mx-auto max-w-7xl px-4 text-center relative z-10">
+					<div className="max-w-3xl mx-auto mb-10">
+						<div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full mb-6">
+							<Zap className="h-4 w-4 text-primary" />
+							<span className="text-sm font-medium text-primary">Our Services</span>
+						</div>
+						<h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+							{homeConfig.features.title}
+						</h2>
+						<p className="text-lg text-foreground/80 leading-relaxed">
+							{homeConfig.features.subtitle}
+						</p>
+					</div>
+					
+					{/* Mobile Slider */}
+					<div className="block md:hidden">
+						<Slider {...sliderSettings}>
+							{homeConfig.features.features.map((feature, index) => (
+								<div key={feature.id || `feature-${index}`} className="px-2">
+									<div className="bg-card/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl mx-2 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-border/50">
+										<div className="bg-gradient-to-br from-primary/20 to-primary/10 p-4 rounded-2xl w-20 h-20 flex items-center justify-center mx-auto mb-6">
+											{renderIcon(feature.icon, "h-10 w-10 text-primary")}
+										</div>
+										<h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
+										<p className="text-foreground/70 leading-relaxed">{feature.description}</p>
+									</div>
 								</div>
-								<h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-								<p className="text-foreground/70">{feature.description}</p>
+							))}
+						</Slider>
+					</div>
+
+					{/* Desktop Grid */}
+					<div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-8">
+						{homeConfig.features.features.map((feature, index) => (
+							<div key={feature.id || `feature-${index}`} className="group bg-card/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 border border-border/50">
+								<div className="bg-gradient-to-br from-primary/20 to-primary/10 p-4 rounded-2xl w-20 h-20 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+									{renderIcon(feature.icon, "h-10 w-10 text-primary")}
+								</div>
+								<h3 className="text-2xl font-bold mb-4 group-hover:text-primary transition-colors duration-300">{feature.title}</h3>
+								<p className="text-foreground/70 leading-relaxed">{feature.description}</p>
 							</div>
 						))}
 					</div>
@@ -431,134 +506,200 @@ export default function Home() {
 			</section>
 
 			{/* Trainers Section */}
-			<section className="py-16 bg-background">
-				<div className="container mx-auto max-w-7xl px-4 text-center">
-					<h2 className="text-2xl md:text-3xl font-bold mb-2 text-primary">
-						{homeConfig.trainers.title}
-					</h2>
-					<p className="mb-12 text-foreground/80">
-						{homeConfig.trainers.subtitle}
-					</p>
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-						{homeConfig.trainers.trainers
-							.filter((trainer) => trainer.isAvailable)
-							.map((trainer, index) => (
-								<div
-									key={trainer.id || `trainer-${index}`}
-									className="bg-card p-6 rounded-lg shadow-md flex flex-col items-center">
-									<img
-										src={trainer.profilePhotoUrl || "/placeholder.svg"}
-										alt={trainer.name}
-										className="w-32 h-32 rounded-full object-cover mb-4 border-2 border-primary"
-										onError={(e) => {
-											const target = e.target as HTMLImageElement;
-											if (target.src !== "/placeholder.svg") {
-												target.src = "/placeholder.svg";
-											}
-										}}
-									/>
-									<h3 className="text-xl font-semibold">{trainer.name}</h3>
-									<p className="text-sm text-foreground/70 mb-3">
-										{trainer.specializations}
-									</p>
-									<p className="text-foreground/80 text-sm">{trainer.bio}</p>
-								</div>
-							))}
+			<section className="py-0 bg-gradient-to-br from-background via-primary/5 to-background relative overflow-hidden">
+				<div className="container mx-auto max-w-7xl px-4 text-center relative z-10">
+					<div className="max-w-3xl mx-auto mb-10">
+						<div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full mb-6">
+							<Users className="h-4 w-4 text-primary" />
+							<span className="text-sm font-medium text-primary">Our Expert Trainers</span>
+						</div>
+						<h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+							{homeConfig.trainers.title}
+						</h2>
+						<p className="text-lg text-foreground/80 leading-relaxed">
+							{homeConfig.trainers.subtitle}
+						</p>
 					</div>
+					{homeConfig.trainers.trainers.length > 0 ? (
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+							{homeConfig.trainers.trainers
+								.filter((trainer: any) => trainer.isAvailable)
+								.map((trainer: any, index: number) => (
+									<div
+										key={trainer.id || `trainer-${index}`}
+										className="group bg-card/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 border border-border/50">
+										<div className="relative mb-6">
+											<div className="absolute -inset-2 bg-gradient-to-r from-primary/20 to-primary/10 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+											<img
+												src={trainer.profilePhotoUrl || "/placeholder.svg"}
+												alt={trainer.name}
+												className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-primary/20 group-hover:border-primary/40 transition-all duration-300 relative z-10"
+												onError={(e) => {
+													const target = e.target as HTMLImageElement;
+													if (target.src !== "/placeholder.svg") {
+														target.src = "/placeholder.svg";
+													}
+												}}
+											/>
+										</div>
+										<h3 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors duration-300">{trainer.name}</h3>
+										<p className="text-primary/80 font-medium mb-4">
+											{trainer.specializations}
+										</p>
+										<p className="text-foreground/70 leading-relaxed">{trainer.bio}</p>
+									</div>
+								))}
+						</div>
+					) : (
+						<div className="text-center py-0">
+							<div className="bg-card/80 backdrop-blur-sm p-12 rounded-2xl shadow-xl max-w-md mx-auto border border-border/50">
+								<div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+									<Users className="h-10 w-10 text-primary" />
+								</div>
+								<h3 className="text-2xl font-bold mb-4">No trainers available</h3>
+								<p className="text-foreground/60 leading-relaxed">Check back soon for updates on our expert team!</p>
+							</div>
+						</div>
+					)}
 				</div>
 			</section>
 
 			{/* Testimonials Section */}
-			<section className="py-16 bg-card/30">
-				<div className="container mx-auto max-w-7xl px-4 text-center">
-					<h2 className="text-2xl md:text-3xl font-bold mb-2 text-primary">
-						{homeConfig.testimonials.title}
-					</h2>
-					<p className="mb-12 text-foreground/80">
-						{homeConfig.testimonials.subtitle}
-					</p>
+			<section className="py-20 bg-gradient-to-br from-primary/5 via-background to-primary/5 relative overflow-hidden">
+				{/* Background Elements */}
+				<div className="absolute top-10 left-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl animate-pulse"></div>
+				<div className="absolute bottom-10 right-10 w-40 h-40 bg-primary/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
+				
+				<div className="container mx-auto max-w-7xl px-4 text-center relative z-10">
+					<div className="max-w-3xl mx-auto mb-10">
+						<div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full mb-6">
+							<Heart className="h-4 w-4 text-primary" />
+							<span className="text-sm font-medium text-primary">Member Stories</span>
+						</div>
+						<h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+							{homeConfig.testimonials.title}
+						</h2>
+						<p className="text-lg text-foreground/80 leading-relaxed">
+							{homeConfig.testimonials.subtitle}
+						</p>
+					</div>
+					
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 						{homeConfig.testimonials.testimonials.map((testimonial, index) => (
 							<div
 								key={testimonial.id || `testimonial-${index}`}
-								className="bg-card p-6 rounded-lg shadow-md">
-								<div className="flex flex-col items-center">
-									<img
-										src={testimonial.image || "/placeholder.svg"}
-										alt={testimonial.name}
-										className="w-20 h-20 rounded-full object-cover mb-4"
-										onError={(e) => {
-											const target = e.target as HTMLImageElement;
-											if (target.src !== "/placeholder.svg") {
-												target.src = "/placeholder.svg";
-											}
-										}}
-									/>
-									<p className="italic mb-4">"{testimonial.content}"</p>
-									<div>
-										<p className="font-semibold">{testimonial.name}</p>
-										<p className="text-sm text-foreground/70">
-											{testimonial.role}
+								className="group bg-card/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-border/50 relative overflow-hidden">
+								
+								{/* Decorative Quote */}
+								<div className="absolute top-4 left-4 text-6xl text-primary/10 font-serif leading-none">"</div>
+								<div className="absolute bottom-4 right-4 text-6xl text-primary/10 font-serif leading-none transform rotate-180">"</div>
+								
+								<div className="flex flex-col items-center relative z-10">
+									{/* Profile Image with Glow Effect */}
+									<div className="relative mb-6">
+										<div className="absolute -inset-2 bg-gradient-to-r from-primary/20 to-primary/10 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+										<img
+											src={testimonial.image || "/placeholder.svg"}
+											alt={testimonial.name}
+											className="w-20 h-20 rounded-full object-cover border-4 border-primary/20 group-hover:border-primary/40 transition-all duration-300 relative z-10"
+											onError={(e) => {
+												const target = e.target as HTMLImageElement;
+												if (target.src !== "/placeholder.svg") {
+													target.src = "/placeholder.svg";
+												}
+											}}
+										/>
+									</div>
+									
+									{/* Testimonial Content */}
+									<div className="text-center">
+										<p className="italic text-lg mb-6 leading-relaxed text-foreground/80 relative">
+											<span className="text-primary/60 text-2xl font-serif absolute -left-2 -top-2">"</span>
+											{testimonial.content}
+											<span className="text-primary/60 text-2xl font-serif absolute -right-2 -bottom-2">"</span>
 										</p>
+										
+										{/* Author Info */}
+										<div className="border-t border-border/30 pt-4">
+											<p className="font-bold text-xl mb-1 group-hover:text-primary transition-colors duration-300">{testimonial.name}</p>
+											<p className="text-primary/80 font-medium text-sm">
+												{testimonial.role}
+											</p>
+										</div>
 									</div>
 								</div>
+								
+								{/* Hover Effect Overlay */}
+								<div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"></div>
 							</div>
 						))}
+					</div>
+					
+					{/* Call to Action */}
+					<div className="mt-16 text-center">
+						<div className="inline-flex items-center gap-2 bg-primary/10 px-6 py-3 rounded-full">
+							<Star className="h-5 w-5 text-primary" />
+							<span className="text-sm font-medium text-primary">Join our community of satisfied members</span>
+						</div>
 					</div>
 				</div>
 			</section>
 
 			{/* Contact Section */}
-			<section className="py-16 bg-background">
-				<div className="container mx-auto max-w-7xl px-4">
-					<div className="text-center mb-12">
-						<h2 className="text-2xl md:text-3xl font-bold mb-2 text-primary">
+			<section className="py-0 bg-gradient-to-br from-background via-primary/5 to-background relative overflow-hidden">
+				<div className="container mx-auto max-w-7xl px-4 relative z-10">
+					<div className="text-center mb-16">
+						<div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full mb-6">
+							<Mail className="h-4 w-4 text-primary" />
+							<span className="text-sm font-medium text-primary">Get In Touch</span>
+						</div>
+						<h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
 							{homeConfig.contact.title}
 						</h2>
-						<p className="text-foreground/80">{homeConfig.contact.subtitle}</p>
+						<p className="text-lg text-foreground/80 max-w-2xl mx-auto leading-relaxed">{homeConfig.contact.subtitle}</p>
 					</div>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-						<div className="space-y-6">
-							<div className="flex items-start">
-								<div className="bg-primary/10 p-3 rounded-full mr-4">
+					<div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-10">
+						<div className="space-y-8">
+							<div className="flex items-start p-6 bg-card/80 backdrop-blur-sm rounded-2xl shadow-xl border border-border/50 hover:shadow-2xl transition-all duration-300">
+								<div className="bg-gradient-to-br from-primary/20 to-primary/10 p-4 rounded-2xl mr-6">
 									<MapPin className="h-6 w-6 text-primary" />
 								</div>
 								<div>
-									<h3 className="font-semibold mb-1">Address</h3>
-									<p className="text-foreground/70">
+									<h3 className="font-bold text-xl mb-2">Address</h3>
+									<p className="text-foreground/70 leading-relaxed">
 										{homeConfig.contact.address}
 									</p>
 								</div>
 							</div>
-							<div className="flex items-start">
-								<div className="bg-primary/10 p-3 rounded-full mr-4">
+							<div className="flex items-start p-6 bg-card/80 backdrop-blur-sm rounded-2xl shadow-xl border border-border/50 hover:shadow-2xl transition-all duration-300">
+								<div className="bg-gradient-to-br from-primary/20 to-primary/10 p-4 rounded-2xl mr-6">
 									<Phone className="h-6 w-6 text-primary" />
 								</div>
 								<div>
-									<h3 className="font-semibold mb-1">Phone</h3>
-									<p className="text-foreground/70">
+									<h3 className="font-bold text-xl mb-2">Phone</h3>
+									<p className="text-foreground/70 leading-relaxed">
 										{homeConfig.contact.phone}
 									</p>
 								</div>
 							</div>
-							<div className="flex items-start">
-								<div className="bg-primary/10 p-3 rounded-full mr-4">
+							<div className="flex items-start p-6 bg-card/80 backdrop-blur-sm rounded-2xl shadow-xl border border-border/50 hover:shadow-2xl transition-all duration-300">
+								<div className="bg-gradient-to-br from-primary/20 to-primary/10 p-4 rounded-2xl mr-6">
 									<Mail className="h-6 w-6 text-primary" />
 								</div>
 								<div>
-									<h3 className="font-semibold mb-1">Email</h3>
-									<p className="text-foreground/70">
+									<h3 className="font-bold text-xl mb-2">Email</h3>
+									<p className="text-foreground/70 leading-relaxed">
 										{homeConfig.contact.email}
 									</p>
 								</div>
 							</div>
 						</div>
 						{homeConfig.contact.showMap && (
-							<div className="bg-card rounded-lg shadow-md overflow-hidden">
+							<div className="bg-card/80 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-border/50">
 								{homeConfig.contact.mapLocation ? (
 									<iframe
 										width="100%"
-										height="256"
+										height="400"
 										style={{ border: 0 }}
 										loading="lazy"
 										allowFullScreen
@@ -570,7 +711,10 @@ export default function Home() {
 									/>
 								) : (
 									<div className="h-64 flex items-center justify-center">
-										<p className="text-foreground/50">No location configured</p>
+										<div className="text-center">
+											<MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+											<p className="text-foreground/50">No location configured</p>
+										</div>
 									</div>
 								)}
 							</div>

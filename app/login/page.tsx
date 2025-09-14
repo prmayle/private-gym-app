@@ -19,6 +19,7 @@ import { Eye, EyeOff, Lock, Mail, Info } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/components/theme-provider";
 
 // Enhanced error message mapping for better user experience
 const getErrorMessage = (
@@ -170,7 +171,7 @@ export default function LoginPage() {
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
-
+	const { theme } = useTheme();
 	const router = useRouter();
 	const { toast } = useToast();
 	const auth = useAuth();
@@ -210,6 +211,7 @@ export default function LoginPage() {
 			const { data, error } = await auth.signIn(email, password);
 
 			if (error) {
+				setIsLoading(false);
 				const errorInfo = getErrorMessage(error);
 				toast({
 					title: errorInfo.title,
@@ -234,6 +236,7 @@ export default function LoginPage() {
 				}
 			}
 		} catch (error: any) {
+			setIsLoading(false);
 			console.error("Login error:", error);
 			const errorInfo = getErrorMessage(error);
 			toast({
@@ -241,8 +244,6 @@ export default function LoginPage() {
 				description: errorInfo.description,
 				variant: "destructive",
 			});
-		} finally {
-			setIsLoading(false);
 		}
 	};
 
@@ -252,7 +253,7 @@ export default function LoginPage() {
 	};
 
 	// Show loading if auth is still initializing
-	if (auth.loading) {
+	if (auth.loading || isLoading) {
 		return (
 			<div className="flex items-center justify-center min-h-screen bg-background">
 				<div className="text-center">
@@ -264,114 +265,147 @@ export default function LoginPage() {
 	}
 
 	return (
-		<div className="flex items-center justify-center min-h-screen bg-background p-4">
-			<div className="w-full max-w-md space-y-4">
-				{/* Demo Credentials Alert */}
-				<Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-					<Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-					<AlertDescription className="text-blue-800 dark:text-blue-200">
-						<div className="space-y-2">
-							<div className="font-medium">Demo credentials available:</div>
-							{demoCredentials.map((cred, index) => (
-								<div
-									key={index}
-									className="flex items-center justify-between text-xs">
-									<span>
-										{cred.email} ({cred.role})
-									</span>
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() =>
-											fillDemoCredentials(cred.email, cred.password)
-										}
-										className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 h-6 px-2">
-										Use
-									</Button>
-								</div>
-							))}
-						</div>
-					</AlertDescription>
-				</Alert>
+		<div className="h-screen w-full overflow-hidden relative bg-gradient-to-br from-primary/5 via-background to-primary/5">
+			{/* Background Elements */}
+			<div className="absolute top-0 left-0 w-full h-full overflow-hidden">
+				<div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
+				<div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
+				<div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/8 rounded-full blur-2xl animate-pulse delay-500"></div>
+			</div>
 
-				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-					<CardHeader className="text-center">
-						<CardTitle className="text-2xl">Core Factory</CardTitle>
-						<CardDescription>Sign in to access your account</CardDescription>
-					</CardHeader>
-
-					<CardContent>
-						<form onSubmit={handleLogin} className="space-y-4">
+			{/* Main Content */}
+			<div className="relative z-10 h-full flex items-center justify-center p-4">
+				<div className="w-full max-w-md space-y-6">
+					{/* Demo Credentials Alert - Compact for mobile */}
+					<Alert className="border-blue-200 bg-blue-50/80 backdrop-blur-sm dark:border-blue-800 dark:bg-blue-950/80">
+						<Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+						<AlertDescription className="text-blue-800 dark:text-blue-200">
 							<div className="space-y-2">
-								<Label htmlFor="email">Email</Label>
-								<div className="relative">
-									<Input
-										id="email"
-										type="email"
-										placeholder="admin@corefactory.com"
-										value={email}
-										onChange={(e) => setEmail(e.target.value)}
-										required
-										disabled={isLoading}
-										className="pl-10"
-									/>
-									<Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+								<div className="font-medium text-sm">Demo credentials:</div>
+								<div className="space-y-1">
+									{demoCredentials.map((cred, index) => (
+										<div
+											key={index}
+											className="flex items-center justify-between text-xs">
+											<span className="truncate flex-1 mr-2">
+												{cred.email} ({cred.role})
+											</span>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() =>
+													fillDemoCredentials(cred.email, cred.password)
+												}
+												className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 h-6 px-2 text-xs">
+												Use
+											</Button>
+										</div>
+									))}
 								</div>
 							</div>
+						</AlertDescription>
+					</Alert>
 
-							<div className="space-y-2">
-								<Label htmlFor="password">Password</Label>
-								<div className="relative">
-									<Input
-										id="password"
-										type={showPassword ? "text" : "password"}
-										placeholder="Enter your password"
-										value={password}
-										onChange={(e) => setPassword(e.target.value)}
-										required
-										disabled={isLoading}
-										className="pl-10 pr-10"
-									/>
-									<Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
-										onClick={() => setShowPassword(!showPassword)}
-										disabled={isLoading}>
-										{showPassword ? (
-											<EyeOff className="h-4 w-4" />
-										) : (
-											<Eye className="h-4 w-4" />
-										)}
-									</Button>
-								</div>
+					{/* Login Card */}
+					<Card className="rounded-3xl shadow-2xl bg-card/80 backdrop-blur-sm border border-border/50">
+						<CardHeader className="text-center pb-6">
+							<div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl flex items-center justify-center mb-4">
+								<Lock className="h-8 w-8 text-primary" />
 							</div>
+							<CardTitle className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+								Core Factory
+							</CardTitle>
+							<CardDescription className="text-foreground/70">
+								Sign in to access your account
+							</CardDescription>
+						</CardHeader>
 
-							<Button type="submit" className="w-full" disabled={isLoading}>
-								{isLoading ? (
-									<>
-										<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-										Signing in...
-									</>
-								) : (
-									"Sign In"
-								)}
-							</Button>
-						</form>
-					</CardContent>
+						<CardContent className="px-6 pb-6">
+							<form onSubmit={handleLogin} className="space-y-5">
+								<div className="space-y-2">
+									<Label htmlFor="email" className="text-sm font-medium">Email</Label>
+									<div className="relative">
+										<Input
+											id="email"
+											type="email"
+											placeholder="admin@corefactory.com"
+											value={email}
+											onChange={(e) => setEmail(e.target.value)}
+											required
+											disabled={isLoading}
+											className="pl-10 h-12 rounded-xl border-border/50 focus:border-primary/50 transition-colors"
+										/>
+										<Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+									</div>
+								</div>
 
-					<CardFooter className="flex flex-col space-y-4">
-						<div className="text-center">
-							<Link
-								href="/forgot-password"
-								className="text-sm text-muted-foreground hover:text-primary">
-								Forgot your password?
-							</Link>
-						</div>
-					</CardFooter>
-				</Card>
+								<div className="space-y-2">
+									<Label htmlFor="password" className="text-sm font-medium">Password</Label>
+									<div className="relative">
+										<Input
+											id="password"
+											type={showPassword ? "text" : "password"}
+											placeholder="Enter your password"
+											value={password}
+											onChange={(e) => setPassword(e.target.value)}
+											required
+											disabled={isLoading}
+											className="pl-10 pr-10 h-12 rounded-xl border-border/50 focus:border-primary/50 transition-colors"
+										/>
+										<Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-transparent"
+											onClick={() => setShowPassword(!showPassword)}
+											disabled={isLoading}>
+											{showPassword ? (
+												<EyeOff className="h-4 w-4 text-muted-foreground" />
+											) : (
+												<Eye className="h-4 w-4 text-muted-foreground" />
+											)}
+										</Button>
+									</div>
+								</div>
+
+								<Button 
+									type="submit" 
+									className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200" 
+									disabled={isLoading}
+								>
+									{isLoading ? (
+										<>
+											<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+											Signing in...
+										</>
+									) : (
+										"Sign In"
+									)}
+								</Button>
+							</form>
+						</CardContent>
+
+						<CardFooter className="px-6 pb-6">
+							<div className="w-full text-center">
+								<Link
+									href="/forgot-password"
+									className="text-sm text-muted-foreground hover:text-primary transition-colors">
+									Forgot your password?
+								</Link>
+							</div>
+						</CardFooter>
+					</Card>
+
+					{/* Back to Home Link */}
+					<div className="text-center">
+						<Link
+							href="/"
+							className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1">
+							← Back to Home
+						</Link>
+					</div>
+				</div>
 			</div>
 		</div>
 	);
