@@ -15,6 +15,9 @@ import {
 	Mail,
 	Users,
 	Zap,
+	Sun,
+	Moon,
+	Monitor,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
@@ -24,8 +27,15 @@ import {
 	type TypedSupabaseClient,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/components/theme-provider";
 import { UserDropdown } from "@/components/ui/user-dropdown";
 import { ImageSlider } from "@/components/ui/image-slider";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -164,6 +174,7 @@ export default function Home() {
 	const [heroSliderImages, setHeroSliderImages] = useState<any[]>([]);
 	const [aboutSliderImages, setAboutSliderImages] = useState<any[]>([]);
 	const { user, loading: authLoading } = useAuth();
+	const { theme, setTheme } = useTheme();
 
 	useEffect(() => {
 		// Load config in background without blocking render
@@ -295,34 +306,114 @@ export default function Home() {
 		);
 	}
 
+	// Theme toggle component
+	const ThemeToggle = () => {
+		const handleThemeChange = (newTheme: "light" | "dark") => {
+			localStorage.setItem("core-factory-theme", newTheme);
+			setTheme(newTheme);
+		};
+
+		return (
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button 
+						variant="ghost" 
+						size="icon" 
+						className="h-9 w-9 hover:bg-primary/10 transition-colors rounded-xl"
+					>
+						{theme === "light" ? (
+							<Sun className="h-4 w-4" />
+						) : theme === "dark" ? (
+							<Moon className="h-4 w-4" />
+						) : (
+							<Monitor className="h-4 w-4" />
+						)}
+						<span className="sr-only">Toggle theme</span>
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="w-40 rounded-xl border-border/50 shadow-xl">
+					<DropdownMenuItem 
+						onClick={() => handleThemeChange("light")}
+						className="rounded-lg cursor-pointer"
+					>
+						<Sun className="mr-2 h-4 w-4" />
+						<span>Light</span>
+					</DropdownMenuItem>
+					<DropdownMenuItem 
+						onClick={() => handleThemeChange("dark")}
+						className="rounded-lg cursor-pointer"
+					>
+						<Moon className="mr-2 h-4 w-4" />
+						<span>Dark</span>
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		);
+	};
+
 	return (
 		<div className="min-h-screen bg-background">
 			{/* Navigation */}
-			<nav className="bg-card/50 backdrop-blur-sm fixed w-full z-10">
-				<div className="container mx-auto max-w-7xl px-4 py-3 flex justify-between items-center">
-					<div className="text-xl font-bold text-primary">
-						{homeConfig.footer.companyName}
-					</div>
-					<div className="flex items-center gap-4">
-						{user ? (
-							<UserDropdown />
-						) : (
-							<Button variant="ghost" asChild>
-								<Link href="/login">Login</Link>
+			<nav className="bg-card/80 backdrop-blur-md border-b border-border/50 fixed w-full z-50 shadow-lg">
+				<div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+					<div className="flex justify-between items-center h-16 sm:h-18">
+						{/* Logo/Brand */}
+						<div className="flex items-center space-x-3">
+							<div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
+								<Dumbbell className="h-6 w-6 text-white" />
+							</div>
+							<div className="flex flex-col">
+								<span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+									{homeConfig.footer.companyName}
+								</span>
+								<span className="text-xs text-muted-foreground hidden sm:block">
+									{homeConfig.footer.tagline}
+								</span>
+							</div>
+						</div>
+
+						{/* Navigation Actions */}
+						<div className="flex items-center gap-2 sm:gap-4">
+							{/* Theme Toggle */}
+							<ThemeToggle />
+							
+							{/* User Actions */}
+							{user ? (
+								<UserDropdown />
+							) : (
+								<Button 
+									variant="ghost" 
+									asChild
+									className="hidden sm:flex items-center gap-2 hover:bg-primary/10 transition-colors"
+								>
+									<Link href="/login">
+										<Mail className="h-4 w-4" />
+										<span>Login</span>
+									</Link>
+								</Button>
+							)}
+							
+							{/* WhatsApp CTA Button */}
+							<Button 
+								asChild
+								className="bg-gradient-to-r from-[#25D366] to-[#20BA5A] hover:from-[#20BA5A] hover:to-[#1DA851] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl px-4 sm:px-6 py-2"
+							>
+								<a
+									href={homeConfig.hero.buttonLink}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="flex items-center gap-2"
+								>
+									<WhatsAppIcon />
+									<span className="hidden sm:inline ml-1 font-medium">
+										{homeConfig.hero.buttonText}
+									</span>
+									<span className="sm:hidden font-medium">
+										Join
+									</span>
+								</a>
 							</Button>
-						)}
-						<Button 
-							asChild
-							className="bg-[#25D366] hover:bg-[#20BA5A] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
-						>
-							<a
-								href={homeConfig.hero.buttonLink}
-								target="_blank"
-								rel="noopener noreferrer">
-								<WhatsAppIcon />
-								<span className="ml-2">{homeConfig.hero.buttonText}</span>
-							</a>
-						</Button>
+						</div>
 					</div>
 				</div>
 			</nav>
@@ -381,7 +472,7 @@ export default function Home() {
 			</section>
 
 			{/* About Section */}
-			<section className="py-20 bg-gradient-to-br from-primary/5 via-background to-primary/5 relative overflow-hidden">
+			<section className="py-10 bg-gradient-to-br from-primary/5 via-background to-primary/5 relative overflow-hidden">
 				{/* Background Elements */}
 				<div className="absolute top-0 right-1/4 w-72 h-72 bg-primary/5 rounded-full blur-3xl"></div>
 				<div className="absolute bottom-0 left-1/4 w-96 h-96 bg-primary/3 rounded-full blur-3xl"></div>
@@ -454,7 +545,7 @@ export default function Home() {
 			</section>
 
 			{/* Services Section */}
-			<section className="py-20 bg-gradient-to-br from-primary/5 via-background to-primary/5 relative">
+			<section className="py-10 bg-gradient-to-br from-primary/5 via-background to-primary/5 relative">
 				{/* Background Elements */}
 				<div className="absolute top-0 left-1/4 w-72 h-72 bg-primary/5 rounded-full blur-3xl"></div>
 				<div className="absolute bottom-0 right-1/4 w-96 h-96 bg-primary/3 rounded-full blur-3xl"></div>
@@ -506,7 +597,7 @@ export default function Home() {
 			</section>
 
 			{/* Trainers Section */}
-			<section className="py-0 bg-gradient-to-br from-background via-primary/5 to-background relative overflow-hidden">
+			<section className="py-10 bg-gradient-to-br from-background via-primary/5 to-background relative overflow-hidden">
 				<div className="container mx-auto max-w-7xl px-4 text-center relative z-10">
 					<div className="max-w-3xl mx-auto mb-10">
 						<div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full mb-6">
@@ -658,7 +749,7 @@ export default function Home() {
 						</h2>
 						<p className="text-lg text-foreground/80 max-w-2xl mx-auto leading-relaxed">{homeConfig.contact.subtitle}</p>
 					</div>
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-10">
+					<div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-12 mb-10">
 						<div className="space-y-8">
 							<div className="flex items-start p-6 bg-card/80 backdrop-blur-sm rounded-2xl shadow-xl border border-border/50 hover:shadow-2xl transition-all duration-300">
 								<div className="bg-gradient-to-br from-primary/20 to-primary/10 p-4 rounded-2xl mr-6">
