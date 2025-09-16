@@ -191,6 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			});
 
 			if (error) {
+				setLoading(false);
 				console.log("Sign in error:", error);
 				toast({
 					title: "Sign in failed",
@@ -203,6 +204,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			// Success message will be handled by auth state change
 			return { data, error: null };
 		} catch (error) {
+			setLoading(false);
+
 			const authError = error as AuthError;
 			toast({
 				title: "Sign in failed",
@@ -210,9 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				variant: "destructive",
 			});
 			return { data: { user: null, session: null }, error: authError };
-		} finally {
-			setLoading(false);
-		}
+		} 
 	};
 
 	// Sign out function
@@ -415,7 +416,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		user,
 		userProfile,
 		memberProfile,
-		session,
+		session,	
 		loading,
 
 		// Methods

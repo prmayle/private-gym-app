@@ -36,6 +36,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
+import { PageHeader } from "@/components/page-header";
+import { useTheme } from "@/components/theme-provider";
+
 interface NewMember {
 	name: string;
 	email: string;
@@ -86,7 +89,8 @@ export default function NewMemberPage() {
 	});
 	const [packages, setPackages] = useState<Package[]>([]);
 	const [selectedPackageId, setSelectedPackageId] = useState<string>("");
-
+	const { theme } = useTheme();
+	
 	useEffect(() => {
 		// Fetch all active packages
 		createClient()
@@ -118,7 +122,7 @@ export default function NewMemberPage() {
 	};
 
 	const validateForm = (): boolean => {
-		const requiredFields = ["name", "email", "phone", "startDate"];
+		const requiredFields = ["name", "phone", "startDate"];
 		const missingFields = requiredFields.filter(
 			(field) => !member[field as keyof NewMember]
 		);
@@ -135,15 +139,15 @@ export default function NewMemberPage() {
 		}
 
 		// Email validation
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!emailRegex.test(member.email)) {
-			toast({
-				title: "Invalid Email",
-				description: "Please enter a valid email address",
-				variant: "destructive",
-			});
-			return false;
-		}
+		// const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		// if (!emailRegex.test(member.email)) {
+		// 	toast({
+		// 		title: "Invalid Email",
+		// 		description: "Please enter a valid email address",
+		// 		variant: "destructive",
+		// 	});
+		// 	return false;
+		// }
 
 		// Phone validation (basic)
 		if (!member.phone || member.phone.length < 8) {
@@ -211,9 +215,21 @@ export default function NewMemberPage() {
 					},
 					body: JSON.stringify({
 						email: member.email,
+						phone: member.phone,
 						password: tempPassword,
 						userData: {
 							full_name: member.name,
+							email: member.email,
+							phone: member.phone,
+							date_of_birth: member.dateOfBirth,
+							gender: member.gender,
+							address: member.address,
+							emergency_contact: emergencyContact,
+							medical_conditions: member.medicalConditions,
+							fitness_goals: member.fitnessGoals,
+							waiver_signed: member.waiverSigned,
+							height: member.height,
+							weight: member.weight,
 							role: "member",
 						},
 					}),
@@ -424,9 +440,15 @@ export default function NewMemberPage() {
 	};
 
 	return (
-		<div className="container mx-auto max-w-7xl py-6 space-y-6">
+		<div className="container mx-auto max-w-7xl py-6 space-y-6 px-4">
 			{/* Header */}
-			<div className="relative mb-8">
+			<PageHeader
+				title="Add New Member"
+				subtitle="Create a new member profile with all necessary information"
+				icon={User}
+				hasAddButton={false}
+			/>
+			{/* <div className="relative mb-8">
 				<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
 				<div className="flex items-center gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
 					<Button variant="ghost" size="icon" asChild className="mr-2">
@@ -447,7 +469,7 @@ export default function NewMemberPage() {
 						</div>
 					</div>
 				</div>
-			</div>
+			</div> */}
 
 			<form onSubmit={handleSubmit} className="space-y-8">
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -476,14 +498,13 @@ export default function NewMemberPage() {
 									/>
 								</div>
 								<div className="space-y-2">
-									<Label htmlFor="email">Email Address *</Label>
+									<Label htmlFor="email">Email Address</Label>
 									<Input
 										id="email"
 										type="email"
 										value={member.email}
 										onChange={(e) => handleInputChange("email", e.target.value)}
 										placeholder="Enter email address"
-										required
 										className="px-4 py-3 text-left"
 									/>
 								</div>

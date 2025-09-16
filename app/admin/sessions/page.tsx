@@ -46,7 +46,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-	ArrowLeft,
 	Edit,
 	Eye,
 	Power,
@@ -62,6 +61,8 @@ import {
 	Calendar,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/page-header";
+import { useTheme } from "@/components/theme-provider";
 
 // Enhanced Session interface
 export interface Session {
@@ -236,6 +237,7 @@ export default function SessionsPage() {
 	const router = useRouter();
 	const { toast } = useToast();
 	const auth = useAuth();
+	const { theme } = useTheme();
 
 	const [customSlots, setCustomSlots] = useState<Session[]>([]);
 	const [sessions, setSessions] = useState<Session[]>([]);
@@ -750,12 +752,11 @@ export default function SessionsPage() {
 					status: "scheduled",
 					max_capacity: newSession.capacity,
 					current_bookings: 0,
-					price: 0, // Default price, could be made configurable
+					drop_in_price: 0, // Default price, could be made configurable
 					location: null,
 					equipment_needed: [],
 					package_id: newSession.package === "none" ? null : newSession.package,
-					package_type_id:
-						newSession.packageType === "none" ? null : newSession.packageType,
+					// package_type_id: newSession.packageType === "none" ? null : newSession.packageType,
 					requires_package: newSession.requiresPackage,
 					package_session_credit_cost: newSession.sessionCreditCost,
 					allow_drop_in: newSession.allowDropIn,
@@ -1284,34 +1285,21 @@ export default function SessionsPage() {
 	// Remove slotOptions
 
 	return (
-		<main className="container mx-auto max-w-7xl py-6 space-y-6">
-			{/* Header */}
-			<header className="relative mb-8">
-				<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
-				<div className="flex items-center justify-between gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
-					<div className="flex items-center gap-6">
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={handleBackToDashboard}
-							className="mr-2"
-							aria-label="Go back">
-							<ArrowLeft className="h-5 w-5" />
-						</Button>
-						<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
-							<Calendar className="w-10 h-10 text-primary" />
-						</div>
-						<div>
-							<div className="font-bold text-2xl flex items-center gap-2">
-								Sessions Management
-							</div>
-							<div className="text-muted-foreground text-sm">
-								Create, manage, and monitor gym sessions
-							</div>
-						</div>
-					</div>
+		<div className="min-h-screen bg-background">
+			{/* Modern Header */}
+			<PageHeader
+				title="Sessions Management"
+				subtitle="Create, manage, and monitor gym sessions"
+				icon={Calendar}
+				// hasAddButton={true}
+				// addLink="/admin/sessions/new"
+			/>
 
-					<div className="flex items-center gap-3">
+			{/* Main Content with top padding to account for fixed header */}
+			<div className="pt-0">
+				<div className="container mx-auto max-w-7xl py-6 space-y-6 px-4">
+					{/* Additional Actions */}
+					<div className="flex items-center justify-end gap-3">
 						<Button
 							variant="outline"
 							onClick={() => router.push("/admin/calendar")}
@@ -1400,7 +1388,7 @@ export default function SessionsPage() {
 									</div>
 
 									<div className="grid gap-2">
-										<Label htmlFor="description">Description (Optional)</Label>
+										<Label htmlFor="description">Description</Label>
 										<Textarea
 											id="description"
 											value={newSession.description}
@@ -1410,75 +1398,49 @@ export default function SessionsPage() {
 													description: e.target.value,
 												}))
 											}
-											placeholder="Additional notes about the session..."
-											rows={3}
+											placeholder="Optional session description..."
 										/>
 									</div>
 
-									<div className="grid grid-cols-2 gap-4">
-										<div className="grid gap-2">
-											<Label htmlFor="package">Package</Label>
-											<Select
-												value={newSession.package}
-												onValueChange={(value) =>
-													setNewSession((prev) => ({ ...prev, package: value }))
-												}>
-												<SelectTrigger>
-													<SelectValue placeholder="Select package (optional)" />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="none">None</SelectItem>
-													{packages.map((pkg) => (
-														<SelectItem key={pkg.id} value={pkg.id}>
-															{pkg.name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-										<div className="grid gap-2">
-											<Label htmlFor="packageType">Package Type</Label>
-											<Select
-												value={newSession.packageType}
-												onValueChange={(value) =>
-													setNewSession((prev) => ({
-														...prev,
-														packageType: value,
-													}))
-												}>
-												<SelectTrigger>
-													<SelectValue placeholder="Select package type (optional)" />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="none">None</SelectItem>
-													{packages.map((p) => (
-														<SelectItem key={p.id} value={p.id}>
-															{p.name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
+									<div className="grid gap-2">
+										<Label htmlFor="package">Package</Label>
+										<Select
+											value={newSession.package}
+											onValueChange={(value) =>
+												setNewSession((prev) => ({ ...prev, package: value }))
+											}>
+											<SelectTrigger>
+												<SelectValue placeholder="Select package" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="none">No Package Required</SelectItem>
+												{packages.map((pkg) => (
+													<SelectItem key={pkg.id} value={pkg.id}>
+														{pkg.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
 									</div>
-									<div className="grid grid-cols-2 gap-4">
-										<div className="flex items-center gap-2 mt-2">
-											<input
-												type="checkbox"
-												id="requiresPackage"
-												checked={newSession.requiresPackage}
-												onChange={(e) =>
-													setNewSession((prev) => ({
-														...prev,
-														requiresPackage: e.target.checked,
-													}))
-												}
-											/>
-											<Label htmlFor="requiresPackage">Requires Package</Label>
-										</div>
+
+									<div className="flex items-center space-x-2">
+										<input
+											type="checkbox"
+											id="requiresPackage"
+											checked={newSession.requiresPackage}
+											onChange={(e) =>
+												setNewSession((prev) => ({
+													...prev,
+													requiresPackage: e.target.checked,
+												}))
+											}
+										/>
+										<Label htmlFor="requiresPackage">Requires Package</Label>
+									</div>
+
+									{newSession.requiresPackage && (
 										<div className="grid gap-2">
-											<Label htmlFor="sessionCreditCost">
-												Session Credit Cost
-											</Label>
+											<Label htmlFor="sessionCreditCost">Session Credit Cost</Label>
 											<Input
 												id="sessionCreditCost"
 												type="number"
@@ -1487,45 +1449,44 @@ export default function SessionsPage() {
 												onChange={(e) =>
 													setNewSession((prev) => ({
 														...prev,
-														sessionCreditCost: Number(e.target.value) || 1,
+														sessionCreditCost: Number.parseInt(e.target.value) || 1,
 													}))
 												}
 											/>
 										</div>
+									)}
+
+									<div className="flex items-center space-x-2">
+										<input
+											type="checkbox"
+											id="allowDropIn"
+											checked={newSession.allowDropIn}
+											onChange={(e) =>
+												setNewSession((prev) => ({
+													...prev,
+													allowDropIn: e.target.checked,
+												}))
+											}
+										/>
+										<Label htmlFor="allowDropIn">Allow Drop-In</Label>
 									</div>
-									<div className="grid grid-cols-2 gap-4">
-										<div className="flex items-center gap-2 mt-2">
-											<input
-												type="checkbox"
-												id="allowDropIn"
-												checked={newSession.allowDropIn}
+									{newSession.allowDropIn && (
+										<div className="grid gap-2">
+											<Label htmlFor="dropInPrice">Drop-In Price</Label>
+											<Input
+												id="dropInPrice"
+												type="number"
+												min="0"
+												value={newSession.dropInPrice}
 												onChange={(e) =>
 													setNewSession((prev) => ({
 														...prev,
-														allowDropIn: e.target.checked,
+														dropInPrice: e.target.value,
 													}))
 												}
 											/>
-											<Label htmlFor="allowDropIn">Allow Drop-In</Label>
 										</div>
-										{newSession.allowDropIn && (
-											<div className="grid gap-2">
-												<Label htmlFor="dropInPrice">Drop-In Price</Label>
-												<Input
-													id="dropInPrice"
-													type="number"
-													min="0"
-													value={newSession.dropInPrice}
-													onChange={(e) =>
-														setNewSession((prev) => ({
-															...prev,
-															dropInPrice: e.target.value,
-														}))
-													}
-												/>
-											</div>
-										)}
-									</div>
+									)}
 								</div>
 								<DialogFooter>
 									<Button
@@ -1538,349 +1499,272 @@ export default function SessionsPage() {
 							</DialogContent>
 						</Dialog>
 					</div>
-				</div>
-			</header>
 
-			{/* Filters and Search */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<Filter className="h-5 w-5" />
-						Filters & Search
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-						<div className="space-y-2">
-							<Label htmlFor="search">Search Sessions</Label>
-							<div className="relative">
-								<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-								<Input
-									id="search"
-									placeholder="Search by title, trainer, or type..."
-									value={searchTerm}
-									onChange={(e) => setSearchTerm(e.target.value)}
-									className="pl-8"
-								/>
+					{/* Filters and Search */}
+					<Card className="border border-border/50 shadow-sm">
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Filter className="h-5 w-5" />
+								Filters & Search
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+								<div className="space-y-2">
+									<Label htmlFor="search">Search Sessions</Label>
+									<div className="relative">
+										<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+										<Input
+											id="search"
+											placeholder="Search by title, trainer, or type..."
+											value={searchTerm}
+											onChange={(e) => setSearchTerm(e.target.value)}
+											className="pl-8"
+										/>
+									</div>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="status-filter">Status</Label>
+									<Select value={statusFilter} onValueChange={setStatusFilter}>
+										<SelectTrigger>
+											<SelectValue placeholder="All Statuses" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Statuses</SelectItem>
+											<SelectItem value="Available">Available</SelectItem>
+											<SelectItem value="Full">Full</SelectItem>
+											<SelectItem value="Completed">Completed</SelectItem>
+											<SelectItem value="Inactive">Inactive</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="package-type-filter">Package Type</Label>
+									<Select value={typeFilter} onValueChange={setTypeFilter}>
+										<SelectTrigger>
+											<SelectValue placeholder="All Package Types" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Package Types</SelectItem>
+											{packages.map((p) => (
+												<SelectItem key={p.id} value={p.id}>
+													{p.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="trainer-filter">Trainer</Label>
+									<Select value={trainerFilter} onValueChange={setTrainerFilter}>
+										<SelectTrigger>
+											<SelectValue placeholder="All Trainers" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Trainers</SelectItem>
+											{uniqueTrainers.map((trainer) => (
+												<SelectItem key={trainer.id} value={trainer.name}>
+													{trainer.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
 							</div>
-						</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="status-filter">Status</Label>
-							<Select value={statusFilter} onValueChange={setStatusFilter}>
-								<SelectTrigger>
-									<SelectValue placeholder="All Statuses" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All Statuses</SelectItem>
-									<SelectItem value="Available">Available</SelectItem>
-									<SelectItem value="Full">Full</SelectItem>
-									<SelectItem value="Completed">Completed</SelectItem>
-									<SelectItem value="Inactive">Inactive</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
+							<div className="flex items-center justify-between">
+								<div className="flex items-center gap-4">
+									<div className="flex items-center gap-2">
+										<Label htmlFor="sort-by">Sort by:</Label>
+										<Select value={sortBy} onValueChange={setSortBy}>
+											<SelectTrigger className="w-[140px]">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="date">Date</SelectItem>
+												<SelectItem value="title">Title</SelectItem>
+												<SelectItem value="trainer">Trainer</SelectItem>
+												<SelectItem value="status">Status</SelectItem>
+												<SelectItem value="capacity">Capacity</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}>
+										{sortOrder === "asc" ? "↑" : "↓"}
+									</Button>
+								</div>
+								<Button variant="outline" size="sm" onClick={clearFilters}>
+									Clear Filters
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
 
-						<div className="space-y-2">
-							<Label htmlFor="package-type-filter">Package Type</Label>
-							<Select value={typeFilter} onValueChange={setTypeFilter}>
-								<SelectTrigger>
-									<SelectValue placeholder="All Package Types" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All Package Types</SelectItem>
-									{packages.map((p) => (
-										<SelectItem key={p.id} value={p.id}>
-											{p.name}
-										</SelectItem>
+					{/* Sessions Table */}
+					<Card className="border border-border/50 shadow-sm">
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Calendar className="h-5 w-5" />
+								Sessions
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							{loading ? (
+								<div className="space-y-4">
+									{Array.from({ length: 5 }).map((_, i) => (
+										<Skeleton key={i} className="h-16 w-full" />
 									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="trainer-filter">Trainer</Label>
-							<Select value={trainerFilter} onValueChange={setTrainerFilter}>
-								<SelectTrigger>
-									<SelectValue placeholder="All Trainers" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All Trainers</SelectItem>
-									{uniqueTrainers.map((trainer) => (
-										<SelectItem key={trainer.id} value={trainer.name}>
-											{trainer.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-2">
-							<Label>Sort by:</Label>
-							<Select value={sortBy} onValueChange={setSortBy}>
-								<SelectTrigger className="w-32">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="date">Date</SelectItem>
-									<SelectItem value="status">Status</SelectItem>
-									<SelectItem value="type">Type</SelectItem>
-									<SelectItem value="trainer">Trainer</SelectItem>
-									<SelectItem value="capacity">Capacity</SelectItem>
-								</SelectContent>
-							</Select>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() =>
-									setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-								}>
-								{sortOrder === "asc" ? "↑" : "↓"}
-							</Button>
-						</div>
-
-						<Button variant="outline" onClick={clearFilters}>
-							Clear Filters
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Sessions List */}
-			<Card>
-				<CardHeader>
-					<div className="flex items-center justify-between">
-						<CardTitle>
-							Sessions ({filteredAndSortedSessions.length} total)
-						</CardTitle>
-						<div className="text-sm text-muted-foreground">
-							Page {currentPage} of {totalPages}
-						</div>
-					</div>
-				</CardHeader>
-				<CardContent>
-					{loading && (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Session Title</TableHead>
-									<TableHead>Date & Time</TableHead>
-									<TableHead>Type</TableHead>
-									<TableHead>Trainer</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Members</TableHead>
-									<TableHead>Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{Array.from({ length: 3 }).map((_, idx) => (
-									<TableRow key={idx}>
-										<TableCell>
-											<Skeleton className="h-4 w-32 bg-gray-700" />
-										</TableCell>
-										<TableCell>
-											<Skeleton className="h-4 w-28 bg-gray-700" />
-										</TableCell>
-										<TableCell>
-											<Skeleton className="h-4 w-20 bg-gray-700" />
-										</TableCell>
-										<TableCell>
-											<Skeleton className="h-4 w-24 bg-gray-700" />
-										</TableCell>
-										<TableCell>
-											<Skeleton className="h-4 w-16 bg-gray-700" />
-										</TableCell>
-										<TableCell>
-											<Skeleton className="h-4 w-12 bg-gray-700" />
-										</TableCell>
-										<TableCell>
-											<Skeleton className="h-8 w-20 bg-gray-700" />
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					)}
-
-					{!loading && filteredAndSortedSessions.length === 0 && (
-						<div className="text-center py-8">
-							<p className="text-muted-foreground mb-4">
-								No sessions found matching your criteria.
-							</p>
-							<Button onClick={clearFilters} variant="outline">
-								Clear Filters
-							</Button>
-						</div>
-					)}
-
-					{!loading && paginatedSessions.length > 0 && (
-						<div className="space-y-4">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead
-											className="cursor-pointer hover:bg-muted/50"
-											onClick={() => handleSort("title")}>
-											Session Title{" "}
-											{sortBy === "title" && (sortOrder === "asc" ? "↑" : "↓")}
-										</TableHead>
-										<TableHead
-											className="cursor-pointer hover:bg-muted/50"
-											onClick={() => handleSort("date")}>
-											Date & Time{" "}
-											{sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
-										</TableHead>
-										<TableHead>Package Name</TableHead>
-										<TableHead
-											className="cursor-pointer hover:bg-muted/50"
-											onClick={() => handleSort("trainer")}>
-											Trainer{" "}
-											{sortBy === "trainer" &&
-												(sortOrder === "asc" ? "↑" : "↓")}
-										</TableHead>
-										<TableHead
-											className="cursor-pointer hover:bg-muted/50"
-											onClick={() => handleSort("status")}>
-											Status{" "}
-											{sortBy === "status" && (sortOrder === "asc" ? "↑" : "↓")}
-										</TableHead>
-										<TableHead
-											className="cursor-pointer hover:bg-muted/50"
-											onClick={() => handleSort("capacity")}>
-											Members{" "}
-											{sortBy === "capacity" &&
-												(sortOrder === "asc" ? "↑" : "↓")}
-										</TableHead>
-										<TableHead>Requires Package</TableHead>
-										<TableHead>Actions</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{paginatedSessions.map((session: any) => (
-										<TableRow key={session.id} className="hover:bg-muted/50">
-											<TableCell className="font-medium">
-												<div>
-													<div className="font-medium">{session.title}</div>
-													{session.description && (
-														<div className="text-sm text-muted-foreground truncate max-w-xs">
-															{session.description}
-														</div>
-													)}
-												</div>
-											</TableCell>
-											<TableCell>
-												<div className="text-sm">
-													<div>
-														{session.start_time
-															? new Date(session.start_time).toLocaleDateString(
-																	"en-US",
-																	{
-																		weekday: "short",
-																		month: "short",
-																		day: "numeric",
-																		year: "numeric",
-																	}
-															  )
-															: "-"}
-													</div>
-													<div className="text-muted-foreground">
-														{formatTime12Hour(session.start_time)} -{" "}
-														{formatTime12Hour(session.end_time)}
-													</div>
-												</div>
-											</TableCell>
-											<TableCell>{session.packageName || "-"}</TableCell>
-											<TableCell>{session.trainer}</TableCell>
-											<TableCell>
-												<StatusBadge status={session.status} />
-											</TableCell>
-											<TableCell>
-												<div className="flex items-center gap-1">
-													<Users className="h-3 w-3" />
-													<span className="text-sm">
-														{session.capacity.booked}/{session.capacity.total}
-													</span>
-												</div>
-												{session.bookedMembers &&
-													session.bookedMembers.length > 0 && (
-														<div className="text-xs text-muted-foreground mt-1">
-															{session.bookedMembers.slice(0, 2).join(", ")}
-															{session.bookedMembers.length > 2 &&
-																` +${session.bookedMembers.length - 2}`}
-														</div>
-													)}
-											</TableCell>
-											<TableCell>
-												{session.requiresPackage ? "Yes" : "No"}
-											</TableCell>
-											<TableCell>
-												<DropdownMenu>
-													<DropdownMenuTrigger asChild>
-														<Button variant="ghost" size="sm">
-															<MoreHorizontal className="h-4 w-4" />
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end">
-														<DropdownMenuItem
-															onClick={() => handleViewDetails(session)}>
-															<Eye className="h-4 w-4 mr-2" />
-															View Details
-														</DropdownMenuItem>
-
-														{canEditSession(session.status) && (
-															<DropdownMenuItem
-																onClick={() => handleEditSession(session)}>
-																<Edit className="h-4 w-4 mr-2" />
-																Edit Session
-															</DropdownMenuItem>
-														)}
-
-														{canBookMember(session.status) && (
-															<DropdownMenuItem
-																onClick={() => handleBookMember(session)}>
-																<UserPlus className="h-4 w-4 mr-2" />
-																Book Member
-															</DropdownMenuItem>
-														)}
-
-														{session.status === "Available" && (
-															<DropdownMenuItem
-																onClick={() => handleMarkAsFull(session)}>
-																<Users className="h-4 w-4 mr-2" />
-																Mark as Full
-															</DropdownMenuItem>
-														)}
-
-														{canDeactivateSession(session.status) && (
-															<DropdownMenuItem
-																onClick={() => handleDeactivateSession(session)}
-																className="text-red-600">
-																<PowerOff className="h-4 w-4 mr-2" />
-																Deactivate
-															</DropdownMenuItem>
-														)}
-
-														{canReactivateSession(session.status) && (
-															<DropdownMenuItem
-																onClick={() =>
-																	setReactivationDialog({
-																		isOpen: true,
-																		session,
-																	})
-																}>
-																<Power className="h-4 w-4 mr-2" />
-																Reactivate
-															</DropdownMenuItem>
-														)}
-													</DropdownMenuContent>
-												</DropdownMenu>
-											</TableCell>
+								</div>
+							) : (
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead
+												className="cursor-pointer"
+												onClick={() => handleSort("title")}>
+												Title {sortBy === "title" && (sortOrder === "asc" ? "↑" : "↓")}
+											</TableHead>
+											<TableHead
+												className="cursor-pointer"
+												onClick={() => handleSort("date")}>
+												Date & Time {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+											</TableHead>
+											<TableHead
+												className="cursor-pointer"
+												onClick={() => handleSort("trainer")}>
+												Trainer {sortBy === "trainer" && (sortOrder === "asc" ? "↑" : "↓")}
+											</TableHead>
+											<TableHead
+												className="cursor-pointer"
+												onClick={() => handleSort("status")}>
+												Status {sortBy === "status" && (sortOrder === "asc" ? "↑" : "↓")}
+											</TableHead>
+											<TableHead
+												className="cursor-pointer"
+												onClick={() => handleSort("capacity")}>
+												Capacity {sortBy === "capacity" && (sortOrder === "asc" ? "↑" : "↓")}
+											</TableHead>
+											<TableHead>Package Required</TableHead>
+											<TableHead>Actions</TableHead>
 										</TableRow>
-									))}
-								</TableBody>
-							</Table>
+									</TableHeader>
+									<TableBody>
+										{paginatedSessions.map((session) => (
+											<TableRow key={session.id}>
+												<TableCell>
+													<div>
+														<div className="font-medium">{session.title}</div>
+														{session.description && (
+															<div className="text-sm text-muted-foreground">
+																{session.description}
+															</div>
+														)}
+													</div>
+												</TableCell>
+												<TableCell>
+													<div>
+														<div className="font-medium">{session.date}</div>
+														<div className="text-sm text-muted-foreground">
+															{session.time}
+														</div>
+													</div>
+												</TableCell>
+												<TableCell>{session.trainer}</TableCell>
+												<TableCell>
+													<StatusBadge status={session.status} />
+												</TableCell>
+												<TableCell>
+													<div className="flex items-center gap-2">
+														<Users className="h-3 w-3" />
+														<span className="text-sm">
+															{session.capacity.booked}/{session.capacity.total}
+														</span>
+													</div>
+													{session.bookedMembers &&
+														session.bookedMembers.length > 0 && (
+															<div className="text-xs text-muted-foreground mt-1">
+																{session.bookedMembers.slice(0, 2).join(", ")}
+																{session.bookedMembers.length > 2 &&
+																	` +${session.bookedMembers.length - 2}`}
+															</div>
+														)}
+												</TableCell>
+												<TableCell>
+													{session.requiresPackage ? "Yes" : "No"}
+												</TableCell>
+												<TableCell>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button variant="ghost" size="sm">
+																<MoreHorizontal className="h-4 w-4" />
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="end">
+															<DropdownMenuItem
+																onClick={() => handleViewDetails(session)}>
+																<Eye className="h-4 w-4 mr-2" />
+																View Details
+															</DropdownMenuItem>
+
+															{canEditSession(session.status) && (
+																<DropdownMenuItem
+																	onClick={() => handleEditSession(session)}>
+																	<Edit className="h-4 w-4 mr-2" />
+																	Edit Session
+																</DropdownMenuItem>
+															)}
+
+															{canBookMember(session.status) && (
+																<DropdownMenuItem
+																	onClick={() => handleBookMember(session)}>
+																	<UserPlus className="h-4 w-4 mr-2" />
+																	Book Member
+																</DropdownMenuItem>
+															)}
+
+															{session.status === "Available" && (
+																<DropdownMenuItem
+																	onClick={() => handleMarkAsFull(session)}>
+																	<Users className="h-4 w-4 mr-2" />
+																	Mark as Full
+																</DropdownMenuItem>
+															)}
+
+															{canDeactivateSession(session.status) && (
+																<DropdownMenuItem
+																	onClick={() => handleDeactivateSession(session)}
+																	className="text-red-600">
+																	<PowerOff className="h-4 w-4 mr-2" />
+																	Deactivate
+																</DropdownMenuItem>
+															)}
+
+															{canReactivateSession(session.status) && (
+																<DropdownMenuItem
+																	onClick={() =>
+																		setReactivationDialog({
+																			isOpen: true,
+																			session,
+																		})
+																	}>
+																	<Power className="h-4 w-4 mr-2" />
+																	Reactivate
+																</DropdownMenuItem>
+															)}
+														</DropdownMenuContent>
+													</DropdownMenu>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							)}
 
 							{/* Pagination */}
 							{totalPages > 1 && (
@@ -1902,40 +1786,6 @@ export default function SessionsPage() {
 											<ChevronLeft className="h-4 w-4" />
 											Previous
 										</Button>
-
-										<div className="flex items-center space-x-1">
-											{Array.from(
-												{ length: Math.min(5, totalPages) },
-												(_, i) => {
-													const pageNum = i + 1;
-													return (
-														<Button
-															key={pageNum}
-															variant={
-																currentPage === pageNum ? "default" : "outline"
-															}
-															size="sm"
-															onClick={() => setCurrentPage(pageNum)}>
-															{pageNum}
-														</Button>
-													);
-												}
-											)}
-											{totalPages > 5 && (
-												<>
-													<span className="text-muted-foreground">...</span>
-													<Button
-														variant={
-															currentPage === totalPages ? "default" : "outline"
-														}
-														size="sm"
-														onClick={() => setCurrentPage(totalPages)}>
-														{totalPages}
-													</Button>
-												</>
-											)}
-										</div>
-
 										<Button
 											variant="outline"
 											size="sm"
@@ -1947,179 +1797,179 @@ export default function SessionsPage() {
 									</div>
 								</div>
 							)}
-						</div>
-					)}
-				</CardContent>
-			</Card>
+						</CardContent>
+					</Card>
 
-			{/* Book Member Dialog */}
-			<Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
-				<DialogContent className="sm:max-w-[500px]">
-					<DialogHeader>
-						<DialogTitle>Book Member for Session</DialogTitle>
-						<DialogDescription>
-							Select a member to book for "{selectedSession?.title}"
-						</DialogDescription>
-					</DialogHeader>
-					<div className="grid gap-4 py-4">
-						{selectedSession && (
-							<div className="p-4 bg-muted/30 rounded-lg">
-								<h4 className="font-medium mb-2">Session Details</h4>
-								<div className="text-sm space-y-1">
-									<div>
-										<strong>Title:</strong> {selectedSession.title}
+					{/* Book Member Dialog */}
+					<Dialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
+						<DialogContent className="sm:max-w-[500px]">
+							<DialogHeader>
+								<DialogTitle>Book Member for Session</DialogTitle>
+								<DialogDescription>
+									Select a member to book for "{selectedSession?.title}"
+								</DialogDescription>
+							</DialogHeader>
+							<div className="grid gap-4 py-4">
+								{selectedSession && (
+									<div className="p-4 bg-muted/30 rounded-lg">
+										<h4 className="font-medium mb-2">Session Details</h4>
+										<div className="text-sm space-y-1">
+											<div>
+												<strong>Title:</strong> {selectedSession.title}
+											</div>
+											<div>
+												<strong>Date:</strong>{" "}
+												{selectedSession?.start_time
+													? new Date(selectedSession.start_time)
+															.toISOString()
+															.split("T")[0]
+													: "-"}
+											</div>
+											<div>
+												<strong>Time:</strong>{" "}
+												{formatTime12Hour(selectedSession?.start_time)} -{" "}
+												{formatTime12Hour(selectedSession?.end_time)}
+											</div>
+											<div>
+												<strong>Type:</strong> {selectedSession.packageTypeName}
+											</div>
+											<div>
+												<strong>Trainer:</strong> {selectedSession.trainer}
+											</div>
+											<div>
+												<strong>Capacity:</strong>{" "}
+												{selectedSession.capacity.booked + 1}/
+												{selectedSession.capacity.total} after booking
+											</div>
+										</div>
 									</div>
-									<div>
-										<strong>Date:</strong>{" "}
-										{selectedSession?.start_time
-											? new Date(selectedSession.start_time)
-													.toISOString()
-													.split("T")[0]
-											: "-"}
-									</div>
-									<div>
-										<strong>Time:</strong>{" "}
-										{formatTime12Hour(selectedSession?.start_time)} -{" "}
-										{formatTime12Hour(selectedSession?.end_time)}
-									</div>
-									<div>
-										<strong>Type:</strong> {selectedSession.packageTypeName}
-									</div>
-									<div>
-										<strong>Trainer:</strong> {selectedSession.trainer}
-									</div>
-									<div>
-										<strong>Capacity:</strong>{" "}
-										{selectedSession.capacity.booked + 1}/
-										{selectedSession.capacity.total} after booking
+								)}
+
+								<div className="grid gap-2">
+									<Label htmlFor="member">Select Member *</Label>
+									<Select
+										value={selectedMemberId}
+										onValueChange={setSelectedMemberId}>
+										<SelectTrigger>
+											<SelectValue placeholder="Choose a member with matching package" />
+										</SelectTrigger>
+										<SelectContent className="max-h-48">
+											{availableMembers.length > 0
+												? availableMembers
+														.sort((a, b) => a.name.localeCompare(b.name))
+														.map((member) => {
+															const matchingPackages =
+																member.packages?.filter((pkg: any) => {
+																	console.log(pkg);
+																	const remaining = pkg.remaining || 0;
+																	const packageId = pkg.package_id || "";
+																	const packageTypeId = pkg.package_type_id || "";
+																	if (remaining <= 0) return false;
+																	if (
+																		packageId &&
+																		selectedSession?.package_id &&
+																		packageId === selectedSession.package_id
+																	)
+																		return true;
+																	if (
+																		!selectedSession?.package_id &&
+																		packageTypeId &&
+																		selectedSession?.packageTypeId &&
+																		packageTypeId === selectedSession.packageTypeId
+																	)
+																		return true;
+																	return false;
+																}) || [];
+
+															const bestPackage =
+																matchingPackages[0] || member.packages?.[0];
+
+															return (
+																<SelectItem key={member.id} value={member.id}>
+																	<div className="flex flex-col">
+																		<span className="font-medium">
+																			{member.name}
+																		</span>
+																		<span className="text-xs text-muted-foreground">
+																			{bestPackage
+																				? `${bestPackage.name} - ${bestPackage.type} (${bestPackage.remaining}/${bestPackage.total} sessions)`
+																				: "No packages available"}
+																		</span>
+																	</div>
+																</SelectItem>
+															);
+														})
+												: // Show all members for debugging when no eligible members found
+												  members
+														.slice(0, 10) // Limit to first 10 for debugging
+														.map((member) => (
+															<SelectItem
+																key={member.id}
+																value={member.id}
+																disabled>
+																<div className="flex flex-col">
+																	<span className="font-medium">{member.name}</span>
+																	<span className="text-xs text-muted-foreground">
+																		{member.packages?.length > 0
+																			? `${member.packages
+																					.map(
+																						(p: any) => `${p.type} (${p.remaining})`
+																					)
+																					.join(", ")}`
+																			: "No packages"}
+																	</span>
+																</div>
+															</SelectItem>
+														))}
+										</SelectContent>
+									</Select>
+									<div className="text-sm text-muted-foreground">
+										{availableMembers.length === 0 ? (
+											<div>
+												<p>
+													No eligible members found for session type "
+													{selectedSession?.packageTypeName}".
+												</p>
+												<p>Total members: {members.length}</p>
+												<p>
+													Members with packages:{" "}
+													{members.filter((m) => m.packages?.length > 0).length}
+												</p>
+											</div>
+										) : (
+											<p>{availableMembers.length} eligible member(s) found.</p>
+										)}
 									</div>
 								</div>
 							</div>
-						)}
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => setIsBookingDialogOpen(false)}>
+									Cancel
+								</Button>
+								<Button
+									onClick={handleConfirmBooking}
+									disabled={!selectedMemberId || loading}>
+									{loading ? "Booking..." : "Confirm Booking"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
 
-						<div className="grid gap-2">
-							<Label htmlFor="member">Select Member *</Label>
-							<Select
-								value={selectedMemberId}
-								onValueChange={setSelectedMemberId}>
-								<SelectTrigger>
-									<SelectValue placeholder="Choose a member with matching package" />
-								</SelectTrigger>
-								<SelectContent className="max-h-48">
-									{availableMembers.length > 0
-										? availableMembers
-												.sort((a, b) => a.name.localeCompare(b.name))
-												.map((member) => {
-													const matchingPackages =
-														member.packages?.filter((pkg: any) => {
-															console.log(pkg);
-															const remaining = pkg.remaining || 0;
-															const packageId = pkg.package_id || "";
-															const packageTypeId = pkg.package_type_id || "";
-															if (remaining <= 0) return false;
-															if (
-																packageId &&
-																selectedSession?.package_id &&
-																packageId === selectedSession.package_id
-															)
-																return true;
-															if (
-																!selectedSession?.package_id &&
-																packageTypeId &&
-																selectedSession?.packageTypeId &&
-																packageTypeId === selectedSession.packageTypeId
-															)
-																return true;
-															return false;
-														}) || [];
-
-													const bestPackage =
-														matchingPackages[0] || member.packages?.[0];
-
-													return (
-														<SelectItem key={member.id} value={member.id}>
-															<div className="flex flex-col">
-																<span className="font-medium">
-																	{member.name}
-																</span>
-																<span className="text-xs text-muted-foreground">
-																	{bestPackage
-																		? `${bestPackage.name} - ${bestPackage.type} (${bestPackage.remaining}/${bestPackage.total} sessions)`
-																		: "No packages available"}
-																</span>
-															</div>
-														</SelectItem>
-													);
-												})
-										: // Show all members for debugging when no eligible members found
-										  members
-												.slice(0, 10) // Limit to first 10 for debugging
-												.map((member) => (
-													<SelectItem
-														key={member.id}
-														value={member.id}
-														disabled>
-														<div className="flex flex-col">
-															<span className="font-medium">{member.name}</span>
-															<span className="text-xs text-muted-foreground">
-																{member.packages?.length > 0
-																	? `${member.packages
-																			.map(
-																				(p: any) => `${p.type} (${p.remaining})`
-																			)
-																			.join(", ")}`
-																	: "No packages"}
-															</span>
-														</div>
-													</SelectItem>
-												))}
-								</SelectContent>
-							</Select>
-							<div className="text-sm text-muted-foreground">
-								{availableMembers.length === 0 ? (
-									<div>
-										<p>
-											No eligible members found for session type "
-											{selectedSession?.packageTypeName}".
-										</p>
-										<p>Total members: {members.length}</p>
-										<p>
-											Members with packages:{" "}
-											{members.filter((m) => m.packages?.length > 0).length}
-										</p>
-									</div>
-								) : (
-									<p>{availableMembers.length} eligible member(s) found.</p>
-								)}
-							</div>
-						</div>
-					</div>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setIsBookingDialogOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleConfirmBooking}
-							disabled={!selectedMemberId || loading}>
-							{loading ? "Booking..." : "Confirm Booking"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			{/* Reactivation Dialog */}
-			<ReactivationDialog
-				isOpen={reactivationDialog.isOpen}
-				onClose={() => setReactivationDialog({ isOpen: false, session: null })}
-				onConfirm={(data) =>
-					reactivationDialog.session &&
-					handleReactivateSession(reactivationDialog.session, data)
-				}
-				sessionTitle={reactivationDialog.session?.title || ""}
-				isLoading={loading}
-			/>
-		</main>
+					{/* Reactivation Dialog */}
+					<ReactivationDialog
+						isOpen={reactivationDialog.isOpen}
+						onClose={() => setReactivationDialog({ isOpen: false, session: null })}
+						onConfirm={(data) =>
+							reactivationDialog.session &&
+							handleReactivateSession(reactivationDialog.session, data)
+						}
+						sessionTitle={reactivationDialog.session?.title || ""}
+						isLoading={loading}
+					/>
+				</div>
+			</div>
+		</div>
 	);
 }

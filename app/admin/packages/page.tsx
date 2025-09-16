@@ -50,6 +50,8 @@ import { TableStatusBadge } from "@/components/ui/status-badge";
 import { normalizeStatus } from "@/types/status";
 import { logActivity } from "@/utils/activity-logger";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/components/theme-provider";
+import { PageHeader } from "@/components/page-header";
 import {
 	ArrowLeft,
 	Search,
@@ -140,6 +142,7 @@ import type { PackageType as DBPackageTypeImport } from "@/types/package-types";
 export default function PackagesPage() {
 	const { toast } = useToast();
 	const auth = useAuth();
+	const { theme } = useTheme();
 	const [activeTab, setActiveTab] = useState("assigned");
 
 	// Assigned Packages State
@@ -1712,916 +1715,769 @@ export default function PackagesPage() {
 	};
 
 	return (
-		<div className="container mx-auto max-w-7xl py-6 space-y-6">
-			{/* Header */}
-			<div className="relative mb-8">
-				<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
-				<div className="flex items-center justify-between gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
-					<div className="flex items-center gap-6">
-						<Button variant="ghost" size="icon" asChild className="mr-2">
-							<Link href="/admin">
-								<ArrowLeft className="h-5 w-5" />
-								<span className="sr-only">Back to Dashboard</span>
-							</Link>
-						</Button>
-						<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
-							<Package className="w-10 h-10 text-primary" />
-						</div>
-						<div>
-							<div className="font-bold text-2xl flex items-center gap-2">
-								Package Management
-							</div>
-							<div className="text-muted-foreground text-sm">
-								Manage packages, types, and member assignments
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
+		<div className="space-y-6">
+			<PageHeader
+				title="Package Management"
+				subtitle="Manage packages, types, and member assignments"
+				icon={Package}
+				hasAddButton={true}
+				addLink="/admin/packages/new"
+			/>
 
-			{/* Statistics Cards */}
-			<div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">
-							Total Packages Assigned
-						</CardTitle>
-						<Package className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold">{stats.totalPackages}</div>
-					</CardContent>
-				</Card>
-
-				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">
-							Active Packages
-						</CardTitle>
-						<Calendar className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold text-green-600">
-							{stats.activePackages}
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">
-							Paid Packages Assigned
-						</CardTitle>
-						<DollarSign className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold">{stats.paidPackages}</div>
-						<p className="text-xs text-muted-foreground">
-							{stats.totalPackages > 0
-								? ((stats.paidPackages / stats.totalPackages) * 100).toFixed(1)
-								: 0}
-							% payment rate
-						</p>
-					</CardContent>
-				</Card>
-
-				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">
-							Monthly Revenue
-						</CardTitle>
-						<TrendingUp className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold">
-							${stats.monthlyRevenue.toLocaleString()}
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-						<CardTitle className="text-sm font-medium">
-							Attendance Rate
-						</CardTitle>
-						<Calendar className="h-4 w-4 text-muted-foreground" />
-					</CardHeader>
-					<CardContent>
-						<div className="text-2xl font-bold">{stats.attendanceRate}%</div>
-					</CardContent>
-				</Card>
-			</div>
-
-			{/* Tabs */}
-			<Tabs value={activeTab} onValueChange={setActiveTab}>
-				<TabsList className="grid w-full grid-cols-3">
-					<TabsTrigger value="assigned">Assigned Packages</TabsTrigger>
-					<TabsTrigger value="types">Packages</TabsTrigger>
-					<TabsTrigger value="packageTypes">Package Types</TabsTrigger>
-				</TabsList>
-
-				{/* Assigned Packages Tab */}
-				<TabsContent value="assigned" className="space-y-4">
-					<Card>
-						<CardHeader>
-							<div className="flex items-center justify-between">
-								<div>
-									<CardTitle>Assigned Packages</CardTitle>
-									<CardDescription>
-										View and manage all member packages
-									</CardDescription>
-								</div>
-								<Dialog
-									open={isCreatePackageOpen}
-									onOpenChange={setIsCreatePackageOpen}>
-									<DialogTrigger asChild>
-										<Button disabled={isLoading || isLoadingMembers}>
-											{isLoading || isLoadingMembers ? (
-												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-											) : (
-												<Plus className="mr-2 h-4 w-4" />
-											)}
-											New Package Assignment
-										</Button>
-									</DialogTrigger>
-									<DialogContent className="sm:max-w-[500px]">
-										<DialogHeader>
-											<DialogTitle>Assign New Package</DialogTitle>
-											<DialogDescription>
-												Select a member and package type to create a new package
-												assignment.
-											</DialogDescription>
-										</DialogHeader>
-										<div className="grid gap-4 py-4">
-											<div className="grid gap-2">
-												<Label htmlFor="member">Member *</Label>
-												<Select
-													value={newPackage.memberId}
-													onValueChange={(value) =>
-														setNewPackage((prev) => ({
-															...prev,
-															memberId: value,
-														}))
-													}
-													disabled={isLoadingMembers}>
-													<SelectTrigger>
-														<SelectValue placeholder="Select a member" />
-													</SelectTrigger>
-													<SelectContent className="max-h-48">
-														{isLoadingMembers ? (
-															<div className="p-2">Loading members...</div>
-														) : (
-															members
-																.sort((a, b) => a.name.localeCompare(b.name))
-																.map((member) => (
-																	<SelectItem key={member.id} value={member.id}>
-																		<div className="flex flex-col">
-																			<span className="font-medium">
-																				{member.name}
-																			</span>
-																			<span className="text-xs text-muted-foreground">
-																				{member.email}
-																			</span>
-																		</div>
-																	</SelectItem>
-																))
-														)}
-													</SelectContent>
-												</Select>
-											</div>
-
-											<div className="grid gap-2">
-												<Label htmlFor="packageType">Package Type *</Label>
-												<Select
-													value={newPackage.packageTypeId}
-													onValueChange={(value) =>
-														setNewPackage((prev) => ({
-															...prev,
-															packageTypeId: value,
-														}))
-													}
-													disabled={isLoadingPackages}>
-													<SelectTrigger>
-														<SelectValue placeholder="Select a package type" />
-													</SelectTrigger>
-													<SelectContent className="max-h-48">
-														{isLoadingPackages ? (
-															<div className="p-2">Loading packages...</div>
-														) : (
-															packageTypes
-																.filter((t) => t.isActive)
-																.sort(
-																	(a, b) =>
-																		(a.type?.name || "").localeCompare(
-																			b.type?.name || ""
-																		) || a.name.localeCompare(b.name)
-																)
-																.map((type) => (
-																	<SelectItem key={type.id} value={type.id}>
-																		<div className="flex flex-col">
-																			<span className="font-medium">
-																				{type.name}
-																			</span>
-																			<span className="text-xs text-muted-foreground">
-																				{type.sessionCount} sessions • $
-																				{type.price} • {type.type?.name}
-																			</span>
-																		</div>
-																	</SelectItem>
-																))
-														)}
-													</SelectContent>
-												</Select>
-											</div>
-
-											<div className="grid gap-2">
-												<Label htmlFor="startDate">Start Date *</Label>
-												<Input
-													id="startDate"
-													type="date"
-													value={newPackage.startDate}
-													onChange={(e) =>
-														setNewPackage((prev) => ({
-															...prev,
-															startDate: e.target.value,
-														}))
-													}
-													min={new Date().toISOString().split("T")[0]}
-												/>
-											</div>
-
-											<div className="grid gap-2">
-												<Label htmlFor="paymentStatus">Payment Status *</Label>
-												<Select
-													value={newPackage.paymentStatus}
-													onValueChange={(value: "paid" | "unpaid") =>
-														setNewPackage((prev) => ({
-															...prev,
-															paymentStatus: value,
-														}))
-													}>
-													<SelectTrigger>
-														<SelectValue />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="paid">
-															<div className="flex items-center">
-																<DollarSign className="h-4 w-4 mr-2 text-green-600" />
-																Paid
-															</div>
-														</SelectItem>
-														<SelectItem value="unpaid">
-															<div className="flex items-center">
-																<DollarSign className="h-4 w-4 mr-2 text-red-600" />
-																Unpaid
-															</div>
-														</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
-										</div>
-										<DialogFooter>
-											<Button
-												variant="outline"
-												onClick={() => setIsCreatePackageOpen(false)}>
-												Cancel
-											</Button>
-											<Button
-												onClick={handleCreatePackage}
-												disabled={isCreatingPackage}>
-												{isCreatingPackage ? (
-													<>
-														<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-														Creating...
-													</>
-												) : (
-													"Create Package"
-												)}
-											</Button>
-										</DialogFooter>
-									</DialogContent>
-								</Dialog>
-							</div>
+			<div className="container mx-auto max-w-7xl space-y-6 pt-4">
+				{/* Statistics Cards */}
+				<div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="text-sm font-medium">
+								Total Packages Assigned
+							</CardTitle>
+							<Package className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
-							<div className="flex flex-col md:flex-row gap-4 mb-6">
-								<div className="flex items-center space-x-2 flex-1">
-									<Search className="h-4 w-4 text-muted-foreground" />
-									<Input
-										placeholder="Search by member name or packages..."
-										value={searchQuery}
-										onChange={(e) => setSearchQuery(e.target.value)}
-										className="max-w-sm"
-									/>
-								</div>
-
-								<Select value={paymentFilter} onValueChange={setPaymentFilter}>
-									<SelectTrigger className="w-[180px]">
-										<SelectValue placeholder="Payment Status" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">All Payment Status</SelectItem>
-										<SelectItem value="paid">Paid</SelectItem>
-										<SelectItem value="unpaid">Unpaid</SelectItem>
-									</SelectContent>
-								</Select>
-
-								<Select
-									value={packageTypeFilter}
-									onValueChange={setPackageTypeFilter}>
-									<SelectTrigger className="w-[180px]">
-										<SelectValue placeholder="Package Type" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">All Packages</SelectItem>
-										{getUniquePackageTypes().map((type) => (
-											<SelectItem key={type} value={type}>
-												{type}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-
-								{/* Replace StatusFilter with a Select for dynamic status options */}
-								<Select
-									value={statusFilter}
-									onValueChange={setStatusFilter}
-									disabled={isLoading}>
-									<SelectTrigger className="w-[180px]">
-										<SelectValue placeholder="Status" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">All Statuses</SelectItem>
-										{uniqueStatuses.map((status) => (
-											<SelectItem key={status} value={status}>
-												{status}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							{/* Table */}
-							<div className="rounded-md border">
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>Member Name</TableHead>
-											<TableHead>Package Name</TableHead>
-											<TableHead>Session Count</TableHead>
-											<TableHead>Start Date</TableHead>
-											<TableHead>End Date</TableHead>
-											<TableHead>Payment Status</TableHead>
-											<TableHead>Package Status</TableHead>
-											<TableHead className="text-right">Actions</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{isLoading
-											? // Show 3 animated skeleton rows while loading, using bg-gray-200 and rounded
-											  Array.from({ length: 3 }).map((_, idx) => (
-													<TableRow key={"skeleton-" + idx}>
-														<TableCell className="font-medium">
-															<div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
-														</TableCell>
-														<TableCell>
-															<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-														</TableCell>
-														<TableCell>
-															<div className="text-sm">
-																<div className="h-4 w-16 mb-1 bg-gray-200 rounded animate-pulse" />
-																<div className="h-3 w-12 bg-gray-200 rounded animate-pulse" />
-															</div>
-														</TableCell>
-														<TableCell>
-															<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
-														</TableCell>
-														<TableCell>
-															<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
-														</TableCell>
-														<TableCell>
-															<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
-														</TableCell>
-														<TableCell>
-															<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
-														</TableCell>
-														<TableCell className="text-right">
-															<div className="h-8 w-8 rounded-full mx-auto bg-gray-200 animate-pulse" />
-														</TableCell>
-													</TableRow>
-											  ))
-											: paginatedPackages.map((pkg) => (
-													<TableRow key={pkg.id}>
-														<TableCell className="font-medium">
-															{pkg.memberName}
-														</TableCell>
-														<TableCell>{pkg.packageType}</TableCell>
-														<TableCell>
-															<div className="text-sm">
-																<div>
-																	{pkg.remainingSessions} / {pkg.sessionCount}
-																</div>
-																<div className="text-muted-foreground">
-																	remaining
-																</div>
-															</div>
-														</TableCell>
-														<TableCell>{formatDate(pkg.startDate)}</TableCell>
-														<TableCell>{formatDate(pkg.endDate)}</TableCell>
-														<TableCell>
-															{getPaymentBadge(pkg.paymentStatus)}
-														</TableCell>
-														<TableCell>
-															<TableStatusBadge status={pkg.status || ""} />
-														</TableCell>
-														<TableCell className="text-right">
-															<DropdownMenu>
-																<DropdownMenuTrigger asChild>
-																	<Button
-																		variant="ghost"
-																		size="sm"
-																		disabled={isLoadingPackages}>
-																		<MoreHorizontal className="h-4 w-4" />
-																	</Button>
-																</DropdownMenuTrigger>
-																<DropdownMenuContent align="end">
-																	<DropdownMenuItem
-																		onClick={() => handleEditPackage(pkg)}
-																		className="text-blue-600">
-																		<Edit className="mr-2 h-4 w-4" />
-																		Edit Package
-																	</DropdownMenuItem>
-																	{pkg.paymentStatus === "unpaid" ? (
-																		<DropdownMenuItem
-																			onClick={() =>
-																				updatePaymentStatus(pkg.id, "paid")
-																			}
-																			className="text-green-600">
-																			<DollarSign className="mr-2 h-4 w-4" />
-																			Mark as Paid
-																		</DropdownMenuItem>
-																	) : (
-																		<DropdownMenuItem
-																			onClick={() =>
-																				updatePaymentStatus(pkg.id, "unpaid")
-																			}
-																			className="text-red-600">
-																			<DollarSign className="mr-2 h-4 w-4" />
-																			Mark as Unpaid
-																		</DropdownMenuItem>
-																	)}
-																	{(pkg.status === "Expired" ||
-																		pkg.status === "Inactive") && (
-																		<DropdownMenuItem
-																			onClick={() =>
-																				handleDeleteMemberPackage(pkg.id)
-																			}
-																			className="text-red-600">
-																			<Trash2 className="mr-2 h-4 w-4" />
-																			Delete Package
-																		</DropdownMenuItem>
-																	)}
-																</DropdownMenuContent>
-															</DropdownMenu>
-														</TableCell>
-													</TableRow>
-											  ))}
-									</TableBody>
-								</Table>
-							</div>
-
-							{/* Pagination */}
-							{!isLoading && totalPages > 1 && (
-								<div className="flex items-center justify-end space-x-2 mt-4">
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() =>
-											setCurrentPage((prev) => Math.max(prev - 1, 1))
-										}
-										disabled={currentPage === 1}>
-										<ChevronLeft className="h-4 w-4" />
-									</Button>
-									<span className="text-sm">
-										Page {currentPage} of {totalPages}
-									</span>
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() =>
-											setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-										}
-										disabled={currentPage === totalPages}>
-										<ChevronRight className="h-4 w-4" />
-									</Button>
-								</div>
-							)}
-
-							{!isLoading && filteredPackages.length === 0 && (
-								<div className="text-center py-8">
-									<p className="text-muted-foreground">
-										No packages found matching your criteria.
-									</p>
-								</div>
-							)}
+							<div className="text-2xl font-bold">{stats.totalPackages}</div>
 						</CardContent>
 					</Card>
-				</TabsContent>
 
-				{/* Package Types Tab */}
-				<TabsContent value="types" className="space-y-4">
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="text-sm font-medium">
+								Active Packages
+							</CardTitle>
+							<Calendar className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold text-green-600">
+								{stats.activePackages}
+							</div>
+						</CardContent>
+					</Card>
+
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="text-sm font-medium">
+								Paid Packages Assigned
+							</CardTitle>
+							<DollarSign className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold">{stats.paidPackages}</div>
+							<p className="text-xs text-muted-foreground">
+								{stats.totalPackages > 0
+									? ((stats.paidPackages / stats.totalPackages) * 100).toFixed(1)
+									: 0}
+								% payment rate
+							</p>
+						</CardContent>
+					</Card>
+
+					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="text-sm font-medium">
+								Monthly Revenue
+							</CardTitle>
+							<TrendingUp className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold">
+								${stats.monthlyRevenue.toLocaleString()}
+							</div>
+						</CardContent>
+					</Card>
+
 					<Card>
-						<CardHeader>
-							<div className="flex items-center justify-between">
-								<div>
-									<CardTitle>Packages</CardTitle>
-									<CardDescription>
-										Manage available packages and their configurations
-									</CardDescription>
-								</div>
-								<Dialog
-									open={isCreateTypeOpen}
-									onOpenChange={(open) => {
-										setIsCreateTypeOpen(open);
-										if (!open) {
-											setEditingType(null);
-											setNewPackageType({
-												name: "",
-												description: "",
-												sessionCount: 10,
-												price: 100,
-												duration: 30,
-												category: "",
-												customCategory: "",
-												useCustomCategory: false,
-											});
-										}
-									}}>
-									<DialogTrigger asChild>
-										<Button>
-											<Plus className="mr-2 h-4 w-4" />
-											New Package Type
-										</Button>
-									</DialogTrigger>
-									<DialogContent className="sm:max-w-[500px]">
-										<DialogHeader>
-											<DialogTitle>
-												{editingType
-													? "Edit Package Type"
-													: "Create New Package Type"}
-											</DialogTitle>
-											<DialogDescription>
-												{editingType
-													? "Update the package type details."
-													: "Define a new package type that can be assigned to members."}
-											</DialogDescription>
-										</DialogHeader>
-										<div className="grid gap-4 py-4">
-											<div className="grid gap-2">
-												<Label htmlFor="typeName">Package Name *</Label>
-												<Input
-													id="typeName"
-													value={newPackageType.name}
-													onChange={(e) =>
-														setNewPackageType((prev) => ({
-															...prev,
-															name: e.target.value,
-														}))
-													}
-													placeholder="e.g., Personal Training"
-												/>
-											</div>
+						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+							<CardTitle className="text-sm font-medium">
+								Attendance Rate
+							</CardTitle>
+							<Calendar className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold">{stats.attendanceRate}%</div>
+						</CardContent>
+					</Card>
+				</div>
 
-											<div className="grid gap-2">
-												<Label htmlFor="typeCategory">Package Type *</Label>
-												<div className="space-y-3">
+				{/* Tabs */}
+				<Tabs value={activeTab} onValueChange={setActiveTab}>
+					<TabsList className="grid w-full grid-cols-3">
+						<TabsTrigger value="assigned">Assigned Packages</TabsTrigger>
+						<TabsTrigger value="types">Packages</TabsTrigger>
+						<TabsTrigger value="packageTypes">Package Types</TabsTrigger>
+					</TabsList>
+
+					{/* Assigned Packages Tab */}
+					<TabsContent value="assigned" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<div className="flex items-center justify-between">
+									<div>
+										<CardTitle>Assigned Packages</CardTitle>
+										<CardDescription>
+											View and manage all member packages
+										</CardDescription>
+									</div>
+									<Dialog
+										open={isCreatePackageOpen}
+										onOpenChange={setIsCreatePackageOpen}>
+										<DialogTrigger asChild>
+											<Button disabled={isLoading || isLoadingMembers}>
+												{isLoading || isLoadingMembers ? (
+													<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+												) : (
+													<Plus className="mr-2 h-4 w-4" />
+												)}
+												New Package Assignment
+											</Button>
+										</DialogTrigger>
+										<DialogContent className="sm:max-w-[500px]">
+											<DialogHeader>
+												<DialogTitle>Assign New Package</DialogTitle>
+												<DialogDescription>
+													Select a member and package type to create a new package
+													assignment.
+												</DialogDescription>
+											</DialogHeader>
+											<div className="grid gap-4 py-4">
+												<div className="grid gap-2">
+													<Label htmlFor="member">Member *</Label>
 													<Select
-														value={
-															newPackageType.useCustomCategory
-																? ""
-																: newPackageType.category
-														}
+														value={newPackage.memberId}
 														onValueChange={(value) =>
-															setNewPackageType((prev) => ({
+															setNewPackage((prev) => ({
 																...prev,
-																category: value,
-																useCustomCategory: false,
+																memberId: value,
 															}))
 														}
-														disabled={newPackageType.useCustomCategory}>
+														disabled={isLoadingMembers}>
 														<SelectTrigger>
-															<SelectValue placeholder="Select existing package type" />
+															<SelectValue placeholder="Select a member" />
+														</SelectTrigger>
+														<SelectContent className="max-h-48">
+															{isLoadingMembers ? (
+																<div className="p-2">Loading members...</div>
+															) : (
+																members
+																	.sort((a, b) => a.name.localeCompare(b.name))
+																	.map((member) => (
+																		<SelectItem key={member.id} value={member.id}>
+																			<div className="flex flex-col">
+																				<span className="font-medium">
+																					{member.name}
+																				</span>
+																				<span className="text-xs text-muted-foreground">
+																					{member.email}
+																				</span>
+																			</div>
+																		</SelectItem>
+																	))
+															)}
+														</SelectContent>
+													</Select>
+												</div>
+
+												<div className="grid gap-2">
+													<Label htmlFor="packageType">Package Type *</Label>
+													<Select
+														value={newPackage.packageTypeId}
+														onValueChange={(value) =>
+															setNewPackage((prev) => ({
+																...prev,
+																packageTypeId: value,
+															}))
+														}
+														disabled={isLoadingPackages}>
+														<SelectTrigger>
+															<SelectValue placeholder="Select a package type" />
+														</SelectTrigger>
+														<SelectContent className="max-h-48">
+															{isLoadingPackages ? (
+																<div className="p-2">Loading packages...</div>
+															) : (
+																packageTypes
+																	.filter((t) => t.isActive)
+																	.sort(
+																		(a, b) =>
+																			(a.type?.name || "").localeCompare(
+																				b.type?.name || ""
+																			) || a.name.localeCompare(b.name)
+																	)
+																	.map((type) => (
+																		<SelectItem key={type.id} value={type.id}>
+																			<div className="flex flex-col">
+																				<span className="font-medium">
+																					{type.name}
+																				</span>
+																				<span className="text-xs text-muted-foreground">
+																					{type.sessionCount} sessions • $
+																					{type.price} • {type.type?.name}
+																				</span>
+																			</div>
+																		</SelectItem>
+																	))
+															)}
+														</SelectContent>
+													</Select>
+												</div>
+
+												<div className="grid gap-2">
+													<Label htmlFor="startDate">Start Date *</Label>
+													<Input
+														id="startDate"
+														type="date"
+														value={newPackage.startDate}
+														onChange={(e) =>
+															setNewPackage((prev) => ({
+																...prev,
+																startDate: e.target.value,
+															}))
+														}
+														min={new Date().toISOString().split("T")[0]}
+													/>
+												</div>
+
+												<div className="grid gap-2">
+													<Label htmlFor="paymentStatus">Payment Status *</Label>
+													<Select
+														value={newPackage.paymentStatus}
+														onValueChange={(value: "paid" | "unpaid") =>
+															setNewPackage((prev) => ({
+																...prev,
+																paymentStatus: value,
+															}))
+														}>
+														<SelectTrigger>
+															<SelectValue />
 														</SelectTrigger>
 														<SelectContent>
-															{availableCategories.map((category) => (
-																<SelectItem key={category} value={category}>
-																	{category}
-																</SelectItem>
-															))}
+															<SelectItem value="paid">
+																<div className="flex items-center">
+																	<DollarSign className="h-4 w-4 mr-2 text-green-600" />
+																	Paid
+																</div>
+															</SelectItem>
+															<SelectItem value="unpaid">
+																<div className="flex items-center">
+																	<DollarSign className="h-4 w-4 mr-2 text-red-600" />
+																	Unpaid
+																</div>
+															</SelectItem>
 														</SelectContent>
 													</Select>
 												</div>
 											</div>
+											<DialogFooter>
+												<Button
+													variant="outline"
+													onClick={() => setIsCreatePackageOpen(false)}>
+													Cancel
+												</Button>
+												<Button
+													onClick={handleCreatePackage}
+													disabled={isCreatingPackage}>
+													{isCreatingPackage ? (
+														<>
+															<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+															Creating...
+														</>
+													) : (
+														"Create Package"
+													)}
+												</Button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
+								</div>
+							</CardHeader>
+							<CardContent>
+								<div className="flex flex-col md:flex-row gap-4 mb-6">
+									<div className="flex items-center space-x-2 flex-1">
+										<Search className="h-4 w-4 text-muted-foreground" />
+										<Input
+											placeholder="Search by member name or packages..."
+											value={searchQuery}
+											onChange={(e) => setSearchQuery(e.target.value)}
+											className="max-w-sm"
+										/>
+									</div>
 
-											<div className="grid gap-2">
-												<Label htmlFor="typeDescription">Description</Label>
-												<Input
-													id="typeDescription"
-													value={newPackageType.description}
-													onChange={(e) =>
-														setNewPackageType((prev) => ({
-															...prev,
-															description: e.target.value,
-														}))
-													}
-													placeholder="Brief description of the package"
-												/>
-											</div>
+									<Select value={paymentFilter} onValueChange={setPaymentFilter}>
+										<SelectTrigger className="w-[180px]">
+											<SelectValue placeholder="Payment Status" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Payment Status</SelectItem>
+											<SelectItem value="paid">Paid</SelectItem>
+											<SelectItem value="unpaid">Unpaid</SelectItem>
+										</SelectContent>
+									</Select>
 
-											<div className="grid grid-cols-2 gap-4">
+									<Select
+										value={packageTypeFilter}
+										onValueChange={setPackageTypeFilter}>
+										<SelectTrigger className="w-[180px]">
+											<SelectValue placeholder="Package Type" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Packages</SelectItem>
+											{getUniquePackageTypes().map((type) => (
+												<SelectItem key={type} value={type}>
+													{type}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+
+									{/* Replace StatusFilter with a Select for dynamic status options */}
+									<Select
+										value={statusFilter}
+										onValueChange={setStatusFilter}
+										disabled={isLoading}>
+										<SelectTrigger className="w-[180px]">
+											<SelectValue placeholder="Status" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="all">All Statuses</SelectItem>
+											{uniqueStatuses.map((status) => (
+												<SelectItem key={status} value={status}>
+													{status}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+
+								{/* Table */}
+								<div className="rounded-md border">
+									<Table>
+										<TableHeader>
+											<TableRow>
+												<TableHead>Member Name</TableHead>
+												<TableHead>Package Name</TableHead>
+												<TableHead>Session Count</TableHead>
+												<TableHead>Start Date</TableHead>
+												<TableHead>End Date</TableHead>
+												<TableHead>Payment Status</TableHead>
+												<TableHead>Package Status</TableHead>
+												<TableHead className="text-right">Actions</TableHead>
+											</TableRow>
+										</TableHeader>
+										<TableBody>
+											{isLoading
+												? // Show 3 animated skeleton rows while loading, using bg-gray-200 and rounded
+												  Array.from({ length: 3 }).map((_, idx) => (
+														<TableRow key={"skeleton-" + idx}>
+															<TableCell className="font-medium">
+																<div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+															</TableCell>
+															<TableCell>
+																<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+															</TableCell>
+															<TableCell>
+																<div className="text-sm">
+																	<div className="h-4 w-16 mb-1 bg-gray-200 rounded animate-pulse" />
+																	<div className="h-3 w-12 bg-gray-200 rounded animate-pulse" />
+																</div>
+															</TableCell>
+															<TableCell>
+																<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+															</TableCell>
+															<TableCell>
+																<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+															</TableCell>
+															<TableCell>
+																<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+															</TableCell>
+															<TableCell>
+																<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+															</TableCell>
+															<TableCell className="text-right">
+																<div className="h-8 w-8 rounded-full mx-auto bg-gray-200 animate-pulse" />
+															</TableCell>
+														</TableRow>
+												  ))
+												: paginatedPackages.map((pkg) => (
+														<TableRow key={pkg.id}>
+															<TableCell className="font-medium">
+																{pkg.memberName}
+															</TableCell>
+															<TableCell>{pkg.packageType}</TableCell>
+															<TableCell>
+																<div className="text-sm">
+																	<div>
+																		{pkg.remainingSessions} / {pkg.sessionCount}
+																	</div>
+																	<div className="text-muted-foreground">
+																		remaining
+																	</div>
+																</div>
+															</TableCell>
+															<TableCell>{formatDate(pkg.startDate)}</TableCell>
+															<TableCell>{formatDate(pkg.endDate)}</TableCell>
+															<TableCell>
+																{getPaymentBadge(pkg.paymentStatus)}
+															</TableCell>
+															<TableCell>
+																<TableStatusBadge status={pkg.status || ""} />
+															</TableCell>
+															<TableCell className="text-right">
+																<DropdownMenu>
+																	<DropdownMenuTrigger asChild>
+																		<Button
+																			variant="ghost"
+																			size="sm"
+																			disabled={isLoadingPackages}>
+																			<MoreHorizontal className="h-4 w-4" />
+																		</Button>
+																	</DropdownMenuTrigger>
+																	<DropdownMenuContent align="end">
+																		<DropdownMenuItem
+																			onClick={() => handleEditPackage(pkg)}
+																			className="text-blue-600">
+																			<Edit className="mr-2 h-4 w-4" />
+																			Edit Package
+																		</DropdownMenuItem>
+																		{pkg.paymentStatus === "unpaid" ? (
+																			<DropdownMenuItem
+																				onClick={() =>
+																					updatePaymentStatus(pkg.id, "paid")
+																				}
+																				className="text-green-600">
+																				<DollarSign className="mr-2 h-4 w-4" />
+																				Mark as Paid
+																			</DropdownMenuItem>
+																		) : (
+																			<DropdownMenuItem
+																				onClick={() =>
+																					updatePaymentStatus(pkg.id, "unpaid")
+																				}
+																				className="text-red-600">
+																				<DollarSign className="mr-2 h-4 w-4" />
+																				Mark as Unpaid
+																			</DropdownMenuItem>
+																		)}
+																		{(pkg.status === "Expired" ||
+																			pkg.status === "Inactive") && (
+																			<DropdownMenuItem
+																				onClick={() =>
+																					handleDeleteMemberPackage(pkg.id)
+																				}
+																				className="text-red-600">
+																				<Trash2 className="mr-2 h-4 w-4" />
+																				Delete Package
+																			</DropdownMenuItem>
+																		)}
+																	</DropdownMenuContent>
+																</DropdownMenu>
+															</TableCell>
+														</TableRow>
+												  ))}
+										</TableBody>
+									</Table>
+								</div>
+
+								{/* Pagination */}
+								{!isLoading && totalPages > 1 && (
+									<div className="flex items-center justify-end space-x-2 mt-4">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												setCurrentPage((prev) => Math.max(prev - 1, 1))
+											}
+											disabled={currentPage === 1}>
+											<ChevronLeft className="h-4 w-4" />
+										</Button>
+										<span className="text-sm">
+											Page {currentPage} of {totalPages}
+										</span>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+											}
+											disabled={currentPage === totalPages}>
+											<ChevronRight className="h-4 w-4" />
+										</Button>
+									</div>
+								)}
+
+								{!isLoading && filteredPackages.length === 0 && (
+									<div className="text-center py-8">
+										<p className="text-muted-foreground">
+											No packages found matching your criteria.
+										</p>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</TabsContent>
+
+					{/* Package Types Tab */}
+					<TabsContent value="types" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<div className="flex items-center justify-between">
+									<div>
+										<CardTitle>Packages</CardTitle>
+										<CardDescription>
+											Manage available packages and their configurations
+										</CardDescription>
+									</div>
+									<Dialog
+										open={isCreateTypeOpen}
+										onOpenChange={(open) => {
+											setIsCreateTypeOpen(open);
+											if (!open) {
+												setEditingType(null);
+												setNewPackageType({
+													name: "",
+													description: "",
+													sessionCount: 10,
+													price: 100,
+													duration: 30,
+													category: "",
+													customCategory: "",
+													useCustomCategory: false,
+												});
+											}
+										}}>
+										<DialogTrigger asChild>
+											<Button>
+												<Plus className="mr-2 h-4 w-4" />
+												New Package Type
+											</Button>
+										</DialogTrigger>
+										<DialogContent className="sm:max-w-[500px]">
+											<DialogHeader>
+												<DialogTitle>
+													{editingType
+														? "Edit Package Type"
+														: "Create New Package Type"}
+												</DialogTitle>
+												<DialogDescription>
+													{editingType
+														? "Update the package type details."
+														: "Define a new package type that can be assigned to members."}
+												</DialogDescription>
+											</DialogHeader>
+											<div className="grid gap-4 py-4">
 												<div className="grid gap-2">
-													<Label htmlFor="sessionCount">Session Count</Label>
+													<Label htmlFor="typeName">Package Name *</Label>
 													<Input
-														id="sessionCount"
+														id="typeName"
+														value={newPackageType.name}
+														onChange={(e) =>
+															setNewPackageType((prev) => ({
+																...prev,
+																name: e.target.value,
+															}))
+														}
+														placeholder="e.g., Personal Training"
+													/>
+												</div>
+
+												<div className="grid gap-2">
+													<Label htmlFor="typeCategory">Package Type *</Label>
+													<div className="space-y-3">
+														<Select
+															value={
+																newPackageType.useCustomCategory
+																	? ""
+																	: newPackageType.category
+															}
+															onValueChange={(value) =>
+																setNewPackageType((prev) => ({
+																	...prev,
+																	category: value,
+																	useCustomCategory: false,
+																}))
+															}
+															disabled={newPackageType.useCustomCategory}>
+															<SelectTrigger>
+																<SelectValue placeholder="Select existing package type" />
+															</SelectTrigger>
+															<SelectContent>
+																{availableCategories.map((category) => (
+																	<SelectItem key={category} value={category}>
+																		{category}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													</div>
+												</div>
+
+												<div className="grid gap-2">
+													<Label htmlFor="typeDescription">Description</Label>
+													<Input
+														id="typeDescription"
+														value={newPackageType.description}
+														onChange={(e) =>
+															setNewPackageType((prev) => ({
+																...prev,
+																description: e.target.value,
+															}))
+														}
+														placeholder="Brief description of the package"
+													/>
+												</div>
+
+												<div className="grid grid-cols-2 gap-4">
+													<div className="grid gap-2">
+														<Label htmlFor="sessionCount">Session Count</Label>
+														<Input
+															id="sessionCount"
+															type="number"
+															min="1"
+															max="100"
+															value={newPackageType.sessionCount}
+															onChange={(e) =>
+																setNewPackageType((prev) => ({
+																	...prev,
+																	sessionCount:
+																		Number.parseInt(e.target.value) || 10,
+																}))
+															}
+														/>
+													</div>
+													<div className="grid gap-2">
+														<Label htmlFor="price">Price ($)</Label>
+														<Input
+															id="price"
+															type="number"
+															min="0"
+															step="0.01"
+															value={newPackageType.price}
+															onChange={(e) =>
+																setNewPackageType((prev) => ({
+																	...prev,
+																	price: Number.parseFloat(e.target.value) || 100,
+																}))
+															}
+														/>
+													</div>
+												</div>
+
+												<div className="grid gap-2">
+													<Label htmlFor="duration">Duration (days)</Label>
+													<Input
+														id="duration"
 														type="number"
 														min="1"
-														max="100"
-														value={newPackageType.sessionCount}
+														max="365"
+														value={newPackageType.duration}
 														onChange={(e) =>
 															setNewPackageType((prev) => ({
 																...prev,
-																sessionCount:
-																	Number.parseInt(e.target.value) || 10,
-															}))
-														}
-													/>
-												</div>
-												<div className="grid gap-2">
-													<Label htmlFor="price">Price ($)</Label>
-													<Input
-														id="price"
-														type="number"
-														min="0"
-														step="0.01"
-														value={newPackageType.price}
-														onChange={(e) =>
-															setNewPackageType((prev) => ({
-																...prev,
-																price: Number.parseFloat(e.target.value) || 100,
+																duration: Number.parseInt(e.target.value) || 30,
 															}))
 														}
 													/>
 												</div>
 											</div>
-
-											<div className="grid gap-2">
-												<Label htmlFor="duration">Duration (days)</Label>
-												<Input
-													id="duration"
-													type="number"
-													min="1"
-													max="365"
-													value={newPackageType.duration}
-													onChange={(e) =>
-														setNewPackageType((prev) => ({
-															...prev,
-															duration: Number.parseInt(e.target.value) || 30,
-														}))
-													}
-												/>
-											</div>
-										</div>
-										<DialogFooter>
-											<Button
-												variant="outline"
-												onClick={() => setIsCreateTypeOpen(false)}>
-												Cancel
-											</Button>
-											<Button
-												onClick={
-													editingType
-														? handleUpdatePackageType
-														: handleCreatePackageType
-												}>
-												{editingType
-													? "Update Package Type"
-													: "Create Package Type"}
-											</Button>
-										</DialogFooter>
-									</DialogContent>
-								</Dialog>
-							</div>
-						</CardHeader>
-						<CardContent>
-							<div className="rounded-md border">
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>Package Name</TableHead>
-											<TableHead>Package Type</TableHead>
-											<TableHead>Description</TableHead>
-											<TableHead>Sessions</TableHead>
-											<TableHead>Price</TableHead>
-											<TableHead>Duration</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead className="text-right">Actions</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{packageTypes.map((type) => (
-											<TableRow key={type.id}>
-												<TableCell className="font-medium">
-													{type.name}
-												</TableCell>
-												<TableCell>
-													<Badge variant="outline">{type?.type?.name}</Badge>
-												</TableCell>
-												<TableCell className="max-w-xs truncate">
-													{type.description}
-												</TableCell>
-												<TableCell>{type.sessionCount}</TableCell>
-												<TableCell>${type.price}</TableCell>
-												<TableCell>{type.duration} days</TableCell>
-												<TableCell>
-													<Badge
-														variant={type.isActive ? "default" : "secondary"}>
-														{type.isActive ? "Active" : "Inactive"}
-													</Badge>
-												</TableCell>
-												<TableCell className="text-right">
-													<DropdownMenu>
-														<DropdownMenuTrigger asChild>
-															<Button variant="ghost" size="sm">
-																<MoreHorizontal className="h-4 w-4" />
-															</Button>
-														</DropdownMenuTrigger>
-														<DropdownMenuContent align="end">
-															<DropdownMenuItem
-																onClick={() => handleEditPackageType(type)}>
-																<Edit className="mr-2 h-4 w-4" />
-																Edit
-															</DropdownMenuItem>
-															<DropdownMenuItem
-																onClick={() =>
-																	handleTogglePackageTypeStatus(
-																		type.id,
-																		type.isActive
-																	)
-																}
-																className={
-																	type.isActive
-																		? "text-orange-600"
-																		: "text-green-600"
-																}>
-																{type.isActive ? (
-																	<>
-																		<Trash2 className="mr-2 h-4 w-4" />
-																		Deactivate
-																	</>
-																) : (
-																	<>
-																		<CheckCircle className="mr-2 h-4 w-4" />
-																		Activate
-																	</>
-																)}
-															</DropdownMenuItem>
-															{!type.isActive && (
-																<DropdownMenuItem
-																	onClick={() =>
-																		handleDeletePackageType(type.id)
-																	}
-																	className="text-red-600">
-																	<Trash2 className="mr-2 h-4 w-4" />
-																	Delete Permanently
-																</DropdownMenuItem>
-															)}
-														</DropdownMenuContent>
-													</DropdownMenu>
-												</TableCell>
-											</TableRow>
-										))}
-									</TableBody>
-								</Table>
-							</div>
-
-							{packageTypes.length === 0 && (
-								<div className="text-center py-8">
-									<Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-									<p className="text-muted-foreground mb-4">
-										No package types available.
-									</p>
-									<Button onClick={() => setIsCreateTypeOpen(true)}>
-										<Plus className="mr-2 h-4 w-4" />
-										Create First Package Type
-									</Button>
+											<DialogFooter>
+												<Button
+													variant="outline"
+													onClick={() => setIsCreateTypeOpen(false)}>
+													Cancel
+												</Button>
+												<Button
+													onClick={
+														editingType
+															? handleUpdatePackageType
+															: handleCreatePackageType
+													}>
+													{editingType
+														? "Update Package Type"
+														: "Create Package Type"}
+												</Button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
 								</div>
-							)}
-						</CardContent>
-					</Card>
-				</TabsContent>
-
-				{/* Package Types Management Tab */}
-				<TabsContent value="packageTypes" className="space-y-4">
-					<Card>
-						<CardHeader>
-							<div className="flex items-center justify-between">
-								<div>
-									<CardTitle>Package Types</CardTitle>
-									<CardDescription>
-										Manage package types (categories) used for packages
-									</CardDescription>
-								</div>
-								<Button
-									onClick={() => {
-										setEditingPackageType(null);
-										setPackageTypeForm({
-											name: "",
-											description: "",
-											color: "",
-											icon: "",
-											is_active: true,
-										});
-										setIsEditPackageTypeOpen(true);
-									}}>
-									<Plus className="mr-2 h-4 w-4" /> New Package Type
-								</Button>
-							</div>
-						</CardHeader>
-						<CardContent>
-							<div className="rounded-md border">
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>Name</TableHead>
-											<TableHead>Description</TableHead>
-											<TableHead>Color</TableHead>
-											<TableHead>Icon</TableHead>
-											<TableHead>Status</TableHead>
-											<TableHead className="text-right">Actions</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{isLoadingPackageTypes ? (
+							</CardHeader>
+							<CardContent>
+								<div className="rounded-md border">
+									<Table>
+										<TableHeader>
 											<TableRow>
-												<TableCell colSpan={6}>Loading...</TableCell>
+												<TableHead>Package Name</TableHead>
+												<TableHead>Package Type</TableHead>
+												<TableHead>Description</TableHead>
+												<TableHead>Sessions</TableHead>
+												<TableHead>Price</TableHead>
+												<TableHead>Duration</TableHead>
+												<TableHead>Status</TableHead>
+												<TableHead className="text-right">Actions</TableHead>
 											</TableRow>
-										) : (
-											packageTypesList.map((type) => (
+										</TableHeader>
+										<TableBody>
+											{packageTypes.map((type) => (
 												<TableRow key={type.id}>
-													<TableCell>{type.name}</TableCell>
-													<TableCell>{type.description}</TableCell>
-													<TableCell>{type.color}</TableCell>
-													<TableCell>{type.icon}</TableCell>
+													<TableCell className="font-medium">
+														{type.name}
+													</TableCell>
+													<TableCell>
+														<Badge variant="outline">{type?.type?.name}</Badge>
+													</TableCell>
+													<TableCell className="max-w-xs truncate">
+														{type.description}
+													</TableCell>
+													<TableCell>{type.sessionCount}</TableCell>
+													<TableCell>${type.price}</TableCell>
+													<TableCell>{type.duration} days</TableCell>
 													<TableCell>
 														<Badge
-															variant={
-																type.is_active ? "default" : "secondary"
-															}>
-															{type.is_active ? "Active" : "Inactive"}
+															variant={type.isActive ? "default" : "secondary"}>
+															{type.isActive ? "Active" : "Inactive"}
 														</Badge>
 													</TableCell>
 													<TableCell className="text-right">
 														<DropdownMenu>
 															<DropdownMenuTrigger asChild>
-																<Button size="icon" variant="ghost">
+																<Button variant="ghost" size="sm">
 																	<MoreHorizontal className="h-4 w-4" />
 																</Button>
 															</DropdownMenuTrigger>
 															<DropdownMenuContent align="end">
 																<DropdownMenuItem
-																	onClick={() => {
-																		setEditingPackageType(type);
-																		setPackageTypeForm({
-																			name: type.name,
-																			description: type.description,
-																			color: type.color,
-																			icon: type.icon,
-																			is_active: type.is_active,
-																		});
-																		setIsEditPackageTypeOpen(true);
-																	}}>
+																	onClick={() => handleEditPackageType(type)}>
+																	<Edit className="mr-2 h-4 w-4" />
 																	Edit
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	onClick={() =>
-																		handleToggleCategoryStatus(
+																		handleTogglePackageTypeStatus(
 																			type.id,
-																			type.is_active
+																			type.isActive
 																		)
 																	}
 																	className={
-																		type.is_active
+																		type.isActive
 																			? "text-orange-600"
 																			: "text-green-600"
 																	}>
-																	{type.is_active ? "Deactivate" : "Activate"}
+																	{type.isActive ? (
+																		<>
+																			<Trash2 className="mr-2 h-4 w-4" />
+																			Deactivate
+																		</>
+																	) : (
+																		<>
+																			<CheckCircle className="mr-2 h-4 w-4" />
+																			Activate
+																		</>
+																	)}
 																</DropdownMenuItem>
-																{!type.is_active && (
+																{!type.isActive && (
 																	<DropdownMenuItem
 																		onClick={() =>
-																			handleDeleteCategory(type.id)
+																			handleDeletePackageType(type.id)
 																		}
 																		className="text-red-600">
+																		<Trash2 className="mr-2 h-4 w-4" />
 																		Delete Permanently
 																	</DropdownMenuItem>
 																)}
@@ -2629,241 +2485,372 @@ export default function PackagesPage() {
 														</DropdownMenu>
 													</TableCell>
 												</TableRow>
-											))
-										)}
-									</TableBody>
-								</Table>
-							</div>
-						</CardContent>
-					</Card>
-					{/* Edit/Create Package Type Dialog */}
-					<Dialog
-						open={isEditPackageTypeOpen}
-						onOpenChange={setIsEditPackageTypeOpen}>
-						<DialogContent className="sm:max-w-[400px]">
-							<DialogHeader>
-								<DialogTitle>
-									{editingPackageType
-										? "Edit Package Type"
-										: "New Package Type"}
-								</DialogTitle>
-							</DialogHeader>
-							<div className="grid gap-4 py-4">
-								<div className="grid gap-2">
-									<Label htmlFor="typeName">Name</Label>
-									<Input
-										id="typeName"
-										value={packageTypeForm.name}
-										onChange={(e) =>
-											setPackageTypeForm((f) => ({
-												...f,
-												name: e.target.value,
-											}))
-										}
-									/>
+											))}
+										</TableBody>
+									</Table>
 								</div>
-								<div className="grid gap-2">
-									<Label htmlFor="typeDescription">Description</Label>
-									<Input
-										id="typeDescription"
-										value={packageTypeForm.description}
-										onChange={(e) =>
-											setPackageTypeForm((f) => ({
-												...f,
-												description: e.target.value,
-											}))
-										}
-									/>
-								</div>
-								<div className="grid gap-2">
-									<Label htmlFor="typeColor">Color</Label>
-									<Input
-										id="typeColor"
-										value={packageTypeForm.color}
-										onChange={(e) =>
-											setPackageTypeForm((f) => ({
-												...f,
-												color: e.target.value,
-											}))
-										}
-									/>
-								</div>
-								<div className="grid gap-2">
-									<Label htmlFor="typeIcon">Icon</Label>
-									<Input
-										id="typeIcon"
-										value={packageTypeForm.icon}
-										onChange={(e) =>
-											setPackageTypeForm((f) => ({
-												...f,
-												icon: e.target.value,
-											}))
-										}
-									/>
-								</div>
-							</div>
-							<DialogFooter>
-								<Button
-									variant="outline"
-									onClick={() => setIsEditPackageTypeOpen(false)}>
-									Cancel
-								</Button>
-								<Button
-									onClick={async () => {
-										setIsLoadingPackageTypes(true);
-										const supabase = createClient();
-										if (editingPackageType) {
-											// Update
-											await supabase
-												.from("package_types")
-												.update(packageTypeForm)
-												.eq("id", editingPackageType.id);
-										} else {
-											// Create
-											await supabase
-												.from("package_types")
-												.insert(packageTypeForm);
-										}
-										setIsEditPackageTypeOpen(false);
-										await loadData();
-										setIsLoadingPackageTypes(false);
-									}}>
-									{editingPackageType ? "Save Changes" : "Create"}
-								</Button>
-							</DialogFooter>
-						</DialogContent>
-					</Dialog>
-				</TabsContent>
-			</Tabs>
 
-			{/* Edit Package Dialog */}
-			<Dialog open={isEditPackageOpen} onOpenChange={setIsEditPackageOpen}>
-				<DialogContent className="sm:max-w-[400px]">
-					<DialogHeader>
-						<DialogTitle>Edit Assigned Package</DialogTitle>
-						<DialogDescription>
-							Change the assigned package type, start date, and end date for
-							this member.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="grid gap-4 py-4">
-						<div className="grid gap-2">
-							<Label htmlFor="editPackageType">Package</Label>
-							<Select
-								value={editForm.packageTypeId}
-								onValueChange={(value) =>
-									setEditForm((prev) => ({ ...prev, packageTypeId: value }))
-								}>
-								<SelectTrigger>
-									<SelectValue placeholder="Select a package type" />
-								</SelectTrigger>
-								<SelectContent>
-									{packageTypes
-										.sort((a, b) => a.name.localeCompare(b.name))
-										.map((type) => (
-											<SelectItem key={type.id} value={type.id}>
-												{type.name} {type.isActive ? "" : "(Inactive)"}
-											</SelectItem>
-										))}
-								</SelectContent>
-							</Select>
+								{packageTypes.length === 0 && (
+									<div className="text-center py-8">
+										<Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+										<p className="text-muted-foreground mb-4">
+											No package types available.
+										</p>
+										<Button onClick={() => setIsCreateTypeOpen(true)}>
+											<Plus className="mr-2 h-4 w-4" />
+											Create First Package Type
+										</Button>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</TabsContent>
+
+					{/* Package Types Management Tab */}
+					<TabsContent value="packageTypes" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<div className="flex items-center justify-between">
+									<div>
+										<CardTitle>Package Types</CardTitle>
+										<CardDescription>
+											Manage package types (categories) used for packages
+										</CardDescription>
+									</div>
+									<Button
+										onClick={() => {
+											setEditingPackageType(null);
+											setPackageTypeForm({
+												name: "",
+												description: "",
+												color: "",
+												icon: "",
+												is_active: true,
+											});
+											setIsEditPackageTypeOpen(true);
+										}}>
+										<Plus className="mr-2 h-4 w-4" /> New Package Type
+									</Button>
+								</div>
+							</CardHeader>
+							<CardContent>
+								<div className="rounded-md border">
+									<Table>
+										<TableHeader>
+											<TableRow>
+												<TableHead>Name</TableHead>
+												<TableHead>Description</TableHead>
+												<TableHead>Color</TableHead>
+												<TableHead>Icon</TableHead>
+												<TableHead>Status</TableHead>
+												<TableHead className="text-right">Actions</TableHead>
+											</TableRow>
+										</TableHeader>
+										<TableBody>
+											{isLoadingPackageTypes ? (
+												<TableRow>
+													<TableCell colSpan={6}>Loading...</TableCell>
+												</TableRow>
+											) : (
+												packageTypesList.map((type) => (
+													<TableRow key={type.id}>
+														<TableCell>{type.name}</TableCell>
+														<TableCell>{type.description}</TableCell>
+														<TableCell>{type.color}</TableCell>
+														<TableCell>{type.icon}</TableCell>
+														<TableCell>
+															<Badge
+																variant={
+																	type.is_active ? "default" : "secondary"
+																}>
+																{type.is_active ? "Active" : "Inactive"}
+															</Badge>
+														</TableCell>
+														<TableCell className="text-right">
+															<DropdownMenu>
+																<DropdownMenuTrigger asChild>
+																	<Button size="icon" variant="ghost">
+																		<MoreHorizontal className="h-4 w-4" />
+																	</Button>
+																</DropdownMenuTrigger>
+																<DropdownMenuContent align="end">
+																	<DropdownMenuItem
+																		onClick={() => {
+																			setEditingPackageType(type);
+																			setPackageTypeForm({
+																				name: type.name,
+																				description: type.description,
+																				color: type.color,
+																				icon: type.icon,
+																				is_active: type.is_active,
+																			});
+																			setIsEditPackageTypeOpen(true);
+																		}}>
+																		Edit
+																	</DropdownMenuItem>
+																	<DropdownMenuItem
+																		onClick={() =>
+																			handleToggleCategoryStatus(
+																				type.id,
+																				type.is_active
+																			)
+																		}
+																		className={
+																			type.is_active
+																				? "text-orange-600"
+																				: "text-green-600"
+																		}>
+																		{type.is_active ? "Deactivate" : "Activate"}
+																	</DropdownMenuItem>
+																	{!type.is_active && (
+																		<DropdownMenuItem
+																			onClick={() =>
+																				handleDeleteCategory(type.id)
+																			}
+																			className="text-red-600">
+																			Delete Permanently
+																		</DropdownMenuItem>
+																	)}
+																</DropdownMenuContent>
+															</DropdownMenu>
+														</TableCell>
+													</TableRow>
+												))
+											)}
+										</TableBody>
+									</Table>
+								</div>
+							</CardContent>
+						</Card>
+						{/* Edit/Create Package Type Dialog */}
+						<Dialog
+							open={isEditPackageTypeOpen}
+							onOpenChange={setIsEditPackageTypeOpen}>
+							<DialogContent className="sm:max-w-[400px]">
+								<DialogHeader>
+									<DialogTitle>
+										{editingPackageType
+											? "Edit Package Type"
+											: "New Package Type"}
+									</DialogTitle>
+								</DialogHeader>
+								<div className="grid gap-4 py-4">
+									<div className="grid gap-2">
+										<Label htmlFor="typeName">Name</Label>
+										<Input
+											id="typeName"
+											value={packageTypeForm.name}
+											onChange={(e) =>
+												setPackageTypeForm((f) => ({
+													...f,
+													name: e.target.value,
+												}))
+											}
+										/>
+									</div>
+									<div className="grid gap-2">
+										<Label htmlFor="typeDescription">Description</Label>
+										<Input
+											id="typeDescription"
+											value={packageTypeForm.description}
+											onChange={(e) =>
+												setPackageTypeForm((f) => ({
+													...f,
+													description: e.target.value,
+												}))
+											}
+										/>
+									</div>
+									<div className="grid gap-2">
+										<Label htmlFor="typeColor">Color</Label>
+										<Input
+											id="typeColor"
+											value={packageTypeForm.color}
+											onChange={(e) =>
+												setPackageTypeForm((f) => ({
+													...f,
+													color: e.target.value,
+												}))
+											}
+										/>
+									</div>
+									<div className="grid gap-2">
+										<Label htmlFor="typeIcon">Icon</Label>
+										<Input
+											id="typeIcon"
+											value={packageTypeForm.icon}
+											onChange={(e) =>
+												setPackageTypeForm((f) => ({
+													...f,
+													icon: e.target.value,
+												}))
+											}
+										/>
+									</div>
+								</div>
+								<DialogFooter>
+									<Button
+										variant="outline"
+										onClick={() => setIsEditPackageTypeOpen(false)}>
+										Cancel
+									</Button>
+									<Button
+										onClick={async () => {
+											setIsLoadingPackageTypes(true);
+											const supabase = createClient();
+											if (editingPackageType) {
+												// Update
+												await supabase
+													.from("package_types")
+													.update(packageTypeForm)
+													.eq("id", editingPackageType.id);
+											} else {
+												// Create
+												await supabase
+													.from("package_types")
+													.insert(packageTypeForm);
+											}
+											setIsEditPackageTypeOpen(false);
+											await loadData();
+											setIsLoadingPackageTypes(false);
+										}}>
+										{editingPackageType ? "Save Changes" : "Create"}
+									</Button>
+								</DialogFooter>
+							</DialogContent>
+						</Dialog>
+					</TabsContent>
+				</Tabs>
+
+				{/* Edit Package Dialog */}
+				<Dialog open={isEditPackageOpen} onOpenChange={setIsEditPackageOpen}>
+					<DialogContent className="sm:max-w-[400px]">
+						<DialogHeader>
+							<DialogTitle>Edit Assigned Package</DialogTitle>
+							<DialogDescription>
+								Change the assigned package type, start date, and end date for
+								this member.
+							</DialogDescription>
+						</DialogHeader>
+						<div className="grid gap-4 py-4">
+							<div className="grid gap-2">
+								<Label htmlFor="editPackageType">Package</Label>
+								<Select
+									value={editForm.packageTypeId}
+									onValueChange={(value) =>
+										setEditForm((prev) => ({ ...prev, packageTypeId: value }))
+									}>
+									<SelectTrigger>
+										<SelectValue placeholder="Select a package type" />
+									</SelectTrigger>
+									<SelectContent>
+										{packageTypes
+											.sort((a, b) => a.name.localeCompare(b.name))
+											.map((type) => (
+												<SelectItem key={type.id} value={type.id}>
+													{type.name} {type.isActive ? "" : "(Inactive)"}
+												</SelectItem>
+											))}
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="grid gap-2">
+								<Label htmlFor="editStartDate">Start Date</Label>
+								<Input
+									id="editStartDate"
+									type="date"
+									value={editForm.startDate}
+									min={minStartDate}
+									onChange={(e) =>
+										setEditForm((prev) => ({
+											...prev,
+											startDate: e.target.value,
+										}))
+									}
+								/>
+							</div>
+							<div className="grid gap-2">
+								<Label htmlFor="editEndDate">End Date</Label>
+								<Input
+									id="editEndDate"
+									type="date"
+									value={editForm.endDate}
+									readOnly
+								/>
+							</div>
 						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="editStartDate">Start Date</Label>
-							<Input
-								id="editStartDate"
-								type="date"
-								value={editForm.startDate}
-								min={minStartDate}
-								onChange={(e) =>
-									setEditForm((prev) => ({
-										...prev,
-										startDate: e.target.value,
-									}))
-								}
-							/>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="editEndDate">End Date</Label>
-							<Input
-								id="editEndDate"
-								type="date"
-								value={editForm.endDate}
-								readOnly
-							/>
-						</div>
-					</div>
-					<DialogFooter className="flex flex-row gap-2 justify-between">
-						<Button
-							variant="destructive"
-							onClick={async () => {
-								if (!editingPackage) return;
-								setIsLoadingPackages(true);
-								await handleDeleteMemberPackage(editingPackage.id);
-								setIsLoadingPackages(false);
-								setIsEditPackageOpen(false);
-							}}
-							disabled={isLoadingPackages}>
-							{isLoadingPackages ? (
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							) : (
-								"Delete"
-							)}
-						</Button>
-						<div className="flex gap-2">
+						<DialogFooter className="flex flex-row gap-2 justify-between">
 							<Button
-								variant="outline"
-								onClick={() => setIsEditPackageOpen(false)}>
-								Cancel
-							</Button>
-							<Button
-								onClick={handleSaveEditPackage}
+								variant="destructive"
+								onClick={async () => {
+									if (!editingPackage) return;
+									setIsLoadingPackages(true);
+									await handleDeleteMemberPackage(editingPackage.id);
+									setIsLoadingPackages(false);
+									setIsEditPackageOpen(false);
+								}}
 								disabled={isLoadingPackages}>
 								{isLoadingPackages ? (
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 								) : (
-									"Save Changes"
+									"Delete"
 								)}
 							</Button>
-						</div>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+							<div className="flex gap-2">
+								<Button
+									variant="outline"
+									onClick={() => setIsEditPackageOpen(false)}>
+									Cancel
+								</Button>
+								<Button
+									onClick={handleSaveEditPackage}
+									disabled={isLoadingPackages}>
+									{isLoadingPackages ? (
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									) : (
+										"Save Changes"
+									)}
+								</Button>
+							</div>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 
-			{/* Delete Category Dialog */}
-			<Dialog
-				open={isDeleteDialogOpen}
-				onOpenChange={(open) => {
-					setIsDeleteDialogOpen(open);
-					if (!open) setPendingDeleteCategory(null);
-				}}>
-				<DialogContent className="sm:max-w-[400px]">
-					<DialogHeader>
-						<DialogTitle>Delete Category</DialogTitle>
-						<DialogDescription>
-							Are you sure you want to delete{" "}
-							<b>{pendingDeleteCategory?.name}</b>? This action cannot be
-							undone.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="flex gap-2 justify-end mt-4">
-						<Button
-							variant="outline"
-							onClick={() => {
-								setIsDeleteDialogOpen(false);
-								setPendingDeleteCategory(null);
-							}}>
-							Cancel
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={confirmDeleteCategory}
-							disabled={isLoadingPackageTypes}>
-							{isLoadingPackageTypes ? "Deleting..." : "Delete Permanently"}
-						</Button>
-					</div>
-				</DialogContent>
-			</Dialog>
+				{/* Delete Category Dialog */}
+				<Dialog
+					open={isDeleteDialogOpen}
+					onOpenChange={(open) => {
+						setIsDeleteDialogOpen(open);
+						if (!open) setPendingDeleteCategory(null);
+					}}>
+					<DialogContent className="sm:max-w-[400px]">
+						<DialogHeader>
+							<DialogTitle>Delete Category</DialogTitle>
+							<DialogDescription>
+								Are you sure you want to delete{" "}
+								<b>{pendingDeleteCategory?.name}</b>? This action cannot be
+								undone.
+							</DialogDescription>
+						</DialogHeader>
+						<div className="flex gap-2 justify-end mt-4">
+							<Button
+								variant="outline"
+								onClick={() => {
+									setIsDeleteDialogOpen(false);
+									setPendingDeleteCategory(null);
+								}}>
+								Cancel
+							</Button>
+							<Button
+								variant="destructive"
+								onClick={confirmDeleteCategory}
+								disabled={isLoadingPackageTypes}>
+								{isLoadingPackageTypes ? "Deleting..." : "Delete Permanently"}
+							</Button>
+						</div>
+					</DialogContent>
+				</Dialog>
+			</div>
 		</div>
 	);
 }

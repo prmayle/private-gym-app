@@ -56,7 +56,14 @@ export function ThemeProvider({ children, defaultTheme = "dark", storageKey = "t
 }
 
 export const useTheme = () => {
-  const context = useContext(ThemeProviderContext)
+  const context = useContext(ThemeProviderContext);
+
+  useEffect(() => {
+    const theme = localStorage.getItem("theme");
+    if (theme) {
+      context.setTheme(theme as "light" | "dark");
+    }
+  }, []);
 
   if (context === undefined) {
     throw new Error("useTheme must be used within a ThemeProvider")

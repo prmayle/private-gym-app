@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/table";
 import { createClient } from "@/utils/supabase/client";
 import {
-	ArrowLeft,
 	Search,
 	Calendar,
 	Clock,
@@ -42,6 +41,8 @@ import {
 	Filter,
 	CheckCircle,
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { useTheme } from "@/components/theme-provider";
 
 interface Session {
 	id: string;
@@ -67,6 +68,7 @@ export default function SelectSessionPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { toast } = useToast();
+	const { theme } = useTheme();
 
 	const memberId = searchParams.get("memberId");
 	const memberName = searchParams.get("memberName");
@@ -238,7 +240,7 @@ export default function SelectSessionPage() {
 							hour: "2-digit",
 							minute: "2-digit",
 						})}`,
-						type: session.packages?.package_types?.name || "Unknown",
+						type: (session.packages as any)?.package_types?.name || "Unknown",
 						trainer:
 							(session.trainers as any)?.profiles?.full_name ||
 							"Unknown Trainer",
@@ -442,23 +444,13 @@ export default function SelectSessionPage() {
 	}
 
 	return (
-		<div className="space-y-6">
-			<div className="flex items-center">
-				<Button variant="ghost" size="icon" asChild className="mr-2">
-					<Link href="/admin/book-session">
-						<ArrowLeft className="h-5 w-5" />
-						<span className="sr-only">Back to Member Selection</span>
-					</Link>
-				</Button>
-				<div>
-					<h1 className="text-2xl font-bold">
-						Select Session for {member.name}
-					</h1>
-					<p className="text-muted-foreground">
-						Step 2: Choose an available session to book
-					</p>
-				</div>
-			</div>
+		<div className="container mx-auto max-w-7xl py-6 space-y-6 px-4">
+			<PageHeader
+				title={`Select Session for ${member.name}`}
+				subtitle="Step 2: Choose an available session to book"
+				icon={Calendar}
+				hasAddButton={false}
+			/>
 
 			{/* Member Info */}
 			<Card>

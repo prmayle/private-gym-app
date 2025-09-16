@@ -55,11 +55,21 @@ import {
 	Edit,
 	ArrowLeft,
 	ChevronDown,
+	Sun,
+	Moon,
+	Monitor,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { activityLogger } from "@/lib/activity-logger";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/components/theme-provider";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DashboardStats {
 	totalMembers: number;
@@ -133,6 +143,7 @@ interface ActivityGroup {
 export default function AdminDashboard() {
 	const router = useRouter();
 	const { toast } = useToast();
+	const { theme, setTheme } = useTheme();
 	const [stats, setStats] = useState<DashboardStats>({
 		totalMembers: 0,
 		activeMembers: 0,
@@ -1176,123 +1187,198 @@ export default function AdminDashboard() {
 		return `${pad(hours)}:${pad(minutes)} ${ampm}`;
 	}
 
+
+
+	// Theme toggle component
+	const ThemeToggle = () => {
+		const handleThemeChange = (newTheme: "light" | "dark") => {
+			localStorage.setItem("theme", newTheme);
+			setTheme(newTheme);
+		};
+
+		return (
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button variant="outline" size="icon" className="h-9 w-9">
+						{theme === "light" ? (
+							<Sun className="h-4 w-4" />
+						) : theme === "dark" ? (
+							<Moon className="h-4 w-4" />
+						) : (
+							<Monitor className="h-4 w-4" />
+						)}
+						<span className="sr-only">Toggle theme</span>
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end">
+					<DropdownMenuItem onClick={() => handleThemeChange("light")}>
+						<Sun className="mr-2 h-4 w-4" />
+						<span>Light</span>
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => handleThemeChange("dark")}>
+						<Moon className="mr-2 h-4 w-4" />
+						<span>Dark</span>
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		);
+	};
+
 	return (
 		<AdminRoute>
-			<div className="container mx-auto max-w-7xl py-6 space-y-6">
+			<div className="container mx-auto max-w-7xl py-3 sm:py-6 px-4 sm:px-6 space-y-4 sm:space-y-6">
 				{/* Header */}
-				<div className="relative mb-8">
-					<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
-					<div className="flex items-center justify-between gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
-						<div className="flex items-center gap-6">
-							<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
-								<Activity className="w-10 h-10 text-primary" />
+				<div className="relative mb-6 sm:mb-8">
+					{/* Background gradient with improved blur and positioning */}
+					<div className="absolute inset-0 h-20 sm:h-24 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-indigo-600/20 rounded-xl blur-xl -z-10" />
+					<div className="absolute inset-0 h-20 sm:h-24 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl blur-2xl -z-20" />
+					
+					{/* Main header container with improved styling */}
+					<div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 p-4 sm:p-6 rounded-xl bg-background/95 dark:bg-background/90 backdrop-blur-md border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
+						{/* Left section with icon and text */}
+						<div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
+							{/* Enhanced icon container with gradient background */}
+							<div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border border-primary/20 shadow-lg flex-shrink-0 group hover:scale-105 transition-transform duration-300">
+								<div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+								<Activity className="w-8 h-8 sm:w-10 sm:h-10 text-primary relative z-10" />
 							</div>
-							<div>
-								<div className="font-bold text-2xl flex items-center gap-2">
+							
+							{/* Text content with improved typography */}
+							<div className="min-w-0 flex-1">
+								<div className="font-bold text-xl sm:text-2xl lg:text-3xl bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent flex items-center gap-2">
 									Admin Dashboard
+									<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
 								</div>
-								<div className="text-muted-foreground text-sm">
+								<div className="text-muted-foreground text-sm sm:text-base mt-1">
 									Welcome back! Here's what's happening at your gym.
 								</div>
+								{/* Status indicator */}
+								{/* <div className="flex items-center gap-2 mt-2">
+									<div className="w-2 h-2 bg-green-500 rounded-full" />
+									<span className="text-xs text-muted-foreground">System Online</span>
+								</div> */}
 							</div>
 						</div>
-						<div className="flex items-center gap-4">
-							<Button variant="outline" size="icon" asChild>
+						
+						{/* Right section with action buttons */}
+						<div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+							{/* Enhanced action buttons */}
+							<Button 
+								variant="outline" 
+								size="icon" 
+								className="h-10 w-10 hover:bg-primary/10 hover:border-primary/30 transition-all duration-200 group" 
+								asChild
+							>
 								<Link href="/admin/notifications">
-									<Bell className="h-5 w-5" />
+									<Bell className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
 									<span className="sr-only">Notifications</span>
 								</Link>
 							</Button>
-							<Button variant="outline" size="icon" asChild>
+							<Button 
+								variant="outline" 
+								size="icon" 
+								className="h-10 w-10 hover:bg-primary/10 hover:border-primary/30 transition-all duration-200 group" 
+								asChild
+							>
 								<Link href="/admin/calendar">
-									<Calendar className="h-5 w-5" />
+									<Calendar className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
 									<span className="sr-only">Calendar View</span>
 								</Link>
 							</Button>
-							<UserDropdown />
+							
+							{/* Separator */}
+							<div className="w-px h-6 bg-border/50 mx-1" />
+							
+							{/* Theme toggle and user dropdown */}
+							<div className="flex items-center gap-2">
+								<ThemeToggle />
+								<UserDropdown />
+							</div>
 						</div>
 					</div>
 				</div>
 
-		
 				{/* Quick Actions */}
-				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-6">
-					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
-							<Settings className="h-5 w-5" />
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80 mb-4 sm:mb-6">
+					<CardHeader className="pb-4">
+						<CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+							<Settings className="h-4 w-4 sm:h-5 sm:w-5" />
 							Quick Actions
 						</CardTitle>
-						<CardDescription>Common administrative tasks</CardDescription>
+						<CardDescription className="text-sm">Common administrative tasks</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-6">
-						<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-							<Button asChild className="h-auto p-4 flex-col gap-2">
+					<CardContent className="space-y-4 sm:space-y-6">
+						<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+							<Button 
+							asChild
+							variant="outline"
+							className="h-auto p-3 sm:p-4 flex-col gap-2 bg-transparent text-center">
 								<Link href="/admin/book-session">
-									<BookOpen className="h-6 w-6" />
-									<span className="text-sm">Book Session</span>
+									<BookOpen className="h-5 w-5 sm:h-6 sm:w-6" />
+									<span className="text-xs sm:text-sm">Book Session</span>
 								</Link>
 							</Button>
 							<Button
 								asChild
 								variant="outline"
-								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								className="h-auto p-3 sm:p-4 flex-col gap-2 bg-transparent text-center">
 								<Link href="/admin/members">
-									<Users className="h-6 w-6" />
-									<span className="text-sm">Manage Members</span>
+									<Users className="h-5 w-5 sm:h-6 sm:w-6" />
+									<span className="text-xs sm:text-sm">Manage Members</span>
 								</Link>
 							</Button>
 							<Button
 								asChild
 								variant="outline"
-								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								className="h-auto p-3 sm:p-4 flex-col gap-2 bg-transparent text-center">
 								<Link href="/admin/sessions">
-									<CalendarPlus className="h-6 w-6" />
-									<span className="text-sm">Manage Sessions</span>
+									<CalendarPlus className="h-5 w-5 sm:h-6 sm:w-6" />
+									<span className="text-xs sm:text-sm">Manage Sessions</span>
 								</Link>
 							</Button>
 							<Button
 								asChild
 								variant="outline"
-								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								className="h-auto p-3 sm:p-4 flex-col gap-2 bg-transparent text-center">
 								<Link href="/admin/packages">
-									<Package className="h-6 w-6" />
-									<span className="text-sm">Manage Packages</span>
+									<Package className="h-5 w-5 sm:h-6 sm:w-6" />
+									<span className="text-xs sm:text-sm">Manage Packages</span>
 								</Link>
 							</Button>
 							<Button
 								asChild
 								variant="outline"
-								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								className="h-auto p-3 sm:p-4 flex-col gap-2 bg-transparent text-center">
 								<Link href="/admin/trainers">
-									<Users className="h-6 w-6" />
-									<span className="text-sm">Manage Trainers</span>
+									<Users className="h-5 w-5 sm:h-6 sm:w-6" />
+									<span className="text-xs sm:text-sm">Manage Trainers</span>
 								</Link>
 							</Button>
 							<Button
 								asChild
 								variant="outline"
-								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								className="h-auto p-3 sm:p-4 flex-col gap-2 bg-transparent text-center">
 								<Link href="/admin/home-config">
-									<Home className="h-6 w-6" />
-									<span className="text-sm">Website Settings</span>
+									<Home className="h-5 w-5 sm:h-6 sm:w-6" />
+									<span className="text-xs sm:text-sm">Website Settings</span>
 								</Link>
 							</Button>
 							<Button
 								asChild
 								variant="outline"
-								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								className="h-auto p-3 sm:p-4 flex-col gap-2 bg-transparent text-center">
 								<Link href="/admin/reports">
-									<BarChart3 className="h-6 w-6" />
-									<span className="text-sm">View Reports</span>
+									<BarChart3 className="h-5 w-5 sm:h-6 sm:w-6" />
+									<span className="text-xs sm:text-sm">View Reports</span>
 								</Link>
 							</Button>
 							<Button
 								asChild
 								variant="outline"
-								className="h-auto p-4 flex-col gap-2 bg-transparent">
+								className="h-auto p-3 sm:p-4 flex-col gap-2 bg-transparent text-center">
 								<Link href="/admin/activity">
-									<Activity className="h-6 w-6" />
-									<span className="text-sm">Activity Logs</span>
+									<Activity className="h-5 w-5 sm:h-6 sm:w-6" />
+									<span className="text-xs sm:text-sm">Activity Logs</span>
 								</Link>
 							</Button>
 						</div>
@@ -1300,16 +1386,16 @@ export default function AdminDashboard() {
 				</Card>
 
 				{/* Stats Cards */}
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+				<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
 					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="text-sm font-medium">
+							<CardTitle className="text-xs sm:text-sm font-medium">
 								Total Members
 							</CardTitle>
-							<Users className="h-4 w-4 text-muted-foreground" />
+							<Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">{stats.totalMembers}</div>
+							<div className="text-lg sm:text-2xl font-bold">{stats.totalMembers}</div>
 							<p className="text-xs text-muted-foreground">
 								<span className="text-green-600">
 									{stats.activeMembers} active
@@ -1320,13 +1406,13 @@ export default function AdminDashboard() {
 
 					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="text-sm font-medium">
+							<CardTitle className="text-xs sm:text-sm font-medium">
 								Upcoming Sessions
 							</CardTitle>
-							<Calendar className="h-4 w-4 text-muted-foreground" />
+							<Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">{stats.upcomingSessions}</div>
+							<div className="text-lg sm:text-2xl font-bold">{stats.upcomingSessions}</div>
 							<p className="text-xs text-muted-foreground">
 								<span className="text-blue-600">
 									{stats.completedSessions} completed
@@ -1337,13 +1423,13 @@ export default function AdminDashboard() {
 
 					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="text-sm font-medium">
+							<CardTitle className="text-xs sm:text-sm font-medium">
 								Monthly Revenue
 							</CardTitle>
-							<TrendingUp className="h-4 w-4 text-muted-foreground" />
+							<TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">
+							<div className="text-lg sm:text-2xl font-bold">
 								${stats.monthlyRevenue.toLocaleString()}
 							</div>
 							<p className="text-xs text-muted-foreground">
@@ -1356,13 +1442,13 @@ export default function AdminDashboard() {
 
 					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
 						<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-							<CardTitle className="text-sm font-medium">
+							<CardTitle className="text-xs sm:text-sm font-medium">
 								Total Revenue
 							</CardTitle>
-							<TrendingUp className="h-4 w-4 text-muted-foreground" />
+							<TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">
+							<div className="text-lg sm:text-2xl font-bold">
 								${stats.totalRevenue.toLocaleString()}
 							</div>
 							<p className="text-xs text-muted-foreground">
@@ -1374,20 +1460,20 @@ export default function AdminDashboard() {
 					</Card>
 				</div>
 
-				{/* Package Requests - Moved to Top */}
+				{/* Package Requests */}
 				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-					<CardHeader>
-						<div className="flex items-center justify-between">
+					<CardHeader className="pb-4">
+						<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
 							<div>
-								<CardTitle className="flex items-center gap-2">
-									<Package className="h-5 w-5" />
+								<CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+									<Package className="h-4 w-4 sm:h-5 sm:w-5" />
 									Package Requests
 								</CardTitle>
-								<CardDescription>
+								<CardDescription className="text-sm">
 									{packageRequests.length} pending member requests for new packages
 								</CardDescription>
 							</div>
-							<Button variant="outline" size="sm" asChild>
+							<Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
 								<Link href="/admin/packages">
 									View All Packages
 									<ArrowRight className="h-3 w-3 ml-1" />
@@ -1396,33 +1482,33 @@ export default function AdminDashboard() {
 						</div>
 					</CardHeader>
 					<CardContent className="overflow-hidden">
-						<ScrollArea className="h-[200px] w-full">
+						<ScrollArea className="h-[180px] sm:h-[200px] w-full">
 							{loading && (
-								<div className="flex items-center justify-center h-32">
-									<p className="text-muted-foreground">
+								<div className="flex items-center justify-center h-24 sm:h-32">
+									<p className="text-muted-foreground text-sm">
 										Loading package requests...
 									</p>
 								</div>
 							)}
 
 							{!loading && packageRequests.length === 0 && (
-								<div className="text-center py-8">
-									<Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-									<p className="text-muted-foreground">
+								<div className="text-center py-6 sm:py-8">
+									<Package className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+									<p className="text-muted-foreground text-sm">
 										No pending package requests
 									</p>
 								</div>
 							)}
 
 							{!loading && packageRequests.length > 0 && (
-								<div className="space-y-4 w-full max-w-full">
+								<div className="space-y-3 sm:space-y-4 w-full max-w-full">
 									{packageRequests.map((request) => (
 										<div
 											key={request.id}
-											className="p-4 rounded-xl border hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
-											<div className="flex items-start justify-between w-full max-w-full">
-												<div className="flex-1 min-w-0">
-													<h4 className="font-medium text-sm truncate">
+											className="p-3 sm:p-4 rounded-xl border hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
+											<div className="flex flex-col sm:flex-row items-start sm:items-start justify-between w-full max-w-full gap-3">
+												<div className="flex-1 min-w-0 w-full sm:w-auto">
+													<h4 className="font-medium text-xs sm:text-sm truncate">
 														{request.packages?.name} Package Request
 													</h4>
 													<p className="text-xs text-muted-foreground truncate">
@@ -1444,21 +1530,21 @@ export default function AdminDashboard() {
 														</p>
 													)}
 												</div>
-												<div className="flex flex-col items-end gap-2 flex-shrink-0">
+												<div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 flex-shrink-0 w-full sm:w-auto">
 													{request.status === "pending" && (
 														<>
 															<Button
 																variant="outline"
 																size="sm"
 																onClick={() => handleApproveRequest(request.id)}
-																className="text-xs">
+																className="text-xs h-8 px-3">
 																Approve
 															</Button>
 															<Button
 																variant="outline"
 																size="sm"
 																onClick={() => handleRejectRequest(request.id)}
-																className="text-xs text-red-600">
+																className="text-xs text-red-600 h-8 px-3">
 																Reject
 															</Button>
 														</>
@@ -1483,14 +1569,13 @@ export default function AdminDashboard() {
 					</CardContent>
 				</Card>
 
-
-				{/* Recent Activity and Upcoming Sessions - Side by Side */}
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					{/* Recent Activity - 50% with Individual Subsection Collapsibles */}
-					<div className="space-y-6 w-full">
-						<div className="flex items-center justify-between">
-							<h2 className="text-2xl font-bold">Recent Activity</h2>
-							<Button variant="outline" asChild>
+				{/* Recent Activity and Upcoming Sessions - Responsive Layout */}
+				<div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+					{/* Recent Activity */}
+					<div className="space-y-4 sm:space-y-6 w-full">
+						<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+							<h2 className="text-xl sm:text-2xl font-bold">Recent Activity</h2>
+							<Button variant="outline" asChild className="w-full sm:w-auto">
 								<Link href="/admin/activity">
 									<Activity className="h-4 w-4 mr-2" />
 									View All Activities
@@ -1499,21 +1584,21 @@ export default function AdminDashboard() {
 						</div>
 
 						{loading && (
-							<div className="space-y-6 w-full">
+							<div className="space-y-4 sm:space-y-6 w-full">
 								{Array.from({ length: 2 }).map((_, i) => (
 									<Card
 										key={i}
 										className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
-										<CardHeader>
-											<div className="h-6 bg-gray-200 rounded w-1/3 animate-pulse"></div>
-											<div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse"></div>
+										<CardHeader className="pb-4">
+											<div className="h-5 sm:h-6 bg-gray-200 rounded w-1/3 animate-pulse"></div>
+											<div className="h-3 sm:h-4 bg-gray-200 rounded w-2/3 animate-pulse"></div>
 										</CardHeader>
 										<CardContent>
 											<div className="space-y-3">
 												{Array.from({ length: 3 }).map((_, j) => (
 													<div
 														key={j}
-														className="h-16 bg-gray-200 rounded animate-pulse"></div>
+														className="h-12 sm:h-16 bg-gray-200 rounded animate-pulse"></div>
 												))}
 											</div>
 										</CardContent>
@@ -1524,9 +1609,9 @@ export default function AdminDashboard() {
 
 						{!loading && activityGroups.length === 0 && (
 							<Card className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
-								<CardContent className="text-center py-8">
-									<Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-									<p className="text-muted-foreground">
+								<CardContent className="text-center py-6 sm:py-8">
+									<Activity className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+									<p className="text-muted-foreground text-sm">
 										No recent activities to display
 									</p>
 								</CardContent>
@@ -1534,9 +1619,9 @@ export default function AdminDashboard() {
 						)}
 
 						{!loading && activityGroups.length > 0 && (
-							<div className="space-y-6 w-full">
+							<div className="space-y-4 sm:space-y-6 w-full">
 								{activityGroups.slice(0, 2).map((group) => {
-									const isGroupOpen = activityGroupStates[group.type] !== false; // Default to open
+									const isGroupOpen = activityGroupStates[group.type] !== false;
 									return (
 										<Collapsible 
 											key={group.type}
@@ -1545,17 +1630,17 @@ export default function AdminDashboard() {
 										>
 											<Card className="rounded-2xl shadow-xl dark:bg-background/80 w-full">
 												<CollapsibleTrigger asChild>
-													<CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+													<CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors pb-4">
 														<div className="flex items-center justify-between w-full">
 															<div className="flex items-center gap-2 min-w-0 flex-1">
 																<div className={`${group.color} flex-shrink-0`}>
-																	{group.icon}
+																	{/* <group.icon className="h-4 w-4 sm:h-5 sm:w-5" /> */}
 																</div>
 																<div className="min-w-0 flex-1">
-																	<CardTitle className="text-lg truncate">
+																	<CardTitle className="text-base sm:text-lg truncate">
 																		{group.title}
 																	</CardTitle>
-																	<CardDescription className="truncate">
+																	<CardDescription className="truncate text-sm">
 																		{group.description}
 																	</CardDescription>
 																</div>
@@ -1568,7 +1653,7 @@ export default function AdminDashboard() {
 																		e.stopPropagation();
 																		handleViewAll(group.viewAllPath);
 																	}}
-																	className="flex items-center gap-1 flex-shrink-0">
+																	className="flex items-center gap-1 flex-shrink-0 h-8 text-xs hidden sm:flex">
 																	View All
 																	<ArrowRight className="h-3 w-3" />
 																</Button>
@@ -1579,12 +1664,12 @@ export default function AdminDashboard() {
 												</CollapsibleTrigger>
 												<CollapsibleContent>
 													<CardContent className="w-full overflow-hidden pt-0">
-														<ScrollArea className="h-[250px] w-full">
+														<ScrollArea className="h-[200px] sm:h-[250px] w-full">
 															<div className="space-y-3 w-full max-w-full">
 																{group.activities.slice(0, 5).map((activity) => (
 																	<div
 																		key={activity.id}
-																		className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted/50 cursor-pointer transition-colors border w-full max-w-full overflow-hidden"
+																		className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl hover:bg-muted/50 cursor-pointer transition-colors border w-full max-w-full overflow-hidden"
 																		onClick={() => handleActivityClick(activity)}>
 																		<div
 																			className={`mt-0.5 flex-shrink-0 ${getActivityColor(
@@ -1594,10 +1679,10 @@ export default function AdminDashboard() {
 																		</div>
 																		<div className="flex-1 min-w-0 w-full max-w-full overflow-hidden">
 																			<div className="flex items-start justify-between gap-2 w-full max-w-full">
-																				<p className="text-sm font-medium line-clamp-1 flex-1 min-w-0">
+																				<p className="text-xs sm:text-sm font-medium line-clamp-1 flex-1 min-w-0">
 																					{activity.message}
 																				</p>
-																				<div className="flex items-center gap-1 flex-shrink-0 ml-2">
+																				<div className="flex items-center gap-1 flex-shrink-0 ml-1 sm:ml-2">
 																					{getPriorityBadge(activity.priority)}
 																					{getStatusBadge(activity.status)}
 																				</div>
@@ -1613,14 +1698,14 @@ export default function AdminDashboard() {
 																				<p className="text-xs text-muted-foreground truncate flex-1 min-w-0">
 																					{new Date(
 																						activity.timestamp
-																					).toLocaleString()}
+																					).toLocaleDateString()}
 																				</p>
 																				<Button
 																					variant="ghost"
 																					size="sm"
 																					className="h-6 px-2 text-xs flex-shrink-0">
 																					<Eye className="h-3 w-3 mr-1" />
-																					Details
+																					<span className="hidden sm:inline">Details</span>
 																				</Button>
 																			</div>
 																		</div>
@@ -1638,11 +1723,11 @@ export default function AdminDashboard() {
 						)}
 					</div>
 
-					{/* Upcoming Sessions - 50% */}
-					<div className="space-y-6 w-full">
-						<div className="flex items-center justify-between">
-							<h2 className="text-2xl font-bold">Upcoming Sessions</h2>
-							<Button variant="outline" asChild>
+					{/* Upcoming Sessions */}
+					<div className="space-y-4 sm:space-y-6 w-full">
+						<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+							<h2 className="text-xl sm:text-2xl font-bold">Upcoming Sessions</h2>
+							<Button variant="outline" asChild className="w-full sm:w-auto">
 								<Link href="/admin/sessions">
 									<Calendar className="h-4 w-4 mr-2" />
 									View All Sessions
@@ -1651,33 +1736,33 @@ export default function AdminDashboard() {
 						</div>
 
 						<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-							<CardContent className="p-6">
-								<ScrollArea className="h-[400px] w-full">
+							<CardContent className="p-4 sm:p-6">
+								<ScrollArea className="h-[300px] sm:h-[400px] w-full">
 									{loading && (
-										<div className="flex items-center justify-center h-32">
-											<p className="text-muted-foreground">Loading sessions...</p>
+										<div className="flex items-center justify-center h-24 sm:h-32">
+											<p className="text-muted-foreground text-sm">Loading sessions...</p>
 										</div>
 									)}
 
 									{!loading && upcomingSessions.length === 0 && (
-										<div className="text-center py-8">
-											<Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-											<p className="text-muted-foreground">No upcoming sessions</p>
+										<div className="text-center py-6 sm:py-8">
+											<Calendar className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+											<p className="text-muted-foreground text-sm">No upcoming sessions</p>
 										</div>
 									)}
 
 									{!loading && upcomingSessions.length > 0 && (
-										<div className="space-y-4 w-full max-w-full">
+										<div className="space-y-3 sm:space-y-4 w-full max-w-full">
 											{upcomingSessions.map((session) => (
 												<div
 													key={session.id}
-													className="p-4 rounded-xl border hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
-													<div className="flex items-start justify-between w-full max-w-full">
+													className="p-3 sm:p-4 rounded-xl border hover:bg-muted/50 transition-colors w-full max-w-full overflow-hidden">
+													<div className="flex flex-col sm:flex-row items-start sm:items-start justify-between w-full max-w-full gap-3">
 														<div className="flex-1 min-w-0">
-															<h4 className="font-medium text-sm truncate">
+															<h4 className="font-medium text-xs sm:text-sm truncate">
 																{session.title}
 															</h4>
-															<div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+															<div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-2 text-xs text-muted-foreground">
 																<span className="flex items-center gap-1">
 																	<Calendar className="h-3 w-3" />
 																	{new Date(session.date).toLocaleDateString()}
@@ -1687,8 +1772,8 @@ export default function AdminDashboard() {
 																	{session.time}
 																</span>
 															</div>
-															<div className="flex items-center gap-2 mt-2">
-																<Badge variant="outline" className="text-xs">
+															<div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2">
+																<Badge variant="outline" className="text-xs w-fit">
 																	{session.type}
 																</Badge>
 																<span className="text-xs text-muted-foreground truncate">
@@ -1696,7 +1781,7 @@ export default function AdminDashboard() {
 																</span>
 															</div>
 														</div>
-														<div className="text-right flex-shrink-0">
+														<div className="text-left sm:text-right flex-shrink-0 w-full sm:w-auto">
 															<div className="text-xs text-muted-foreground">
 																{session.capacity.booked}/
 																{session.capacity.total}
@@ -1707,7 +1792,7 @@ export default function AdminDashboard() {
 																		? "secondary"
 																		: "default"
 																}
-																className="text-xs mt-1">
+																className="text-xs mt-1 w-fit sm:w-auto">
 																{session.status}
 															</Badge>
 														</div>
@@ -1722,13 +1807,11 @@ export default function AdminDashboard() {
 					</div>
 				</div>
 
-
-
 				{/* Activity Detail Dialog */}
 				<Dialog
 					open={isActivityDialogOpen}
 					onOpenChange={setIsActivityDialogOpen}>
-					<DialogContent className="max-w-2xl rounded-2xl">
+					<DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
 								{selectedActivity && getActivityIcon(selectedActivity.type)}
@@ -1738,7 +1821,7 @@ export default function AdminDashboard() {
 						</DialogHeader>
 						{selectedActivity && (
 							<div className="space-y-4">
-								<div className="grid grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 									<div>
 										<Label className="text-sm font-medium">Type</Label>
 										<p className="text-sm">
@@ -1768,15 +1851,15 @@ export default function AdminDashboard() {
 									<div>
 										<Label className="text-sm font-medium">Details</Label>
 										<div className="mt-1 p-3 bg-muted rounded-md">
-											<pre className="text-sm whitespace-pre-wrap">
+											<pre className="text-sm whitespace-pre-wrap overflow-x-auto">
 												{formatActivityDetails(selectedActivity)}
 											</pre>
 										</div>
 									</div>
 								)}
-								<div className="flex gap-2">
+								<div className="flex flex-col sm:flex-row gap-2">
 									{selectedActivity.memberId && (
-										<Button variant="outline" size="sm" asChild>
+										<Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
 											<Link
 												href={`/admin/members/${selectedActivity.memberId}`}>
 												View Member
@@ -1785,7 +1868,7 @@ export default function AdminDashboard() {
 										</Button>
 									)}
 									{selectedActivity.sessionId && (
-										<Button variant="outline" size="sm" asChild>
+										<Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
 											<Link
 												href={`/admin/sessions/${selectedActivity.sessionId}`}>
 												View Session

@@ -14,15 +14,12 @@ import {
 	Calendar,
 	ChevronLeft,
 	ChevronRight,
-	Plus,
 	Users,
 	Clock,
 	ArrowLeft,
-	Eye,
-	Edit,
-	MoreHorizontal,
 } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/page-header";
 
 interface Session {
 	id: string;
@@ -240,45 +237,54 @@ export default function CalendarPage() {
 
 	return (
 		<AdminRoute>
-			<div className="container mx-auto max-w-7xl py-6 space-y-6">
+			<div className="container mx-auto max-w-7xl py-6 space-y-6 px-4">
 				{/* Header */}
-				<div className="relative mb-8">
+				<PageHeader
+					title="Session Calendar"
+					subtitle="View and manage all sessions in calendar format"
+					icon={Calendar}
+					hasAddButton={false}
+				/>
+				{/* <div className="relative mb-8">
 					<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
-					<div className="flex items-center justify-between gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
-						<div className="flex items-center gap-6">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 sm:p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
+						<div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
 							<Button
 								variant="outline"
 								size="sm"
 								onClick={() => router.push("/admin/dashboard")}
-								className="flex items-center gap-2">
+								className="flex items-center gap-2 self-start">
 								<ArrowLeft className="h-4 w-4" />
-								Back to Dashboard
+								<span className="hidden sm:inline">Back to Dashboard</span>
+								<span className="sm:hidden">Back</span>
 							</Button>
-							<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
-								<Calendar className="w-10 h-10 text-primary" />
-							</div>
-							<div>
-								<div className="font-bold text-2xl flex items-center gap-2">
-									Session Calendar
+							<div className="flex items-center gap-3 sm:gap-6">
+								<div className="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-muted flex items-center justify-center text-xl sm:text-3xl font-bold border-4 border-primary shadow-lg">
+									<Calendar className="w-6 h-6 sm:w-10 sm:h-10 text-primary" />
 								</div>
-								<div className="text-muted-foreground text-sm">
-									View and manage all sessions in calendar format
+								<div>
+									<div className="font-bold text-lg sm:text-2xl flex items-center gap-2">
+										Session Calendar
+									</div>
+									<div className="text-muted-foreground text-xs sm:text-sm">
+										View and manage all sessions in calendar format
+									</div>
 								</div>
 							</div>
 						</div>
 						<UserDropdown />
 					</div>
-				</div>
+				</div> */}
 
 				{/* Calendar Controls */}
 				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-4">
+					<CardContent className="p-4 sm:p-6">
+						<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+							<div className="flex items-center justify-center gap-4">
 								<Button variant="outline" size="sm" onClick={goToPreviousMonth}>
 									<ChevronLeft className="h-4 w-4" />
 								</Button>
-								<h2 className="text-2xl font-bold">
+								<h2 className="text-lg sm:text-2xl font-bold text-center">
 									{currentDate.toLocaleDateString("en-US", {
 										month: "long",
 										year: "numeric",
@@ -288,12 +294,15 @@ export default function CalendarPage() {
 									<ChevronRight className="h-4 w-4" />
 								</Button>
 							</div>
-							<div className="flex items-center gap-3">
-								<Button variant="outline" onClick={goToToday}>
+							<div className="flex items-center justify-center gap-2 sm:gap-3">
+								<Button variant="outline" onClick={goToToday} size="sm">
 									Today
 								</Button>
-								<Button asChild>
-									<Link href="/admin/sessions">Manage Sessions</Link>
+								<Button asChild size="sm">
+									<Link href="/admin/sessions">
+										<span className="hidden sm:inline">Manage Sessions</span>
+										<span className="sm:hidden">Manage</span>
+									</Link>
 								</Button>
 							</div>
 						</div>
@@ -302,49 +311,71 @@ export default function CalendarPage() {
 
 				{/* Calendar Grid */}
 				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-					<CardContent className="p-6">
+					<CardContent className="p-2 sm:p-6">
 						{/* Day Headers */}
-						<div className="grid grid-cols-7 gap-1 mb-4">
-							{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+						<div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2 sm:mb-4">
+							{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
 								<div
-									key={day}
-									className="text-center font-semibold text-sm text-muted-foreground py-2">
-									{day}
+									key={index}
+									className="text-center font-semibold text-xs sm:text-sm text-muted-foreground py-1 sm:py-2">
+									<span className="sm:hidden">{day}</span>
+									<span className="hidden sm:inline">
+										{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][index]}
+									</span>
 								</div>
 							))}
 						</div>
 
 						{/* Calendar Days */}
-						<div className="grid grid-cols-7 gap-1">
+						<div className="grid grid-cols-7 gap-0.5 sm:gap-1">
 							{calendarDays.map((day, index) => (
 								<div
 									key={index}
 									className={`
-                    min-h-[120px] p-2 border rounded-lg transition-colors
-                    ${
-											day.isCurrentMonth
-												? "bg-background border-border"
-												: "bg-muted/30 border-muted"
-										}
-                    ${day.isToday ? "ring-2 ring-primary ring-opacity-50" : ""}
-                    ${!day.isCurrentMonth ? "opacity-50" : ""}
-                  `}>
-									{/* Date Number */}
-									<div
-										className={`
-                    text-sm font-medium mb-2
-                    ${
+									min-h-[60px] sm:min-h-[120px] p-1 sm:p-2 border rounded text-xs sm:text-sm transition-colors
+									${
+										day.isCurrentMonth
+											? "bg-background border-border"
+											: "bg-muted/30 border-muted"
+									}
+									${day.isToday ? "ring-1 sm:ring-2 ring-primary ring-opacity-50" : ""}
+									${!day.isCurrentMonth ? "opacity-50" : ""}
+								`}>
+								{/* Date Number */}
+								<div
+									className={`
+										text-xs sm:text-sm font-medium mb-1 sm:mb-2 text-center sm:text-left
+										${
 											day.isToday
 												? "text-primary font-bold"
 												: day.isCurrentMonth
 												? "text-foreground"
 												: "text-muted-foreground"
 										}
-                  `}>
-										{day.date.getDate()}
-									</div>
+									`}>
+									{day.date.getDate()}
+								</div>
 
-									{/* Sessions */}
+								{/* Sessions - Mobile: Show count only, Desktop: Show details */}
+								<div className="block sm:hidden">
+									{day.sessions.length > 0 && (
+										<div 
+											className="w-2 h-2 bg-primary rounded-full mx-auto cursor-pointer"
+											onClick={() => {
+												// On mobile, navigate to first session or show day view
+												if (day.sessions.length === 1) {
+													router.push(`/admin/sessions/${day.sessions[0].id}`);
+												} else {
+													// Could implement a day detail view for multiple sessions
+													router.push(`/admin/sessions`);
+												}
+											}}
+										/>
+									)}
+								</div>
+
+								{/* Sessions - Desktop: Show full details */}
+								<div className="hidden sm:block">
 									<ScrollArea className="h-[80px]">
 										<div className="space-y-1">
 											{day.sessions.map((session) => (
@@ -381,67 +412,81 @@ export default function CalendarPage() {
 										</div>
 									</ScrollArea>
 								</div>
-							))}
+							</div>
+						))}
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Mobile Legend */}
+			<div className="block sm:hidden">
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
+					<CardContent className="p-4">
+						<h3 className="font-medium mb-2">Legend</h3>
+						<div className="flex items-center gap-2 text-sm text-muted-foreground">
+							<div className="w-2 h-2 bg-primary rounded-full" />
+							<span>Days with sessions (tap to view)</span>
 						</div>
 					</CardContent>
 				</Card>
-
-				{/* Session Summary */}
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2 text-lg">
-								<Calendar className="h-5 w-5" />
-								This Month
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="text-3xl font-bold">{sessions.length}</div>
-							<p className="text-sm text-muted-foreground">Total Sessions</p>
-						</CardContent>
-					</Card>
-
-					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2 text-lg">
-								<Users className="h-5 w-5" />
-								Upcoming
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="text-3xl font-bold text-blue-600">
-								{
-									sessions.filter(
-										(s) =>
-											new Date(s.start_time) > new Date() &&
-											s.status === "scheduled"
-									).length
-								}
-							</div>
-							<p className="text-sm text-muted-foreground">
-								Scheduled Sessions
-							</p>
-						</CardContent>
-					</Card>
-
-					<Card className="rounded-2xl shadow-xl dark:bg-background/80">
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2 text-lg">
-								<Clock className="h-5 w-5" />
-								Completed
-							</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<div className="text-3xl font-bold text-green-600">
-								{sessions.filter((s) => s.status === "completed").length}
-							</div>
-							<p className="text-sm text-muted-foreground">
-								Completed Sessions
-							</p>
-						</CardContent>
-					</Card>
-				</div>
 			</div>
-		</AdminRoute>
-	);
+
+			{/* Session Summary */}
+			<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
+					<CardHeader className="pb-2 sm:pb-6">
+						<CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+							<Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
+							This Month
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="pt-0">
+						<div className="text-2xl sm:text-3xl font-bold">{sessions.length}</div>
+						<p className="text-xs sm:text-sm text-muted-foreground">Total Sessions</p>
+					</CardContent>
+				</Card>
+
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80">
+					<CardHeader className="pb-2 sm:pb-6">
+						<CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+							<Users className="h-4 w-4 sm:h-5 sm:w-5" />
+							Upcoming
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="pt-0">
+						<div className="text-2xl sm:text-3xl font-bold text-blue-600">
+							{
+								sessions.filter(
+									(s) =>
+										new Date(s.start_time) > new Date() &&
+										s.status === "scheduled"
+								).length
+							}
+						</div>
+						<p className="text-xs sm:text-sm text-muted-foreground">
+							Scheduled Sessions
+						</p>
+					</CardContent>
+				</Card>
+
+				<Card className="rounded-2xl shadow-xl dark:bg-background/80 sm:col-span-2 md:col-span-1">
+					<CardHeader className="pb-2 sm:pb-6">
+						<CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+							<Clock className="h-4 w-4 sm:h-5 sm:w-5" />
+							Completed
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="pt-0">
+						<div className="text-2xl sm:text-3xl font-bold text-green-600">
+							{sessions.filter((s) => s.status === "completed").length}
+						</div>
+						<p className="text-xs sm:text-sm text-muted-foreground">
+							Completed Sessions
+						</p>
+					</CardContent>
+				</Card>
+			</div>
+		</div>
+	</AdminRoute>
+);
 }
