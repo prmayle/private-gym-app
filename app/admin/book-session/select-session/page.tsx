@@ -190,15 +190,9 @@ export default function SelectSessionPage() {
 		max_capacity,
 		description,
 		trainer_id,
-		package_id,
-		packages (
+		package_types (
 			id,
-			name,
-			package_type_id,
-			package_types (
-				id,
-				name
-			)
+			name
 		),
 		trainers (
 			profiles (
@@ -276,10 +270,8 @@ export default function SelectSessionPage() {
 								full_name
 							)
 						),
-						packages (
-							package_types (
-								name
-							)
+						package_types (
+							name
 						)
 					)
 				`

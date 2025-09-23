@@ -11,9 +11,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Calendar, Package, TrendingUp, Clock } from "lucide-react";
+import { Bell, Calendar, Package, TrendingUp, Clock, User, Sun, Moon } from "lucide-react";
 import { UserDropdown } from "@/components/ui/user-dropdown";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/components/theme-provider";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -61,6 +62,7 @@ interface ProgressData {
 export default function MemberDashboard() {
 	const auth = useAuth();
 	const { toast } = useToast();
+	const { theme, setTheme } = useTheme();
 
 	// Use these types in useState
 	const [memberData, setMemberData] = useState<MemberData | null>(null);
@@ -99,8 +101,19 @@ export default function MemberDashboard() {
           joined_at,
           membership_status,
           user_id,
-          fitness_goals,
           weight,
+		  member_goals (
+      id,
+      goal_type,
+      target_value,
+      current_value,
+      target_unit,
+      target_date,
+      status,
+      notes,
+      created_at,
+      updated_at
+    ),
           height
         `
 				)
@@ -345,64 +358,100 @@ export default function MemberDashboard() {
 		}
 	};
 
+	// Theme toggle function
+	const toggleTheme = () => {
+		const newTheme = theme === "light" ? "dark" : "light";
+		localStorage.setItem("core-factory-theme", newTheme);
+		setTheme(newTheme);
+	};
+
 	return (
 		<div className="container mx-auto max-w-7xl py-6 space-y-6">
-			{/* Glassy, gradient-backed header */}
-			<div className="relative mb-8">
-				<div className="absolute inset-0 h-32 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
-				<div className="flex items-center gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
-					<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
-						{memberData?.name?.[0] || "?"}
+			{/* Simple Header */}
+			<div className="flex items-center justify-between mb-6">
+				<div className="flex items-center gap-3">
+					<div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+						<User className="w-5 h-5 text-primary" />
 					</div>
 					<div>
-						<div className="font-bold text-2xl flex items-center gap-2">
-							{memberData?.name}
-							<Badge
-								variant={
-									memberData?.membershipType === "Active Member"
-										? "default"
-										: "destructive"
-								}
-								className="ml-2">
-								{memberData?.membershipType}
-							</Badge>
-						</div>
-						<div className="text-muted-foreground text-sm">
-							Member since {memberData?.joinDate}
-						</div>
-						{memberData?.fitnessGoals && (
-							<div className="mt-1 text-sm">
-								<b>Fitness Goals:</b> {memberData.fitnessGoals}
-							</div>
-						)}
-					</div>
-					<div className="flex-1 flex justify-end items-center gap-2">
-						<Button
-							asChild
-							className="bg-orange-500 hover:bg-orange-600 text-white">
-							<Link href="/member/book-session">
-								<Calendar className="mr-2 h-4 w-4" />
-								Book Session
-							</Link>
-						</Button>
-						<div className="relative">
-							<Button variant="outline" size="icon" asChild>
-								<Link href="/member/notifications">
-									<Bell className="h-4 w-4" />
-									{unreadCount > 0 && (
-										<Badge
-											variant="destructive"
-											className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
-											{unreadCount}
-										</Badge>
-									)}
-								</Link>
-							</Button>
-						</div>
-						<UserDropdown />
+						<h1 className="font-bold text-2xl text-foreground">Member Dashboard</h1>
+						<p className="text-sm text-muted-foreground">Welcome to your fitness journey</p>
 					</div>
 				</div>
+				<div className="flex items-center gap-2">
+					<Button 
+						variant="ghost" 
+						size="icon" 
+						onClick={toggleTheme}
+						className="h-9 w-9 hover:bg-primary/10 transition-colors rounded-xl"
+					>
+						{theme === "light" ? (
+							<Sun className="h-4 w-4" />
+						) : (
+							<Moon className="h-4 w-4" />
+						)}
+						<span className="sr-only">Toggle theme</span>
+					</Button>
+					<UserDropdown />
+				</div>
 			</div>
+
+			{/* Member Info Card */}
+			<Card className="rounded-2xl shadow-xl dark:bg-background/80">
+				<CardContent className="p-6">
+					<div className="flex items-center gap-6">
+						<div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold border-4 border-primary shadow-lg">
+							{memberData?.name?.[0] || "?"}
+						</div>
+						<div className="flex-1">
+							<div className="font-bold text-2xl flex items-center gap-2">
+								{memberData?.name}
+								<Badge
+									variant={
+										memberData?.membershipType === "Active Member"
+											? "default"
+											: "destructive"
+									}
+									className="ml-2">
+									{memberData?.membershipType}
+								</Badge>
+							</div>
+							<div className="text-muted-foreground text-sm">
+								Member since {memberData?.joinDate}
+							</div>
+							{memberData?.fitnessGoals && (
+								<div className="mt-1 text-sm">
+									<b>Fitness Goals:</b> {memberData.fitnessGoals}
+								</div>
+							)}
+						</div>
+						<div className="flex items-center gap-2">
+							<Button
+								asChild
+								className="bg-orange-500 hover:bg-orange-600 text-white">
+								<Link href="/member/book-session">
+									<Calendar className="mr-2 h-4 w-4" />
+									Book Session
+								</Link>
+							</Button>
+							<div className="relative">
+								<Button variant="outline" size="icon" asChild>
+									<Link href="/member/notifications">
+										<Bell className="h-4 w-4" />
+										{unreadCount > 0 && (
+											<Badge
+												variant="destructive"
+												className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+												{unreadCount}
+											</Badge>
+										)}
+									</Link>
+								</Button>
+							</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 
 			{/* Next Session Card */}
 			{memberData?.nextSession && (

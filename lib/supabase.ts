@@ -89,6 +89,35 @@ export interface Database {
 					updated_at?: string;
 				};
 			};
+			package_types: {
+				Row: {
+					color: string;
+					description: string;
+					icon: string;
+					name: string;
+					is_active: boolean;
+					created_at: string;
+					updated_at: string;
+				};
+				Insert: {
+					color: string;
+					description: string;
+					icon: string;
+					name: string;
+					is_active: boolean;
+					created_at: string;
+					updated_at: string;
+				};
+				Update: {
+					color: string;
+					description: string;
+					icon: string;
+					is_active: boolean;
+					name: string;
+					created_at: string;
+					updated_at: string;
+				};
+			};
 			packages: {
 				Row: {
 					id: string;
@@ -134,12 +163,12 @@ export interface Database {
 				Row: {
 					id: string;
 					title: string;
+					package_type_id: string | null;
 					description: string | null;
 					trainer_id: string | null;
 					max_capacity: number;
 					start_time: string;
 					end_time: string;
-					session_type: string;
 					status: "scheduled" | "in_progress" | "completed" | "cancelled";
 					price: number | null;
 					created_at: string;
@@ -157,11 +186,11 @@ export interface Database {
 					id?: string;
 					title: string;
 					description?: string | null;
+					package_type_id?: string | null;
 					trainer_id?: string | null;
 					max_capacity?: number;
 					start_time: string;
 					end_time: string;
-					session_type: string;
 					status?: "scheduled" | "in_progress" | "completed" | "cancelled";
 					price?: number | null;
 					created_at?: string;
@@ -179,11 +208,11 @@ export interface Database {
 					id?: string;
 					title?: string;
 					description?: string | null;
+					package_type_id?: string | null;
 					trainer_id?: string | null;
 					max_capacity?: number;
 					start_time?: string;
 					end_time?: string;
-					session_type?: string;
 					status?: "scheduled" | "in_progress" | "completed" | "cancelled";
 					price?: number | null;
 					created_at?: string;
@@ -192,7 +221,6 @@ export interface Database {
 					location?: string | null;
 					equipment_needed?: string[] | null;
 					is_recurring?: boolean;
-					recurrence_rule?: string | null;
 					recurrence_end_date?: string | null;
 					original_session_id?: string | null;
 					template_id?: string | null;

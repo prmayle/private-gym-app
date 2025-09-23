@@ -3,9 +3,10 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { UserDropdown } from "@/components/ui/user-dropdown";
-import { ArrowLeft, Plus, LucideIcon } from "lucide-react";
+import { ArrowLeft, Plus, LucideIcon, Sun, Moon } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useTheme } from "@/components/theme-provider";
 
 interface PageHeaderProps {
 	title: string;
@@ -23,6 +24,7 @@ export function PageHeader({
 	addLink = "",
 }: PageHeaderProps) {
 	const router = useRouter();
+	const { theme, setTheme } = useTheme();
 	const [isVisible, setIsVisible] = useState(true);
 	const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -45,6 +47,13 @@ export function PageHeader({
 		window.addEventListener('scroll', handleScroll, { passive: true });
 		return () => window.removeEventListener('scroll', handleScroll);
 	}, [lastScrollY]);
+
+	// Simple theme toggle function
+	const toggleTheme = () => {
+		const newTheme = theme === "light" ? "dark" : "light";
+		localStorage.setItem("core-factory-theme", newTheme);
+		setTheme(newTheme);
+	};
 
 	return (
         <>
@@ -79,6 +88,7 @@ export function PageHeader({
 								<p className="text-xs text-muted-foreground truncate hidden sm:block">
 									{subtitle}
 								</p>
+								
 							</div>
 						</div>
 					</div>
@@ -92,6 +102,19 @@ export function PageHeader({
 								</Link>
 							</Button>
 						)}
+						<Button 
+							variant="ghost" 
+							size="icon" 
+							onClick={toggleTheme}
+							className="h-9 w-9 hover:bg-primary/10 transition-colors rounded-xl"
+						>
+							{theme === "light" ? (
+								<Sun className="h-4 w-4" />
+							) : (
+								<Moon className="h-4 w-4" />
+							)}
+							<span className="sr-only">Toggle theme</span>
+						</Button>
 						<UserDropdown />
 					</div>
 				</div>

@@ -10,7 +10,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ArrowLeft, Save, X, Pencil, Users } from "lucide-react";
+import { ArrowLeft, Save, X, Pencil, Users, Calendar } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import type { Session as DbSession } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useCallback } from "react";
+import { PageHeader } from "@/components/page-header";
 
 export interface Session extends DbSession {
 	package?: {
@@ -183,7 +184,7 @@ export default function SessionDetailsPage() {
 			const { data: sessionData, error: sessionError } = await supabase
 				.from("sessions")
 				.select(
-					`*, package:package_id (id, name, package_type:package_type_id (id, name))`
+					`*, package_type:package_type_id (id, name)`
 				)
 				.eq("id", sessionId)
 				.single();
@@ -294,6 +295,7 @@ export default function SessionDetailsPage() {
 
 	return (
 		<div className="container mx-auto py-8 max-w-3xl">
+			<PageHeader title="Session Details" subtitle="Manage session details" icon={Calendar} />
 			<div className="flex items-center gap-4 mb-6">
 				<Button
 					variant="ghost"

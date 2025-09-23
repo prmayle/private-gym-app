@@ -64,7 +64,7 @@ interface Profile {
 	full_name?: string | null;
 	phone?: string | null;
 	avatar_url?: string | null;
-	last_login_at?: string | null;
+	// last_login_at?: string | null;
 }
 
 interface Member {
@@ -256,8 +256,7 @@ export default function MembersPage() {
 						email,
 						full_name,
 						phone,
-						avatar_url,
-						last_login_at
+						avatar_url
 					)
 				`
 				)
@@ -303,9 +302,9 @@ export default function MembersPage() {
 							: "Unknown",
 						status: normalizeStatus(member.membership_status),
 						packages: packageNames,
-						lastActivity: profile?.last_login_at
-							? new Date(profile.last_login_at).toLocaleDateString()
-							: "Never",
+						// lastActivity: profile?.last_login_at
+						// 	? new Date(profile.last_login_at).toLocaleDateString()
+						// 	: "Never",
 						memberNumber: member.member_number || null,
 						profilePhoto:
 							member.profile_photo_url || profile?.avatar_url || null,

@@ -28,13 +28,16 @@ export function ProtectedRoute({
 
 	// Helper function to navigate to appropriate dashboard
 	const navigateToDashboard = () => {
-		if (redirectTo) {
-			router.push(redirectTo);
-		} else if (auth.isAdmin) {
-			router.push("/admin/dashboard");
-		} else {
-			router.push("/member/dashboard");
-		}
+		alert("HERE22")
+		console.log("auth.user", auth.user);
+		console.log("auth.user", auth);
+		// if (redirectTo) {
+		// 	router.push(redirectTo);
+		// } else if (auth.isAdmin) {
+		// 	router.push("/admin/dashboard");
+		// } else {
+		// 	router.push("/member/dashboard");
+		// }
 	};
 
 	// Helper function to navigate to login

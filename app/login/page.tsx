@@ -187,19 +187,55 @@ export default function LoginPage() {
 		}
 	}, [auth.user, auth.loading, router]);
 
-	// Demo credentials for testing
+	// Demo credentials for testing - all seeded users
 	const demoCredentials = [
+		// Admin Users
 		{
-			email: "admin+admin@corefactory.com",
+			email: "admin@corefactory.com",
 			password: "Admin123!",
 			role: "Admin",
 			name: "System Administrator",
 		},
 		{
+			email: "admin+admin@corefactory.com",
+			password: "Admin123!",
+			role: "Admin",
+			name: "Core Factory Admin",
+		},
+		
+		
+		// Member Users
+		{
 			email: "corefactorymember@corefactory.com",
 			password: "TempPass020138!",
 			role: "Member",
 			name: "Core Factory Member",
+		},
+		{
+			email: "john.member@example.com",
+			password: "Member123!",
+			role: "Member",
+			name: "John Member",
+		},
+		{
+			email: "sarah.member@corefactory.com",
+			password: "Member123!",
+			role: "Member",
+			name: "Sarah Fitness",
+		},
+		
+		// Trainer Users
+		{
+			email: "trainer@corefactory.com",
+			password: "Trainer123!",
+			role: "Trainer",
+			name: "Head Trainer",
+		},
+		{
+			email: "trainer+mike@corefactory.com",
+			password: "Trainer123!",
+			role: "Trainer",
+			name: "Mike Trainer",
 		},
 	];
 
@@ -228,12 +264,20 @@ export default function LoginPage() {
 					variant: "default",
 				});
 
-				const user_role = data.user?.identities?.[0]?.identity_data?.role;
-				if (user_role === "admin") {
-					router.push("/admin/dashboard");
-				} else {
-					router.push("/member/dashboard");
-				}
+				const role = data?.user.identities
+
+				console.log("data.user", data.user);
+				console.log(data.user);
+
+				router.push("/admin/dashboard");
+
+				// Use the same role checking logic as AuthContext and middleware
+				// const user_role = data.user?.user_metadata?.role || data.user?.app_metadata?.role;
+				// if (user_role === "admin") {
+				// 	router.push("/admin/dashboard");
+				// } else {
+				// 	router.push("/member/dashboard");
+				// }
 			}
 		} catch (error: any) {
 			setIsLoading(false);
@@ -327,7 +371,7 @@ export default function LoginPage() {
 									<div className="relative">
 										<Input
 											id="email"
-											type="email"
+											type="text"
 											placeholder="admin@corefactory.com"
 											value={email}
 											onChange={(e) => setEmail(e.target.value)}
