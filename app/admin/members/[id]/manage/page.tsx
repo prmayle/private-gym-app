@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { logActivity } from "@/utils/activity-logger";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, User } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import {
 	Tooltip,
@@ -36,6 +36,8 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { MemberProfileHeader } from "@/components/member-profile-header";
+import { PageHeader } from "@/components/page-header";
 
 // --- Types ---
 interface Profile {
@@ -99,7 +101,6 @@ interface MemberGoal {
 	target_date?: string;
 	status?: string;
 	notes?: string;
-	created_by?: string;
 	created_at?: string;
 	updated_at?: string;
 }
@@ -150,7 +151,7 @@ export default function ManageMemberPage() {
 		const { data, error } = await supabase
 			.from("members")
 			.select(
-				`*, profiles!members_user_id_fkey (id, email, full_name, phone, avatar_url), member_goals (id, goal_type, target_value, target_unit, current_value, target_date, status, notes, created_by, created_at, updated_at)`
+				`*, profiles!members_user_id_fkey (id, email, full_name, phone, avatar_url), member_goals (id, goal_type, target_value, target_unit, current_value, target_date, status, notes, created_at, updated_at)`
 			)
 			.eq("id", memberId)
 			.single();
@@ -395,7 +396,6 @@ export default function ManageMemberPage() {
 			({ error } = await supabase.from("member_goals").insert({
 				...goalForm,
 				member_id: member.id,
-				created_by: user.id,
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString(),
 			}));
@@ -595,7 +595,7 @@ export default function ManageMemberPage() {
 
 	return (
 		<div className="container mx-auto py-6 max-w-4xl">
-			<div className="relative mb-8">
+			{/* <div className="relative mb-8">
 				<div className="absolute inset-0 h-40 bg-gradient-to-br from-blue-900/60 to-gray-900/80 rounded-2xl blur-lg -z-10" />
 				<div className="flex items-center gap-6 p-6 rounded-2xl shadow-xl bg-background/80 dark:bg-background/60 backdrop-blur border border-border">
 					<Button
@@ -643,7 +643,14 @@ export default function ManageMemberPage() {
 						</div>
 					</div>
 				</div>
-			</div>
+			</div> */}
+
+			<PageHeader
+				title={profile?.full_name || ""}
+				subtitle={member.membership_status?.charAt(0).toUpperCase() +
+					member.membership_status?.slice(1) + " - " + profile?.email + " - joined at" + new Date(member.joined_at).toLocaleDateString()}
+				icon={User}
+			/>
 			<Tabs value={tab} onValueChange={setTab} className="w-full">
 				<TabsList className="mb-4">
 					<TabsTrigger value="info">Info</TabsTrigger>

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { id, email, full_name, phone, role, is_active } = body
 
-    if (!id || !email) {
+    if (!id) {
       return NextResponse.json(
         { error: 'ID and email are required' },
         { status: 400 }

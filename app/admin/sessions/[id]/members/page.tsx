@@ -40,8 +40,6 @@ interface Member {
 	updated_at?: string | null;
 	member_number?: string | null;
 	fitness_goals?: string | null;
-	waiver_signed?: boolean | null;
-	waiver_signed_date?: string | null;
 	profile?: Profile;
 	booking?: Booking;
 }
@@ -157,7 +155,6 @@ export default function SessionMembersPage() {
 							user_id,
 							membership_status,
 							joined_at,
-							waiver_signed,
 							profile:user_id (
 								id,
 								email,

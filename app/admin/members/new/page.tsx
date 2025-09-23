@@ -200,7 +200,7 @@ export default function NewMemberPage() {
 			// OR implement server-side API route for user creation
 
 			// Generate a temporary password - user will need to reset it
-			const tempPassword = `TempPass${Date.now().toString().slice(-6)}!`;
+			const tempPassword = `P@ssw0rd123!`;
 
 			let userId: string;
 			let authData: any;
@@ -305,33 +305,33 @@ export default function NewMemberPage() {
 			const profileData = profileResult.profile;
 			console.log("Profile created successfully:", profileData);
 
-			// Check if member already exists for this user
-			console.log("Checking for existing member for user:", profileData.id);
-			const { data: existingMembers, error: memberCheckError } = await supabase
-				.from("members")
-				.select("id, member_number")
-				.eq("user_id", profileData.id);
+			// // Check if member already exists for this user
+			// console.log("Checking for existing member for user:", profileData.id);
+			// const { data: existingMembers, error: memberCheckError } = await supabase
+			// 	.from("members")
+			// 	.select("id, member_number")
+			// 	.eq("user_id", profileData.id);
 
-			if (memberCheckError) {
-				console.error("Error checking for existing member:", memberCheckError);
-				throw memberCheckError;
-			}
+			// if (memberCheckError) {
+			// 	console.error("Error checking for existing member:", memberCheckError);
+			// 	throw memberCheckError;
+			// }
 
-			const existingMember =
-				existingMembers && existingMembers.length > 0
-					? existingMembers[0]
-					: null;
-			console.log("Existing member check result:", existingMember);
+			// const existingMember =
+			// 	existingMembers && existingMembers.length > 0
+			// 		? existingMembers[0]
+			// 		: null;
+			// console.log("Existing member check result:", existingMember);
 
 			let memberData;
 			let memberNumber;
 
-			if (existingMember) {
-				// Member already exists, use existing data
-				console.log("Using existing member:", existingMember);
-				memberData = existingMember;
-				memberNumber = existingMember.member_number;
-			} else {
+			// if (existingMember) {
+			// 	// Member already exists, use existing data
+			// 	console.log("Using existing member:", existingMember);
+			// 	memberData = existingMember;
+			// 	memberNumber = existingMember.member_number;
+			// } else {
 				// Generate member number
 				memberNumber = `MEM${Date.now().toString().slice(-6)}`;
 				console.log("Creating new member with number:", memberNumber);
@@ -348,9 +348,9 @@ export default function NewMemberPage() {
 						address: member.address || null,
 						joined_at: member.startDate,
 						membership_status: "active",
-						member_number: memberNumber,
-						fitness_goals: member.fitnessGoals || null,
-						waiver_signed: member.waiverSigned,
+						// member_number: memberNumber,
+						// fitness_goals: member.fitnessGoals || null,
+						// waiver_signed: member.waiverSigned,
 						height: member.height || null,
 						weight: member.weight || null,
 					})
@@ -363,7 +363,7 @@ export default function NewMemberPage() {
 				}
 				console.log("Member created successfully:", newMemberData);
 				memberData = newMemberData;
-			}
+			// }
 
 			// Create welcome notification
 			console.log("Creating welcome notification for user:", profileData.id);

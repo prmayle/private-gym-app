@@ -82,7 +82,7 @@ export interface Session {
 	packageName?: string;
 	packageTypeName?: string;
 	packageTypeId?: string;
-	package_id?: string; // <-- add this line
+	package_type_id?: string; // <-- add this line
 	requiresPackage?: boolean;
 	allowDropIn?: boolean;
 	dropInPrice?: string;
@@ -318,13 +318,9 @@ export default function SessionsPage() {
           max_capacity,
           current_bookings,
           location,
-          equipment_needed,
+          equipment_needed,	
           trainer_id,
-          package_id,
-          requires_package,
-          package_session_credit_cost,
-          allow_drop_in,
-          drop_in_price
+          package_type_id
         `
 				)
 				.order("start_time", { ascending: true });
@@ -450,12 +446,12 @@ export default function SessionsPage() {
 						description: session.description,
 						lastModified: session.start_time,
 						packageName:
-							packagesData?.find((p) => p.id === session.package_id)?.name ||
+							packagesData?.find((p) => p.id === session.package_type_id)?.name ||
 							"N/A",
-						package_id: session.package_id,
-						requiresPackage: session.requires_package,
-						allowDropIn: session.allow_drop_in,
-						dropInPrice: session.drop_in_price,
+						package_type_id: session.package_type_id,
+						// requiresPackage: session.requires_package,
+						// allowDropIn: session.allow_drop_in,
+						// dropInPrice: session.drop_in_price,
 						type: undefined,
 						start_time: session.start_time,
 						end_time: session.end_time,
@@ -752,17 +748,18 @@ export default function SessionsPage() {
 					status: "scheduled",
 					max_capacity: newSession.capacity,
 					current_bookings: 0,
-					drop_in_price: 0, // Default price, could be made configurable
+					// drop_in_price: 0, // Default price, could be made configurable
 					location: null,
 					equipment_needed: [],
-					package_id: newSession.package === "none" ? null : newSession.package,
+					package_type_id: newSession.packageType === "none" ? null : newSession.packageType,
+					// package_id: newSession.package === "none" ? null : newSession.package,
 					// package_type_id: newSession.packageType === "none" ? null : newSession.packageType,
-					requires_package: newSession.requiresPackage,
-					package_session_credit_cost: newSession.sessionCreditCost,
-					allow_drop_in: newSession.allowDropIn,
-					drop_in_price: newSession.allowDropIn
-						? newSession.dropInPrice || null
-						: null,
+					// requires_package: newSession.requiresPackage,
+					// package_session_credit_cost: newSession.sessionCreditCost,
+					// allow_drop_in: newSession.allowDropIn,
+					// drop_in_price: newSession.allowDropIn
+					// 	? newSession.dropInPrice || null
+					// 	: null,
 				})
 				.select()
 				.single();
@@ -843,13 +840,13 @@ export default function SessionsPage() {
 				if (remaining <= 0) return false;
 
 				// If session requires a specific package
-				if (session.package_id && packageId === session.package_id) {
+				if (session.package_type_id && packageTypeId === session.package_type_id) {
 					return true;
 				}
 
 				// If session requires a package type
 				if (
-					!session.package_id &&
+					!session.package_type_id &&
 					session.packageTypeId &&
 					packageTypeId === session.packageTypeId
 				) {
@@ -1401,7 +1398,7 @@ export default function SessionsPage() {
 											placeholder="Optional session description..."
 										/>
 									</div>
-
+{/* 
 									<div className="grid gap-2">
 										<Label htmlFor="package">Package</Label>
 										<Select
@@ -1421,9 +1418,30 @@ export default function SessionsPage() {
 												))}
 											</SelectContent>
 										</Select>
+									</div> */}
+
+									<div className="grid gap-2">
+										<Label htmlFor="packageType">Package Type</Label>
+										<Select
+											value={newSession.packageType}
+											onValueChange={(value) =>
+												setNewSession((prev) => ({ ...prev, packageType: value }))
+											}>
+											<SelectTrigger>
+												<SelectValue placeholder="Select package type" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="none">No Package Type Required</SelectItem>
+												{packageTypes.map((pkgType) => (
+													<SelectItem key={pkgType.id} value={pkgType.id}>
+														{pkgType.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
 									</div>
 
-									<div className="flex items-center space-x-2">
+									{/* <div className="flex items-center space-x-2">
 										<input
 											type="checkbox"
 											id="requiresPackage"
@@ -1454,9 +1472,9 @@ export default function SessionsPage() {
 												}
 											/>
 										</div>
-									)}
+									)} */}
 
-									<div className="flex items-center space-x-2">
+									{/* <div className="flex items-center space-x-2">
 										<input
 											type="checkbox"
 											id="allowDropIn"
@@ -1469,7 +1487,7 @@ export default function SessionsPage() {
 											}
 										/>
 										<Label htmlFor="allowDropIn">Allow Drop-In</Label>
-									</div>
+										</div>
 									{newSession.allowDropIn && (
 										<div className="grid gap-2">
 											<Label htmlFor="dropInPrice">Drop-In Price</Label>
@@ -1486,8 +1504,8 @@ export default function SessionsPage() {
 												}
 											/>
 										</div>
-									)}
-								</div>
+									)} */}
+								</div> 
 								<DialogFooter>
 									<Button
 										variant="outline"
@@ -1963,7 +1981,11 @@ export default function SessionsPage() {
 						onClose={() => setReactivationDialog({ isOpen: false, session: null })}
 						onConfirm={(data) =>
 							reactivationDialog.session &&
-							handleReactivateSession(reactivationDialog.session, data)
+							handleReactivateSession(reactivationDialog.session, {
+								start_time: data.start_time,
+								end_time: data.end_time,
+								notes: data.notes
+							})
 						}
 						sessionTitle={reactivationDialog.session?.title || ""}
 						isLoading={loading}
